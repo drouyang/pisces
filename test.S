@@ -5,13 +5,16 @@
 #include <asm/msr.h>
 #include <asm/segment.h>
 #include <asm/processor-flags.h>
-#include "realmode.h"
 
     .text
     .code16
 
     .balign PAGE_SIZE
+
 ENTRY(gemini_start)
-    movl $1234, %eax
+    movw $1234, %ax
+    movw $5678, %bx
+    movw $3434, %cx
+    hlt
 do_loop:
     jmp do_loop

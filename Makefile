@@ -1,6 +1,6 @@
 obj-m += gemini.o
 
-gemini-objs := main.o start.o
+gemini-objs := main.o wakeup_secondary.o #trampoline.o
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
