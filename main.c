@@ -6,7 +6,8 @@
 #include<linux/kdev_t.h>    /* MAJOR MINOR MKDEV */
 #include<linux/device.h>    /* udev */
 #include<linux/cdev.h>    /* cdev_init cdev_add */
-#include<asm/uaccess.h> /* get_user and put_user */
+#include<linux/moduleparam.h>    /* module_param */
+#include<linux/stat.h>    /* perms */
 
 #include<linux/init.h>
 #include<linux/smp.h>
@@ -29,8 +30,12 @@
 #define AUTHOR "Jiannan Ouyang <ouyang@cs.pitt.edu>"
 #define DESC "Gemini: native os consolidation"
 
+unsigned long mem_base = 0;
+module_param(mem_base, ulong, S_IRWXU);
 
-//module_param(test, int, S_IRUGO);
+unsigned long mem_len = 0;
+module_param(mem_len, ulong, S_IRWXU);
+
 
 static dev_t dev_num; // <major , minor> 
 static struct class *cl; // <major , minor> 
@@ -87,7 +92,7 @@ static ssize_t device_write(
         loff_t *offset)
 {
     printk(KERN_INFO "Write\n");
-    return 0;
+    return length;
 }
 static long device_ioctl(
         struct file *file,
@@ -96,7 +101,8 @@ static long device_ioctl(
 {
     switch (ioctl_num) {
         case G_IOCTL_PING:
-            printk(KERN_INFO "GEMINI: ioctl <ping> received.\n");
+            printk(KERN_INFO "GEMINI: mem_base 0x%lx, mem_len 0x%lx\n", 
+                    mem_base, mem_len);
             break;
     }
     return 0;

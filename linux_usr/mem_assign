@@ -1,0 +1,15 @@
+#!/bin/python
+if [ $# -ne 2 ]
+then
+echo "Usage: `basename $0` <start block> <num of blocks>"
+exit 
+fi
+
+sudo su -c "cat /sys/devices/system/memory/block_size_bytes > /sys/module/gemini/parameters/mem_block_size"
+sudo su -c "echo $1 > /sys/module/gemini/parameters/mem_block_start"
+sudo su -c "echo $2 > /sys/module/gemini/parameters/mem_block_num"
+
+sudo su -c "cat /sys/module/gemini/parameters/mem_block_size"
+sudo su -c "cat /sys/module/gemini/parameters/mem_block_start"
+sudo su -c "cat /sys/module/gemini/parameters/mem_block_num"
+
