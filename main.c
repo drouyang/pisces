@@ -1,5 +1,13 @@
-#include<linux/module.h>
 #include<linux/kernel.h>
+#include<linux/module.h>
+
+#include<linux/fs.h>    /* device file */
+#include<linux/types.h>    /* dev_t */
+#include<linux/kdev_t.h>    /* MAJOR MINOR MKDEV */
+#include<linux/device.h>    /* udev */
+#include<linux/cdev.h>    /* cdev_init cdev_add */
+#include<asm/uaccess.h> /* get_user and put_user */
+
 #include<linux/init.h>
 #include<linux/smp.h>
 #include<linux/sched.h>
@@ -16,19 +24,141 @@
 #include<asm/cpu.h>
 
 #include"inc/gemini.h"
+#include"inc/gemini_dev.h"      /* device file ioctls*/
 
 #define AUTHOR "Jiannan Ouyang <ouyang@cs.pitt.edu>"
 #define DESC "Gemini: native os consolidation"
 
-//extern unsigned long gemini_trampoline;
-unsigned long get_trampoline_start(void);
+
+//module_param(test, int, S_IRUGO);
+
+static dev_t dev_num; // <major , minor> 
+static struct class *cl; // <major , minor> 
+static struct cdev c_dev;  
+//static int device_major = 0;
+static int ref_count = 0;
+static char msg_buffer[500];
+static char *msg_ptr;
+
+static int device_open(struct inode *inode, struct file *file)
+{
+    printk(KERN_INFO "Open\n");
+    if (ref_count)
+        return -EBUSY;
+    ref_count++;
+    msg_ptr = msg_buffer;
+
+    try_module_get(THIS_MODULE);
+    return 0;
+}
+static int device_release(struct inode *inode, struct file *file)
+{
+    printk(KERN_INFO "Release\n");
+    ref_count--;
+
+    module_put(THIS_MODULE);
+    return 0;
+}
+static ssize_t device_read( 
+        struct file *file,
+        char __user *buffer,
+        size_t length,
+        loff_t *offset)
+{
+    printk(KERN_INFO "Read\n");
+    return 0;
+    /*
+    int bytes_read = 0;
+
+    if (*msg_ptr == 0) return 0;
+
+    while (length && *msg_ptr) {
+        put_user(*(msg_ptr++), buffer++);
+        length--;
+        bytes_read++;
+    }
+    return bytes_read;
+    */
+}
+static ssize_t device_write(
+        struct file *file,
+        const char __user *buffer,
+        size_t length,
+        loff_t *offset)
+{
+    printk(KERN_INFO "Write\n");
+    return 0;
+}
+static long device_ioctl(
+        struct file *file,
+        unsigned int ioctl_num,
+        unsigned long ioctl_param)
+{
+    switch (ioctl_num) {
+        case G_IOCTL_PING:
+            printk(KERN_INFO "GEMINI: ioctl <ping> received.\n");
+            break;
+    }
+    return 0;
+}
+static struct file_operations fops = {
+    .owner = THIS_MODULE,
+    .read = device_read,
+    .write = device_write,
+    .unlocked_ioctl = device_ioctl,
+    .open = device_open,
+    .release = device_release
+};
+
+// return device major number, -1 if failed
+static int device_init(void)
+{
+    if (alloc_chrdev_region(&dev_num, 0, 1, "gemini") < 0)
+    {
+            return -1;
+    }
+    printk(KERN_INFO "<Major, Minor>: <%d, %d>\n", MAJOR(dev_num), MINOR(dev_num));
+
+    if ((cl = class_create(THIS_MODULE, "gemini")) == NULL) {
+        unregister_chrdev_region(dev_num, 1);
+        return -1;
+    }
+    
+    if (device_create(cl, NULL, dev_num, NULL, "gemini") == NULL)
+    {
+        class_destroy(cl);
+        unregister_chrdev_region(dev_num, 1);
+        return -1;
+    }
+
+    cdev_init(&c_dev, &fops);
+
+    if (cdev_add(&c_dev, dev_num, 1) == -1) {
+        device_destroy(cl, dev_num);
+        class_destroy(cl);
+        unregister_chrdev_region(dev_num, 1);
+        return -1;
+    }
+
+
+    return 0;
+}
+
+static void device_exit(void)
+{
+    cdev_del(&c_dev);
+    device_destroy(cl, dev_num);
+    class_destroy(cl);
+    unregister_chrdev_region(dev_num, 1);
+}
 
 void __init start_secondary(void)
 {
     printk(KERN_INFO "GEMINI: jumped back\n");
     native_halt();
 }
-static int foo(int cpu) 
+
+static int kick_offline_cpu(int cpu) 
 {
     int ret = 0;
     int apicid = apic->cpu_present_to_apicid(1);
@@ -61,28 +191,30 @@ static int foo(int cpu)
     return ret;
 
 }
-static int __init gemini_init(void)
+
+static int gemini_init(void)
 {
         int ret = 0;
 
 	printk(KERN_INFO "GEMINI: loaded\n");
 
-        ret = foo(1);   
+        ret = device_init();
+        if (ret < 0) {
+            printk(KERN_INFO "GEMINI: device file registeration failed\n");
+            return -1;
+        }
 
-        printk(KERN_INFO "GEMINI: smp call return: %d\n", ret);
+        //ret = kick_offline_cpu(1);   
+        //printk(KERN_INFO "GEMINI: smp call return: %d\n", ret);
         
 	return 0;
 }
 
 static void __exit gemini_exit(void)
 {
+        device_exit();
 	printk(KERN_INFO "GEMINI: unloaded\n");
 	return;
-}
-
-int entry(void)
-{
-    while(1);
 }
 
 module_init(gemini_init);
