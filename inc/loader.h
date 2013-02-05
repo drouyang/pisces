@@ -11,5 +11,5 @@ typedef struct bootstrap_pgt {
 } bootstrap_pgt_t;
 
 void bootstrap_pgtable_init(unsigned long mem_base, unsigned long mem_len);
-void load_image(char *path, unsigned long mem_base);
+long load_image(char *path, unsigned long mem_base);
 #endif

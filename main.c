@@ -1,3 +1,7 @@
+#include"inc/gemini.h"
+#include"inc/loader.h"
+#include"inc/gemini_dev.h"      /* device file ioctls*/
+
 #include<linux/kernel.h>
 #include<linux/module.h>
 
@@ -24,12 +28,12 @@
 #include<asm/idle.h>
 #include<asm/cpu.h>
 
-#include"inc/gemini.h"
-#include"inc/loader.h"
-#include"inc/gemini_dev.h"      /* device file ioctls*/
 
 #define AUTHOR "Jiannan Ouyang <ouyang@cs.pitt.edu>"
 #define DESC "Gemini: native os consolidation"
+
+
+extern bootstrap_pgt_t *bootstrap_pgt;
 
 unsigned long mem_base = 0;
 module_param(mem_base, ulong, S_IRWXU);
@@ -40,23 +44,38 @@ module_param(mem_len, ulong, S_IRWXU);
 unsigned long cpu_id = 1;
 module_param(cpu_id, ulong, S_IRWXU);
 
-char *path = "/tmp/test.bin";
+char *path = "/home/ouyang/gemini/kitten-1.3.0/vmlwk.bin";
+module_param(path, charp, S_IRWXU);
+
 
 
 static dev_t dev_num; // <major , minor> 
 static struct class *cl; // <major , minor> 
 static struct cdev c_dev;  
 
-static void hooker(void)
+void __init hooker(void)
 {
+    unsigned long pgd_phys = __pa((unsigned long)bootstrap_pgt->level4_pgt);
+
     printk(KERN_INFO "GEMINI: jumped back\n");
-    native_halt();
+    /*
+    __asm__ ( "movq %0, %%rax\n\t"
+            "movq %%rax, %%cr3\n\t"
+            "movq $1f, %%rax\n\t"
+            "jmp *%%rax\n\t"
+            "1:\n\t"
+            "movq %1, %%rax\n\t"
+            "jmp *%%rax\n\t"
+            : 
+            : "r" (pgd_phys), "r" (mem_base)
+            : "%rax");
+            */
 }
 
 static int kick_offline_cpu(int cpu) 
 {
     int ret = 0;
-    int apicid = apic->cpu_present_to_apicid(1);
+    int apicid = apic->cpu_present_to_apicid(cpu);
     unsigned long start_ip = real_mode_header->trampoline_start;
     /*
     struct task_struct *idle;
@@ -77,7 +96,7 @@ static int kick_offline_cpu(int cpu)
     stack_start = idle->thread.sp;
         */
     //early_gdt_descr.address = (unsigned long)per_cpu(gdt_page, cpu).gdt;
-    printk(KERN_INFO "GEMINI: start_ip %lx; target ip: %lx\n", start_ip, (unsigned long)hooker);
+    //printk(KERN_INFO "GEMINI: start_ip %lx; target ip: %lx\n", start_ip, (unsigned long)hooker);
 
     initial_code = (unsigned long) hooker;
 
@@ -89,14 +108,14 @@ static int kick_offline_cpu(int cpu)
 
 static int device_open(struct inode *inode, struct file *file)
 {
-    printk(KERN_INFO "Open\n");
+    //printk(KERN_INFO "Open\n");
 
     try_module_get(THIS_MODULE);
     return 0;
 }
 static int device_release(struct inode *inode, struct file *file)
 {
-    printk(KERN_INFO "Release\n");
+    //printk(KERN_INFO "Release\n");
 
     module_put(THIS_MODULE);
     return 0;
@@ -124,11 +143,11 @@ static long device_ioctl(
         unsigned int ioctl_num,
         unsigned long ioctl_param)
 {
+    long ret;
     switch (ioctl_num) {
         case G_IOCTL_PING:
-            printk(KERN_INFO "GEMINI: mem_base 0x%lx, mem_len 0x%lx\n", 
-                    mem_base, mem_len);
-            load_image(path, mem_base);
+            printk(KERN_INFO "GEMINI: mem_base 0x%lx, mem_len 0x%lx, cpuid %lu, path '%s'\n", 
+                    mem_base, mem_len, cpu_id, path);
             break;
 
         case G_IOCTL_PREPARE_SECONDARY:
@@ -139,8 +158,9 @@ static long device_ioctl(
 
         case G_IOCTL_LOAD_IMAGE:
 
-            printk(KERN_INFO "GEMINI: load kitten to 0x%lx\n", mem_base);
-            load_image(path, mem_base);
+            ret = load_image(path, mem_base);
+            printk(KERN_INFO "GEMINI: load %lu bytes (%lu KB) to physicall address 0x%lx from %s\n",
+                    ret, ret/1024, mem_base, path);
 
             break;
 
@@ -150,9 +170,27 @@ static long device_ioctl(
 
             break;
 
+        case G_IOCTL_PRINT_IMAGE:
+            {
+                long *p = (long *)__va(mem_base);
+                //long *p = (long *)0x8000000;
+                int t=10;
+                printk(KERN_INFO "GEMINI: physicall address 0x%lx\n", mem_base);
+                while (t>0) {
+                    printk(KERN_INFO "%p\t", (void *)*p);
+                    p++;
+                    t--;
+                }
+
+                break;
+            
+            }
+
+
     }
     return 0;
 }
+
 static struct file_operations fops = {
     .owner = THIS_MODULE,
     .read = device_read,
@@ -170,7 +208,7 @@ static int device_init(void)
     {
             return -1;
     }
-    printk(KERN_INFO "<Major, Minor>: <%d, %d>\n", MAJOR(dev_num), MINOR(dev_num));
+    //printk(KERN_INFO "<Major, Minor>: <%d, %d>\n", MAJOR(dev_num), MINOR(dev_num));
 
     if ((cl = class_create(THIS_MODULE, "gemini")) == NULL) {
         unregister_chrdev_region(dev_num, 1);
@@ -212,11 +250,12 @@ static int gemini_init(void)
 
 	printk(KERN_INFO "GEMINI: loaded\n");
 
-        ret = device_init();
+        //ret = device_init();
         if (ret < 0) {
             printk(KERN_INFO "GEMINI: device file registeration failed\n");
             return -1;
         }
+        kick_offline_cpu(1);
 
 	return 0;
 }

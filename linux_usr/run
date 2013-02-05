@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# offline 1
+cpurm 1
+memrm 1
+
+# assign offlined memory to gemini
+mem_assign
+
+# ping
+ioctl 1000
+
+# prepare
+ioctl 1001
+
+dm
+

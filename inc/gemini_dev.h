@@ -8,6 +8,7 @@
 
 /* Gemini global ioctls */
 
+#define G_IOCTL_MIN    1000
 #define G_IOCTL_PING    1000
 
 // Initialized mem_base and mem_size params before prepare secondary
@@ -18,5 +19,8 @@
 
 // Boot secondary cpu via INIT, secondary cpu will jump to hooker() in long mode
 #define G_IOCTL_START_SECONDARY    1003
+
+#define G_IOCTL_PRINT_IMAGE    1004
+#define G_IOCTL_MAX    1004
 
 #endif

@@ -44,7 +44,7 @@ void bootstrap_pgtable_init(unsigned long mem_base, unsigned long mem_len)
     return;
 }
 
-void load_image(char *path, unsigned long mem_base)
+long load_image(char *path, unsigned long mem_base)
 {
     struct file* filp = NULL;
     mm_segment_t oldfs;
@@ -59,20 +59,20 @@ void load_image(char *path, unsigned long mem_base)
     filp = filp_open(path, O_RDWR, 0);
     if(IS_ERR(filp)) {
         err = PTR_ERR(filp);
-        return ;
+        return 0;
     }
 
     // read
     pos = 0;
     vfs_read(filp, __va(mem_base), 512 * 1024 * 1024, &pos);
-    printk(KERN_INFO "GEMINI: read %ld bytes (%lu KB) from file\n", (long) pos, (long) pos / 1024);
+    //printk(KERN_INFO "GEMINI: read %ld bytes (%lu KB) from file\n", (long) pos, (long) pos / 1024);
 
     //printk(KERN_INFO "GEMINI: %s", (char *)__va(mem_base));
     
     // close 
     set_fs(oldfs);
     filp_close(filp, NULL);
-    return;
+    return (long) pos;
 }
 
 void loader_exit(void) {

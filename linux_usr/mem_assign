@@ -1,7 +1,7 @@
 #!/bin/bash
-sudo su -c "echo 134217728 > /sys/module/gemini/parameters/mem_base"
-sudo su -c "echo 134217728 > /sys/module/gemini/parameters/mem_len"
+sudo su -c "echo -n 134217728 > /sys/module/gemini/parameters/mem_base"
+sudo su -c "echo -n 134217728 > /sys/module/gemini/parameters/mem_len"
 
-sudo su -c "cat /sys/module/gemini/parameters/mem_base"
-sudo su -c "cat /sys/module/gemini/parameters/mem_len"
+#sudo su -c "cat /sys/module/gemini/parameters/mem_base"
+#sudo su -c "cat /sys/module/gemini/parameters/mem_len"
 
