@@ -25,6 +25,7 @@
 #include<asm/cpu.h>
 
 #include"inc/gemini.h"
+#include"inc/loader.h"
 #include"inc/gemini_dev.h"      /* device file ioctls*/
 
 #define AUTHOR "Jiannan Ouyang <ouyang@cs.pitt.edu>"
@@ -36,22 +37,59 @@ module_param(mem_base, ulong, S_IRWXU);
 unsigned long mem_len = 0;
 module_param(mem_len, ulong, S_IRWXU);
 
+unsigned long cpu_id = 1;
+module_param(cpu_id, ulong, S_IRWXU);
+
+char *path = "/tmp/test.bin";
+
 
 static dev_t dev_num; // <major , minor> 
 static struct class *cl; // <major , minor> 
 static struct cdev c_dev;  
-//static int device_major = 0;
-static int ref_count = 0;
-static char msg_buffer[500];
-static char *msg_ptr;
+
+static void hooker(void)
+{
+    printk(KERN_INFO "GEMINI: jumped back\n");
+    native_halt();
+}
+
+static int kick_offline_cpu(int cpu) 
+{
+    int ret = 0;
+    int apicid = apic->cpu_present_to_apicid(1);
+    unsigned long start_ip = real_mode_header->trampoline_start;
+    /*
+    struct task_struct *idle;
+
+    idle = (struct task_struct *)kmalloc(sizeof(struct task_struct), GFP_KERNEL);
+    init_idle(idle, cpu);
+    if (IS_ERR(idle)) {
+        printk(KERN_INFO "GEMINI: idle_thread_get error %p\n", idle);
+    }
+
+    idle->thread.sp = (unsigned long) (((struct pt_regs *) (THREAD_SIZE + task_stack_page(idle))) - 1);
+    per_cpu(current_task, cpu) = idle;
+    clear_tsk_thread_flag(idle, TIF_FORK);
+    initial_gs = per_cpu_offset(cpu);
+    per_cpu(kernel_stack, cpu) = 
+        (unsigned long) task_stack_page(idle) -
+        KERNEL_STACK_OFFSET + THREAD_SIZE;
+    stack_start = idle->thread.sp;
+        */
+    //early_gdt_descr.address = (unsigned long)per_cpu(gdt_page, cpu).gdt;
+    printk(KERN_INFO "GEMINI: start_ip %lx; target ip: %lx\n", start_ip, (unsigned long)hooker);
+
+    initial_code = (unsigned long) hooker;
+
+    //ret = wakeup_secondary_cpu_via_init(apicid, gemini_trampoline);
+    ret = wakeup_secondary_cpu_via_init(apicid, start_ip);
+    return ret;
+
+}
 
 static int device_open(struct inode *inode, struct file *file)
 {
     printk(KERN_INFO "Open\n");
-    if (ref_count)
-        return -EBUSY;
-    ref_count++;
-    msg_ptr = msg_buffer;
 
     try_module_get(THIS_MODULE);
     return 0;
@@ -59,7 +97,6 @@ static int device_open(struct inode *inode, struct file *file)
 static int device_release(struct inode *inode, struct file *file)
 {
     printk(KERN_INFO "Release\n");
-    ref_count--;
 
     module_put(THIS_MODULE);
     return 0;
@@ -72,18 +109,6 @@ static ssize_t device_read(
 {
     printk(KERN_INFO "Read\n");
     return 0;
-    /*
-    int bytes_read = 0;
-
-    if (*msg_ptr == 0) return 0;
-
-    while (length && *msg_ptr) {
-        put_user(*(msg_ptr++), buffer++);
-        length--;
-        bytes_read++;
-    }
-    return bytes_read;
-    */
 }
 static ssize_t device_write(
         struct file *file,
@@ -103,7 +128,28 @@ static long device_ioctl(
         case G_IOCTL_PING:
             printk(KERN_INFO "GEMINI: mem_base 0x%lx, mem_len 0x%lx\n", 
                     mem_base, mem_len);
+            load_image(path, mem_base);
             break;
+
+        case G_IOCTL_PREPARE_SECONDARY:
+
+            printk(KERN_INFO "GEMINI: setup bootstrap page table for [0x%lx, 0x%lx)\n", 
+                    mem_base, mem_base+mem_len);
+            bootstrap_pgtable_init(mem_base, mem_len);
+
+        case G_IOCTL_LOAD_IMAGE:
+
+            printk(KERN_INFO "GEMINI: load kitten to 0x%lx\n", mem_base);
+            load_image(path, mem_base);
+
+            break;
+
+        case G_IOCTL_START_SECONDARY:
+            printk(KERN_INFO "GEMINI: start secondary cpu %ld\n", cpu_id);
+            kick_offline_cpu(cpu_id);
+
+            break;
+
     }
     return 0;
 }
@@ -112,6 +158,7 @@ static struct file_operations fops = {
     .read = device_read,
     .write = device_write,
     .unlocked_ioctl = device_ioctl,
+    .compat_ioctl = device_ioctl,
     .open = device_open,
     .release = device_release
 };
@@ -158,45 +205,6 @@ static void device_exit(void)
     unregister_chrdev_region(dev_num, 1);
 }
 
-void __init start_secondary(void)
-{
-    printk(KERN_INFO "GEMINI: jumped back\n");
-    native_halt();
-}
-
-static int kick_offline_cpu(int cpu) 
-{
-    int ret = 0;
-    int apicid = apic->cpu_present_to_apicid(1);
-    unsigned long start_ip = real_mode_header->trampoline_start;
-    /*
-    struct task_struct *idle;
-
-    idle = (struct task_struct *)kmalloc(sizeof(struct task_struct), GFP_KERNEL);
-    init_idle(idle, cpu);
-    if (IS_ERR(idle)) {
-        printk(KERN_INFO "GEMINI: idle_thread_get error %p\n", idle);
-    }
-
-    idle->thread.sp = (unsigned long) (((struct pt_regs *) (THREAD_SIZE + task_stack_page(idle))) - 1);
-    per_cpu(current_task, cpu) = idle;
-    clear_tsk_thread_flag(idle, TIF_FORK);
-    initial_gs = per_cpu_offset(cpu);
-    per_cpu(kernel_stack, cpu) = 
-        (unsigned long) task_stack_page(idle) -
-        KERNEL_STACK_OFFSET + THREAD_SIZE;
-    stack_start = idle->thread.sp;
-        */
-    //early_gdt_descr.address = (unsigned long)per_cpu(gdt_page, cpu).gdt;
-    printk(KERN_INFO "GEMINI: start_ip %lx; target ip: %lx\n", start_ip, (unsigned long)start_secondary);
-
-    initial_code = (unsigned long) start_secondary;
-
-    //ret = wakeup_secondary_cpu_via_init(apicid, gemini_trampoline);
-    ret = wakeup_secondary_cpu_via_init(apicid, start_ip);
-    return ret;
-
-}
 
 static int gemini_init(void)
 {
@@ -210,9 +218,6 @@ static int gemini_init(void)
             return -1;
         }
 
-        //ret = kick_offline_cpu(1);   
-        //printk(KERN_INFO "GEMINI: smp call return: %d\n", ret);
-        
 	return 0;
 }
 
