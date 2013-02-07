@@ -69,12 +69,13 @@ static void hooker(void)
             "jmp *%%rax\n\t"
             "1:\n\t"
             "movq %1, %%rax\n\t"
-            "hlt\n\t"
-            "movq (%%rax), %%rbx\n\t"
+            "movq $0x5a5a, %%rbx\n\t"
+            "movq (%%rax), %%rcx\n\t"
             "jmp *%%rax\n\t"
+            "hlt\n\t"
             : 
             : "r" (pgd_phys), "r" (target)
-            : "%rax", "%rbx");
+            : "%rax", "%rbx", "%rcx");
 }
 
 static int kick_offline_cpu(void) 
