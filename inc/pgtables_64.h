@@ -19,9 +19,11 @@
 
 
 /* Gets the base address needed for a Page Table entry */
-#define PAGE_TO_BASE_ADDR(x) ((x) >> 21)
+#define PAGE_TO_BASE_ADDR(x) (((uintptr_t)x) >> 12)
+#define PAGE_TO_BASE_ADDR_2MB(x) (((uintptr_t)x) >> 21)
 
-#define BASE_TO_PAGE_ADDR(x) (((uintptr_t)x) << 21)
+#define BASE_TO_PAGE_ADDR(x) (((uintptr_t)x) << 12)
+#define BASE_TO_PAGE_ADDR_2MB(x) (((uintptr_t)x) << 21)
 
 
 #define PAGE_OFFSET_2MB(x) ((x) & 0x1fffff)

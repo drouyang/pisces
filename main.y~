@@ -60,17 +60,17 @@ void test(void)
 static void hooker(void)
 {
     unsigned long pgd_phys = __pa((unsigned long)bootstrap_pgt->level4_pgt);
-    unsigned long target = (unsigned long)(mem_base);
+    unsigned long target = (unsigned long)__va(mem_base);
 
-    printk(KERN_INFO "GEMINI: enter hooker, load cr3 %lx\n", pgd_phys);
+    printk(KERN_INFO "GEMINI: enter hooker\n");
     __asm__ ( "movq %0, %%rax\n\t"
             "movq %%rax, %%cr3\n\t"
             "movq $1f, %%rax\n\t"
             "jmp *%%rax\n\t"
             "1:\n\t"
             "movq %1, %%rax\n\t"
-            "hlt\n\t"
             "movq (%%rax), %%rbx\n\t"
+            "hlt\n\t"
             "jmp *%%rax\n\t"
             : 
             : "r" (pgd_phys), "r" (target)
@@ -269,7 +269,7 @@ static int gemini_init(void)
                 long *p = (long *)__va(mem_base);
                 //long *p = (long *)0x8000000;
                 int t=10;
-                printk(KERN_INFO "GEMINI: pa 0x%lx, va 0x%lx\n", mem_base, (unsigned long)p);
+                printk(KERN_INFO "GEMINI: physicall address 0x%lx\n", mem_base);
                 while (t>0) {
                     printk(KERN_INFO "%p\t", (void *)*p);
                     p++;

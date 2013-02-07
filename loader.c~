@@ -50,9 +50,9 @@ void pgtable_setup_ident(unsigned long mem_base, unsigned long mem_len)
         memcpy(bootstrap_pgt->level4_pgt, pgd_base, sizeof(NUM_PGD_ENTRIES*sizeof(u64)));
 
         //pgde->base_addr = PAGE_TO_BASE_ADDR(__pa(bootstrap_pgt->level3_ident_pgt));
-        //pgde->present = 1; 
-        //pgde->writable = 1; 
-        //pgde->accessed = 1; 
+        pgde->present = 1; 
+        pgde->writable = 1; 
+        pgde->accessed = 1; 
 
         //bootstrap_pgt->level4_pgt[0] = *((pgd_2MB_t *)&level3_ident_pgt);
         tmp = PAGE_TO_BASE_ADDR(__pa(bootstrap_pgt->level3_ident_pgt));
@@ -70,16 +70,14 @@ void pgtable_setup_ident(unsigned long mem_base, unsigned long mem_len)
         printk("GEMINI: level3[%llu].base_addr = %llx\n", PUD_INDEX(mem_base), tmp);
 
         for (i = 0; i < NUM_PMD_ENTRIES; i++) {
-            bootstrap_pgt->level2_ident_pgt[i].base_addr = PAGE_TO_BASE_ADDR_2MB(mem_base + (i<<PAGE_POWER_2MB));
+            bootstrap_pgt->level2_ident_pgt[i].base_addr = PAGE_TO_BASE_ADDR(__pa(mem_base + (i<<PAGE_POWER_2MB)));
             bootstrap_pgt->level2_ident_pgt[i].present = 1;
             bootstrap_pgt->level2_ident_pgt[i].writable = 1;
             bootstrap_pgt->level2_ident_pgt[i].accessed = 1;
             bootstrap_pgt->level2_ident_pgt[i].large_page = 1;
         }
-        printk("GEMINI: level2[0].base_addr = %llx\n", (u64) bootstrap_pgt->level2_ident_pgt[0].base_addr);
-        printk("GEMINI: level2[1].base_addr = %llx\n", (u64) bootstrap_pgt->level2_ident_pgt[1].base_addr);
-        //printk("GEMINI: cr3 va: 0x%lx\n", (unsigned long) pgd_base);
-        //printk("GEMINI: cr3[0].base_addr: 0x%lx\n", (unsigned long) pgd_base[0].base_addr);
+        printk("GEMINI: cr3 va: 0x%lx\n", (unsigned long) pgd_base);
+        printk("GEMINI: cr3[0].base_addr: 0x%lx\n", (unsigned long) pgd_base[0].base_addr);
     }
 
     return;
