@@ -1,0 +1,1 @@
+cmd_/home/ouyang/gemini/gemini/gemini.ko := ld -r -m elf_x86_64 -T /home/ouyang/gemini/linux-3.7.1/scripts/module-common.lds --build-id  -o /home/ouyang/gemini/gemini/gemini.ko /home/ouyang/gemini/gemini/gemini.o /home/ouyang/gemini/gemini/gemini.mod.o

@@ -62,20 +62,19 @@ static void hooker(void)
     unsigned long pgd_phys = __pa((unsigned long)bootstrap_pgt->level4_pgt);
     unsigned long target = (unsigned long)(mem_base);
 
-    printk(KERN_INFO "GEMINI: enter hooker, load cr3 %lx\n", pgd_phys);
+    printk(KERN_INFO "GEMINI: enter hooker\n");
     __asm__ ( "movq %0, %%rax\n\t"
             "movq %%rax, %%cr3\n\t"
             "movq $1f, %%rax\n\t"
             "jmp *%%rax\n\t"
             "1:\n\t"
             "movq %1, %%rax\n\t"
-            "movq $0x5a5a, %%rbx\n\t"
-            "movq (%%rax), %%rcx\n\t"
-            "jmp *%%rax\n\t"
+            "movq (%%rax), %%rbx\n\t"
             "hlt\n\t"
+            "jmp *%%rax\n\t"
             : 
             : "r" (pgd_phys), "r" (target)
-            : "%rax", "%rbx", "%rcx");
+            : "%rax", "%rbx");
 }
 
 static int kick_offline_cpu(void) 
