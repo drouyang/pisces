@@ -1,1 +1,0 @@
-cmd_/home/ouyang/gemini/gemini/gemini.o := ld -m elf_x86_64   -r -o /home/ouyang/gemini/gemini/gemini.o /home/ouyang/gemini/gemini/main.o /home/ouyang/gemini/gemini/wakeup_secondary.o /home/ouyang/gemini/gemini/loader.o 
