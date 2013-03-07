@@ -1,0 +1,2 @@
+sudo insmod /home/ouyang/gemini/gemini/gemini.ko
+sudo chmod 666 /dev/gemini 

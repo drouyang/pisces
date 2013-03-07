@@ -47,6 +47,11 @@ module_param(cpu_id, ulong, S_IRWXU);
 char *path = "/home/ouyang/gemini/kitten-1.3.0/vmlwk.bin";
 module_param(path, charp, S_IRWXU);
 
+char *initrd_path = "/home/ouyang/gemini/kitten-1.3.0/arch/x86_64/boot/isoimage/initrd.img";
+module_param(initrd_path, charp, S_IRWXU);
+
+char *boot_cmd_line = "console=serial init_argv=\"one two three\" init_envp=\"a=1 b=2 c=3\"";
+module_param(boot_cmd_line, charp, S_IRWXU);
 
 
 static dev_t dev_num; // <major , minor> 
@@ -264,6 +269,9 @@ static int gemini_init(void)
             printk(KERN_INFO "GEMINI: device file registeration failed\n");
             return -1;
         }
+
+#if 1
+        // load and start sibling OS without ioctl
         pgtable_setup_ident(mem_base, mem_len);
         load_image(path, mem_base);
             {
@@ -278,6 +286,7 @@ static int gemini_init(void)
                 }
             }
         kick_offline_cpu();
+#endif
 
 	return 0;
 }
