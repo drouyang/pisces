@@ -54,6 +54,8 @@ char *boot_cmd_line = "console=serial init_argv=\"one two three\" init_envp=\"a=
 module_param(boot_cmd_line, charp, S_IRWXU);
 
 
+int wakeup_secondary_cpu_via_init(int, unsigned long);
+
 static dev_t dev_num; // <major , minor> 
 static struct class *cl; // <major , minor> 
 static struct cdev c_dev;  

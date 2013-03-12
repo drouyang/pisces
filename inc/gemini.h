@@ -11,54 +11,30 @@
 #define _GEMINI_H_
 
 #define GEMINI_MAGIC 0xABCD
+typedef unsigned long long u64;
+typedef unsigned int u32;
 
-typedef unsigned char gemini_spinlock_t;
 
 /* REP NOP (PAUSE) is a good thing to insert into busy-wait loops. */
-static inline void rep_nop(void)
+static inline void gemini_cpu_relax(void)
 {
 	__asm__ __volatile__("rep;nop": : :"memory");
 }
-
-#define cpu_relax()   rep_nop()
-
-#define xchg(ptr,v) ((__typeof__(*(ptr)))__xchg((unsigned long)(v),(ptr),sizeof(*(ptr))))
 
 /*
  * Note: no "lock" prefix even on SMP: xchg always implies lock anyway
  * Note 2: xchg has side effect, so that attribute volatile is necessary,
  *	  but generally the primitive is invalid, *ptr is output argument. --ANK
  */
-static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int size)
+static inline unsigned long gemini_xchg8(volatile void * ptr, unsigned char x )
 {
-	switch (size) {
-		case 1:
-			__asm__ __volatile__("xchgb %b0,%1"
-				:"=q" (x)
-				:"m" (*__xg(ptr)), "0" (x)
-				:"memory");
-			break;
-		case 2:
-			__asm__ __volatile__("xchgw %w0,%1"
-				:"=r" (x)
-				:"m" (*__xg(ptr)), "0" (x)
-				:"memory");
-			break;
-		case 4:
-			__asm__ __volatile__("xchgl %k0,%1"
-				:"=r" (x)
-				:"m" (*__xg(ptr)), "0" (x)
-				:"memory");
-			break;
-		case 8:
-			__asm__ __volatile__("xchgq %0,%1"
-				:"=r" (x)
-				:"m" (*__xg(ptr)), "0" (x)
-				:"memory");
-			break;
-	}
-	return x;
+  __asm__ __volatile__("xchgb %0,%1"
+                       :"=r" (x)
+                       :"m" (*(volatile unsigned char *)ptr), "0" (x)
+                       :"memory");
+  return x;
 }
+typedef unsigned char gemini_spinlock_t;
 
 static inline void gemini_spin_init(gemini_spinlock_t *lock)
 {
@@ -67,13 +43,13 @@ static inline void gemini_spin_init(gemini_spinlock_t *lock)
 static inline void gemini_spin_lock(gemini_spinlock_t *lock)
 {
   while (1) {
-    if(xchg(lock, 1)) return;
-    while(*lock) cpu_relax();
+    if(gemini_xchg8(lock, 1)) return;
+    while(*lock) gemini_cpu_relax();
   }
 }
 static inline void gemini_spin_unlock(gemini_spinlock_t *lock)
 {
-  barrier();
+  __asm__ __volatile__ ("": : :"memory");
   *lock = 0;
 }
 
