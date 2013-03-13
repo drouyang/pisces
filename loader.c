@@ -1,5 +1,6 @@
 #include"inc/loader.h"
 #include"inc/pgtables_64.h"
+#include"inc/gemini.h"
 
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
@@ -8,13 +9,13 @@
 
 #define ORDER 2
 
-extern char *path;
 bootstrap_pgt_t *bootstrap_pgt = NULL;
 
 void map_offline_memory(unsigned long mem_base, unsigned long mem_len) {
 
 };
 
+// setup bootstrap page tables - bootstrap_pgt
 void pgtable_setup_ident(unsigned long mem_base, unsigned long mem_len)
 {
 
@@ -92,7 +93,7 @@ void pgtable_setup_ident(unsigned long mem_base, unsigned long mem_len)
     return;
 }
 
-long load_image(char *path, unsigned long mem_base)
+long load_image(char *path, unsigned long addr)
 {
     struct file* filp = NULL;
     mm_segment_t oldfs;
@@ -112,10 +113,10 @@ long load_image(char *path, unsigned long mem_base)
 
     // read
     pos = 0;
-    vfs_read(filp, __va(mem_base), 512 * 1024 * 1024, &pos);
+    vfs_read(filp, __va(addr), 512 * 1024 * 1024, &pos);
     //printk(KERN_INFO "GEMINI: read %ld bytes (%lu KB) from file\n", (long) pos, (long) pos / 1024);
 
-    //printk(KERN_INFO "GEMINI: %s", (char *)__va(mem_base));
+    //printk(KERN_INFO "GEMINI: %s", (char *)__va(addr));
 
     // close 
     set_fs(oldfs);
@@ -125,4 +126,46 @@ long load_image(char *path, unsigned long mem_base)
 
 void loader_exit(void) {
     free_pages((unsigned long)bootstrap_pgt, ORDER);
+}
+
+extern char *kernel_path;
+extern char *initrd_path;
+struct boot_params_t *setup_memory_layout(struct gemini_mmap_t *mmap) 
+{
+    long mem_base = mmap->map[0].addr;
+    long base = mem_base;
+    long offset = 0;
+    struct shared_info_t *shared_info;
+    struct boot_params_t *boot_params;
+
+    BUG_ON(mmap->nr_map < 1);
+
+    // 1. shared_info
+    shared_info = (struct shared_info_t *)__va(base);
+    memset((void *)shared_info, 0, sizeof(struct shared_info_t));
+    offset += sizeof(struct shared_info_t);
+    printk(KERN_INFO "GEMINI: shared_info base 0x%lx offset %ld\n", base, offset);
+
+    // boot params for memory map
+    boot_params = &shared_info->boot_params;
+    memcpy(&boot_params->mmap, mmap, sizeof(struct gemini_mmap_t));
+    
+    // 2. kernel image
+    base = mem_base + (((offset>>PAGE_SHIFT)+1)<<PAGE_SHIFT); //roundup
+    offset = load_image(kernel_path, base);
+    printk(KERN_INFO "GEMINI: kernel base 0x%lx offset %ld\n", base, offset);
+
+    boot_params->kernel_addr = base;
+    boot_params->kernel_size = offset;
+
+    // 3. initrd 
+    base = mem_base + (((offset>>PAGE_SHIFT)+1)<<PAGE_SHIFT); //roundup
+    offset = load_image(initrd_path, base);
+    printk(KERN_INFO "GEMINI: initrd base 0x%lx offset %ld\n", base, offset);
+
+    boot_params->initrd_addr = base;
+    boot_params->initrd_size = offset;
+
+    return boot_params;
+    
 }

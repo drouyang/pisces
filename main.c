@@ -44,8 +44,8 @@ module_param(mem_len, ulong, S_IRWXU);
 unsigned long cpu_id = 1;
 module_param(cpu_id, ulong, S_IRWXU);
 
-char *path = "/home/ouyang/gemini/kitten-1.3.0/vmlwk.bin";
-module_param(path, charp, S_IRWXU);
+char *kernel_path = "/home/ouyang/gemini/kitten-1.3.0/vmlwk.bin";
+module_param(kernel_path, charp, S_IRWXU);
 
 char *initrd_path = "/home/ouyang/gemini/kitten-1.3.0/arch/x86_64/boot/isoimage/initrd.img";
 module_param(initrd_path, charp, S_IRWXU);
@@ -59,6 +59,8 @@ int wakeup_secondary_cpu_via_init(int, unsigned long);
 static dev_t dev_num; // <major , minor> 
 static struct class *cl; // <major , minor> 
 static struct cdev c_dev;  
+static struct gemini_mmap_t gemini_mmap;
+static struct boot_params_t *boot_params;
 
 void test(void)
 {
@@ -67,7 +69,7 @@ void test(void)
 static void hooker(void)
 {
     unsigned long pgd_phys = __pa((unsigned long)bootstrap_pgt->level4_pgt);
-    unsigned long target = (unsigned long)(mem_base);
+    unsigned long target = (unsigned long)(boot_params->kernel_addr);
 
     printk(KERN_INFO "GEMINI: enter hooker, load cr3 %lx\n", pgd_phys);
     __asm__ ( "movq %0, %%rax\n\t"
@@ -85,40 +87,54 @@ static void hooker(void)
             : "%rax", "%rbx", "%rcx");
 }
 
+// use linux trampoline code to init offlined cpu, but hijack and jump to hooker
+// in hooker, setup ident mapping and jump to kernel code
 static int kick_offline_cpu(void) 
 {
     int ret = 0;
     int apicid = apic->cpu_present_to_apicid(cpu_id);
     unsigned long start_ip = real_mode_header->trampoline_start;
-    /*
-    struct task_struct *idle;
-
-    idle = (struct task_struct *)kmalloc(sizeof(struct task_struct), GFP_KERNEL);
-    init_idle(idle, cpu);
-    if (IS_ERR(idle)) {
-        printk(KERN_INFO "GEMINI: idle_thread_get error %p\n", idle);
-    }
-
-    idle->thread.sp = (unsigned long) (((struct pt_regs *) (THREAD_SIZE + task_stack_page(idle))) - 1);
-    per_cpu(current_task, cpu) = idle;
-    clear_tsk_thread_flag(idle, TIF_FORK);
-    initial_gs = per_cpu_offset(cpu);
-    per_cpu(kernel_stack, cpu) = 
-        (unsigned long) task_stack_page(idle) -
-        KERNEL_STACK_OFFSET + THREAD_SIZE;
-    stack_start = idle->thread.sp;
-        */
-
-    //printk(KERN_INFO "GEMINI: start_ip %lx; target ip: %lx\n", start_ip, (unsigned long)hooker);
 
     // gdt for the kernel to access user space memory
     early_gdt_descr.address = (unsigned long)per_cpu(gdt_page, cpu_id).gdt;
+
+    // setup ident mapping for hooker
+    pgtable_setup_ident(mem_base, mem_len);
+
     // our hooker
     initial_code = (unsigned long) hooker;
 
     printk(KERN_INFO "GEMINI: CPU%d wakeup CPU%lu(%d) via INIT\n", smp_processor_id(), cpu_id, apicid);
     ret = wakeup_secondary_cpu_via_init(apicid, start_ip);
     return ret;
+
+}
+
+static void start_instance(void)
+{
+        struct gemini_mmap_t *mmap = &gemini_mmap;
+
+        // 0. setup offlined memory map
+        mmap->nr_map = 1;
+        mmap->map[0].addr = mem_base;
+        mmap->map[0].size = mem_len;
+
+        // 1. setup loader memory layout
+        boot_params = setup_memory_layout(mmap);
+        strcpy(boot_params->cmd_line, boot_cmd_line);
+        
+
+#if 1
+        // can check and compare with original file with xxd
+        printk(KERN_INFO "GEMINI boot command line: %s\n", boot_params->cmd_line); 
+        printk(KERN_INFO "GEMINI kernel image header 0x%lx: 0x%lx\n", 
+                boot_params->kernel_addr, *(unsigned long *)__va(boot_params->kernel_addr));
+        printk(KERN_INFO "GEMINI initrd image header 0x%lx: 0x%lx\n", 
+                boot_params->initrd_addr, *(unsigned long *)__va(boot_params->initrd_addr));
+#endif
+
+        // 2. kick offlined cpu
+        //kick_offline_cpu();
 
 }
 
@@ -162,8 +178,8 @@ static long device_ioctl(
     long ret;
     switch (ioctl_num) {
         case G_IOCTL_PING:
-            printk(KERN_INFO "GEMINI: mem_base 0x%lx, mem_len 0x%lx, cpuid %lu, path '%s'\n", 
-                    mem_base, mem_len, cpu_id, path);
+            printk(KERN_INFO "GEMINI: mem_base 0x%lx, mem_len 0x%lx, cpuid %lu, kernel_path '%s'\n", 
+                    mem_base, mem_len, cpu_id, kernel_path);
             break;
 
         case G_IOCTL_PREPARE_SECONDARY:
@@ -174,9 +190,9 @@ static long device_ioctl(
 
         case G_IOCTL_LOAD_IMAGE:
 
-            ret = load_image(path, mem_base);
+            ret = load_image(kernel_path, mem_base);
             printk(KERN_INFO "GEMINI: load %lu bytes (%lu KB) to physicall address 0x%lx from %s\n",
-                    ret, ret/1024, mem_base, path);
+                    ret, ret/1024, mem_base, kernel_path);
 
             break;
 
@@ -272,23 +288,7 @@ static int gemini_init(void)
             return -1;
         }
 
-#if 1
-        // load and start sibling OS without ioctl
-        pgtable_setup_ident(mem_base, mem_len);
-        load_image(path, mem_base);
-            {
-                long *p = (long *)__va(mem_base);
-                //long *p = (long *)0x8000000;
-                int t=10;
-                printk(KERN_INFO "GEMINI: pa 0x%lx, va 0x%lx\n", mem_base, (unsigned long)p);
-                while (t>0) {
-                    printk(KERN_INFO "%p\t", (void *)*p);
-                    p++;
-                    t--;
-                }
-            }
-        kick_offline_cpu();
-#endif
+        start_instance();
 
 	return 0;
 }

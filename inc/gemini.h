@@ -78,7 +78,6 @@ struct gemini_cons_t {
 struct gemini_mmap_entry_t {
   u64 addr;
   u64 size;
-  u32 type;
 } __attribute__((packed));
 
 struct gemini_mmap_t {
@@ -92,10 +91,18 @@ struct gemini_mmap_t {
 
 struct boot_params_t {
   // mem map
-  struct gemini_mmap_t gemini_mmap;
+  struct gemini_mmap_t mmap;
+
+  // cmd_line
+  char cmd_line[255];
+
+  // kernel
+  unsigned long kernel_addr;
+  unsigned long kernel_size;
 
   // initrd
-  unsigned long start_pa, size;
+  unsigned long initrd_addr;
+  unsigned long initrd_size;
 } __attribute__((packed));
 
 struct shared_info_t {
