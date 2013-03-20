@@ -183,8 +183,10 @@ struct boot_params_t *setup_memory_layout(struct gemini_mmap_t *mmap)
     shared_info->magic = GEMINI_MAGIC;
     boot_params = &shared_info->boot_params;
     memcpy(boot_params, &local_boot_params, sizeof(struct boot_params_t));
+
     memcpy(&boot_params->mmap, mmap, sizeof(struct gemini_mmap_t));
 
+    printk(KERN_INFO "GEMINI: mmap[0] base 0x%llx size 0x%llx\n", boot_params->mmap.map[0].addr, boot_params->mmap.map[0].size);
 
     return boot_params;
 }
