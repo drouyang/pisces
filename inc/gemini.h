@@ -91,6 +91,8 @@ struct gemini_mmap_t {
 
 
 struct boot_params_t {
+  // SMP tale (for mpf_found)
+  
   // mem map
   struct gemini_mmap_t mmap;
 
