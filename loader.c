@@ -153,33 +153,34 @@ struct boot_params_t *setup_memory_layout(struct gemini_mmap_t *mmap)
 
     // 1. kernel image
     size = load_image(kernel_path, base);
-    offset +=size;
     local_boot_params.kernel_addr = base;
     local_boot_params.kernel_size = size;
 
-    printk(KERN_INFO "GEMINI: kernel base 0x%lx offset %ld\n", base, size);
+    printk(KERN_INFO "GEMINI: kernel base 0x%lx size %ld\n", base, size);
 
     
+    /* 2M memory gap between kernel and initrd*/
+
     // 2. initrd 
-    base = mem_base + (((offset>>PAGE_SHIFT)+1)<<PAGE_SHIFT); //roundup
+    base = mem_base + (512<<PAGE_SHIFT); //roundup
     size = load_image(initrd_path, base);
-    offset +=size;
     local_boot_params.initrd_addr = base;
     local_boot_params.initrd_size = size;
 
-    printk(KERN_INFO "GEMINI: initrd base 0x%lx offset %ld\n", base, size);
+    printk(KERN_INFO "GEMINI: initrd base 0x%lx size %ld\n", base, size);
 
-    // 3. shared_info
-    base = mem_base + (((offset>>PAGE_SHIFT)+1)<<PAGE_SHIFT); //4K roundup
+    // 3. shared_info load to next page
+    base += (((size>>PAGE_SHIFT)+1)<<PAGE_SHIFT); //4K roundup
     shared_info = (struct shared_info_t *)__va(base);
     size = sizeof(struct shared_info_t);
     local_boot_params.shared_info_addr = base;
     local_boot_params.shared_info_size = offset;
 
-    printk(KERN_INFO "GEMINI: shared_info base 0x%lx offset %ld\n", base, size);
+    printk(KERN_INFO "GEMINI: shared_info base 0x%lx size %ld\n", base, size);
 
     // copy boot params to offlined memory
     memset((void *)shared_info, 0, sizeof(struct shared_info_t));
+    shared_info->magic = GEMINI_MAGIC;
     boot_params = &shared_info->boot_params;
     memcpy(boot_params, &local_boot_params, sizeof(struct boot_params_t));
     memcpy(&boot_params->mmap, mmap, sizeof(struct gemini_mmap_t));

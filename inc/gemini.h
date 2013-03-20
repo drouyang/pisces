@@ -95,7 +95,7 @@ struct boot_params_t {
   struct gemini_mmap_t mmap;
 
   // cmd_line
-  char cmd_line[255];
+  char cmd_line[1024];
 
   // shared_info
   unsigned long shared_info_addr;
