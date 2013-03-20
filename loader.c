@@ -8,6 +8,7 @@
 #include <asm/uaccess.h>
 
 #define ORDER 2
+#define PAGE_SHIFT_2M 21
 
 bootstrap_pgt_t *bootstrap_pgt = NULL;
 
@@ -16,6 +17,7 @@ void map_offline_memory(unsigned long mem_base, unsigned long mem_len) {
 };
 
 // setup bootstrap page tables - bootstrap_pgt
+// 4M identity mapping from mem_base
 void pgtable_setup_ident(unsigned long mem_base, unsigned long mem_len)
 {
 
@@ -30,12 +32,12 @@ void pgtable_setup_ident(unsigned long mem_base, unsigned long mem_len)
     pgde = pgd_base + PGD_INDEX(mem_base);
 
     {
-        // setup 1G identity mapping
         int i;
         u64 tmp;
 
         bootstrap_pgt = (bootstrap_pgt_t *) __get_free_pages (GFP_KERNEL, ORDER);
         memset(bootstrap_pgt, 0, sizeof(bootstrap_pgt_t));
+        /*
         printk("GEMINI: level4_pgt va: 0x%lx, pa: 0x%lx\n", 
                 (unsigned long) bootstrap_pgt->level4_pgt,
                 __pa((unsigned long) bootstrap_pgt->level4_pgt));
@@ -48,6 +50,7 @@ void pgtable_setup_ident(unsigned long mem_base, unsigned long mem_len)
         printk("GEMINI: level1_pgt va: 0x%lx, pa: 0x%lx\n", 
                 (unsigned long) bootstrap_pgt->level1_ident_pgt,
                 __pa((unsigned long) bootstrap_pgt->level1_ident_pgt));
+                */
 
         memcpy(bootstrap_pgt->level4_pgt, pgd_base, sizeof(NUM_PGD_ENTRIES*sizeof(u64)));
 
@@ -62,21 +65,21 @@ void pgtable_setup_ident(unsigned long mem_base, unsigned long mem_len)
         bootstrap_pgt->level4_pgt[PGD_INDEX(mem_base)].present = 1; 
         bootstrap_pgt->level4_pgt[PGD_INDEX(mem_base)].writable = 1; 
         bootstrap_pgt->level4_pgt[PGD_INDEX(mem_base)].accessed = 1; 
-        printk("GEMINI: level4[%llu].base_addr = %llx\n", PGD_INDEX(mem_base), tmp);
+        //printk("GEMINI: level4[%llu].base_addr = %llx\n", PGD_INDEX(mem_base), tmp);
 
         tmp = PAGE_TO_BASE_ADDR(__pa(bootstrap_pgt->level2_ident_pgt));
         bootstrap_pgt->level3_ident_pgt[PUD_INDEX(mem_base)].base_addr =  tmp;
         bootstrap_pgt->level3_ident_pgt[PUD_INDEX(mem_base)].present =  1;
         bootstrap_pgt->level3_ident_pgt[PUD_INDEX(mem_base)].writable =  1;
         bootstrap_pgt->level3_ident_pgt[PUD_INDEX(mem_base)].accessed =  1;
-        printk("GEMINI: level3[%llu].base_addr = %llx\n", PUD_INDEX(mem_base), tmp);
+        //printk("GEMINI: level3[%llu].base_addr = %llx\n", PUD_INDEX(mem_base), tmp);
 
         tmp = PAGE_TO_BASE_ADDR(__pa(bootstrap_pgt->level1_ident_pgt));
         bootstrap_pgt->level2_ident_pgt[PMD_INDEX(mem_base)].base_addr =  tmp;
         bootstrap_pgt->level2_ident_pgt[PMD_INDEX(mem_base)].present =  1;
         bootstrap_pgt->level2_ident_pgt[PMD_INDEX(mem_base)].writable =  1;
         bootstrap_pgt->level2_ident_pgt[PMD_INDEX(mem_base)].accessed =  1;
-        printk("GEMINI: level2[%llu].base_addr = %llx\n", PMD_INDEX(mem_base), tmp);
+        //printk("GEMINI: level2[%llu].base_addr = %llx\n", PMD_INDEX(mem_base), tmp);
 
         for (i = 0; i < NUM_PTE_ENTRIES; i++) {
             bootstrap_pgt->level1_ident_pgt[i].base_addr = PAGE_TO_BASE_ADDR(mem_base + (i<<PAGE_POWER));
@@ -84,8 +87,8 @@ void pgtable_setup_ident(unsigned long mem_base, unsigned long mem_len)
             bootstrap_pgt->level1_ident_pgt[i].writable = 1;
             bootstrap_pgt->level1_ident_pgt[i].accessed = 1;
         }
-        printk("GEMINI: level1[0].base_addr = %llx\n", (u64) bootstrap_pgt->level1_ident_pgt[0].base_addr);
-        printk("GEMINI: level1[1].base_addr = %llx\n", (u64) bootstrap_pgt->level1_ident_pgt[1].base_addr);
+        //printk("GEMINI: level1[0].base_addr = %llx\n", (u64) bootstrap_pgt->level1_ident_pgt[0].base_addr);
+        //printk("GEMINI: level1[1].base_addr = %llx\n", (u64) bootstrap_pgt->level1_ident_pgt[1].base_addr);
         //printk("GEMINI: cr3 va: 0x%lx\n", (unsigned long) pgd_base);
         //printk("GEMINI: cr3[0].base_addr: 0x%lx\n", (unsigned long) pgd_base[0].base_addr);
     }
@@ -128,44 +131,59 @@ void loader_exit(void) {
     free_pages((unsigned long)bootstrap_pgt, ORDER);
 }
 
+/* loader memory layout
+ * 1. shared_info
+ * 2. initrd
+ * 3. kernel image // 2M aligned
+ *
+ */
 extern char *kernel_path;
 extern char *initrd_path;
 struct boot_params_t *setup_memory_layout(struct gemini_mmap_t *mmap) 
 {
     long mem_base = mmap->map[0].addr;
     long base = mem_base;
+    long size = 0;
     long offset = 0;
     struct shared_info_t *shared_info;
     struct boot_params_t *boot_params;
+    struct boot_params_t local_boot_params;
 
     BUG_ON(mmap->nr_map < 1);
 
-    // 1. shared_info
-    shared_info = (struct shared_info_t *)__va(base);
-    memset((void *)shared_info, 0, sizeof(struct shared_info_t));
-    offset += sizeof(struct shared_info_t);
-    printk(KERN_INFO "GEMINI: shared_info base 0x%lx offset %ld\n", base, offset);
+    // 1. kernel image
+    size = load_image(kernel_path, base);
+    offset +=size;
+    local_boot_params.kernel_addr = base;
+    local_boot_params.kernel_size = size;
 
-    // boot params for memory map
-    boot_params = &shared_info->boot_params;
-    memcpy(&boot_params->mmap, mmap, sizeof(struct gemini_mmap_t));
+    printk(KERN_INFO "GEMINI: kernel base 0x%lx offset %ld\n", base, size);
+
     
-    // 2. kernel image
+    // 2. initrd 
     base = mem_base + (((offset>>PAGE_SHIFT)+1)<<PAGE_SHIFT); //roundup
-    offset = load_image(kernel_path, base);
-    printk(KERN_INFO "GEMINI: kernel base 0x%lx offset %ld\n", base, offset);
+    size = load_image(initrd_path, base);
+    offset +=size;
+    local_boot_params.initrd_addr = base;
+    local_boot_params.initrd_size = size;
 
-    boot_params->kernel_addr = base;
-    boot_params->kernel_size = offset;
+    printk(KERN_INFO "GEMINI: initrd base 0x%lx offset %ld\n", base, size);
 
-    // 3. initrd 
-    base = mem_base + (((offset>>PAGE_SHIFT)+1)<<PAGE_SHIFT); //roundup
-    offset = load_image(initrd_path, base);
-    printk(KERN_INFO "GEMINI: initrd base 0x%lx offset %ld\n", base, offset);
+    // 3. shared_info
+    base = mem_base + (((offset>>PAGE_SHIFT)+1)<<PAGE_SHIFT); //4K roundup
+    shared_info = (struct shared_info_t *)__va(base);
+    size = sizeof(struct shared_info_t);
+    local_boot_params.shared_info_addr = base;
+    local_boot_params.shared_info_size = offset;
 
-    boot_params->initrd_addr = base;
-    boot_params->initrd_size = offset;
+    printk(KERN_INFO "GEMINI: shared_info base 0x%lx offset %ld\n", base, size);
+
+    // copy boot params to offlined memory
+    memset((void *)shared_info, 0, sizeof(struct shared_info_t));
+    boot_params = &shared_info->boot_params;
+    memcpy(boot_params, &local_boot_params, sizeof(struct boot_params_t));
+    memcpy(&boot_params->mmap, mmap, sizeof(struct gemini_mmap_t));
+
 
     return boot_params;
-    
 }

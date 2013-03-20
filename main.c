@@ -61,34 +61,32 @@ static struct class *cl; // <major , minor>
 static struct cdev c_dev;  
 static struct gemini_mmap_t gemini_mmap;
 static struct boot_params_t *boot_params;
+static struct shared_info_t *shared_info;
 
 void test(void)
 {
     printk(KERN_INFO "GEMINI: test \n");
 }
-static void hooker(void)
+static void gemini_trampoline(void)
 {
     unsigned long pgd_phys = __pa((unsigned long)bootstrap_pgt->level4_pgt);
     unsigned long target = (unsigned long)(boot_params->kernel_addr);
+    int magic = GEMINI_MAGIC;
 
-    printk(KERN_INFO "GEMINI: enter hooker, load cr3 %lx\n", pgd_phys);
+    printk(KERN_INFO "GEMINI: enter gemini_trampoline, target address 0x%lx\n", target);
     __asm__ ( "movq %0, %%rax\n\t"
-            "movq %%rax, %%cr3\n\t"
-            "movq $1f, %%rax\n\t"
-            "jmp *%%rax\n\t"
-            "1:\n\t"
-            "movq %1, %%rax\n\t"
-            "movq $0x5a5a, %%rbx\n\t"
-            "movq (%%rax), %%rcx\n\t"
-            "jmp *%%rax\n\t"
+            "movq %%rax, %%cr3\n\t" //cr3
+            "movl %2, %%esi\n\t" // GEMINI_MAGIC
+            "movq %1, %%rax\n\t" //target
+            "jmp *%%rax\n\t" // should never return
             "hlt\n\t"
             : 
-            : "r" (pgd_phys), "r" (target)
-            : "%rax", "%rbx", "%rcx");
+            : "r" (pgd_phys), "r" (target), "r" ((unsigned int)boot_params->shared_info_addr | magic)
+            : "%rax", "%esi");
 }
 
-// use linux trampoline code to init offlined cpu, but hijack and jump to hooker
-// in hooker, setup ident mapping and jump to kernel code
+// use linux trampoline code to init offlined cpu, but hijack and jump to gemini_trampoline
+// in gemini_trampoline, setup ident mapping and jump to kernel code
 static int kick_offline_cpu(void) 
 {
     int ret = 0;
@@ -98,11 +96,11 @@ static int kick_offline_cpu(void)
     // gdt for the kernel to access user space memory
     early_gdt_descr.address = (unsigned long)per_cpu(gdt_page, cpu_id).gdt;
 
-    // setup ident mapping for hooker
+    // setup ident mapping for gemini_trampoline
     pgtable_setup_ident(mem_base, mem_len);
 
-    // our hooker
-    initial_code = (unsigned long) hooker;
+    // our gemini_trampoline
+    initial_code = (unsigned long) gemini_trampoline;
 
     printk(KERN_INFO "GEMINI: CPU%d wakeup CPU%lu(%d) via INIT\n", smp_processor_id(), cpu_id, apicid);
     ret = wakeup_secondary_cpu_via_init(apicid, start_ip);
@@ -122,19 +120,20 @@ static void start_instance(void)
         // 1. setup loader memory layout
         boot_params = setup_memory_layout(mmap);
         strcpy(boot_params->cmd_line, boot_cmd_line);
+        shared_info = container_of(boot_params, struct shared_info_t, boot_params);
         
 
 #if 1
         // can check and compare with original file with xxd
-        printk(KERN_INFO "GEMINI boot command line: %s\n", boot_params->cmd_line); 
-        printk(KERN_INFO "GEMINI kernel image header 0x%lx: 0x%lx\n", 
+        printk(KERN_INFO "GEMINI: boot command line: %s\n", boot_params->cmd_line); 
+        printk(KERN_INFO "GEMINI: kernel image header 0x%lx: 0x%lx\n", 
                 boot_params->kernel_addr, *(unsigned long *)__va(boot_params->kernel_addr));
-        printk(KERN_INFO "GEMINI initrd image header 0x%lx: 0x%lx\n", 
+        printk(KERN_INFO "GEMINI: initrd image header 0x%lx: 0x%lx\n", 
                 boot_params->initrd_addr, *(unsigned long *)__va(boot_params->initrd_addr));
 #endif
 
         // 2. kick offlined cpu
-        //kick_offline_cpu();
+        kick_offline_cpu();
 
 }
 

@@ -10,7 +10,8 @@
 #ifndef _GEMINI_H_
 #define _GEMINI_H_
 
-#define GEMINI_MAGIC 0xABCD
+#define GEMINI_MAGIC 0x5a
+#define GEMINI_MAGIC_MASK 0xff
 typedef unsigned long long u64;
 typedef unsigned int u32;
 
@@ -95,6 +96,10 @@ struct boot_params_t {
 
   // cmd_line
   char cmd_line[255];
+
+  // shared_info
+  unsigned long shared_info_addr;
+  unsigned long shared_info_size;
 
   // kernel
   unsigned long kernel_addr;
