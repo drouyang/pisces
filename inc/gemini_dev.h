@@ -21,6 +21,9 @@
 #define G_IOCTL_START_SECONDARY    1003
 
 #define G_IOCTL_PRINT_IMAGE    1004
-#define G_IOCTL_MAX    1004
+
+#define G_IOCTL_READ_CONSOLE_BUFFER 1005
+
+#define G_IOCTL_MAX    1005
 
 #endif

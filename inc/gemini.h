@@ -44,7 +44,7 @@ static inline void gemini_spin_init(gemini_spinlock_t *lock)
 static inline void gemini_spin_lock(gemini_spinlock_t *lock)
 {
   while (1) {
-    if(gemini_xchg8(lock, 1)) return;
+    if(gemini_xchg8(lock, 1)==0) return;
     while(*lock) gemini_cpu_relax();
   }
 }

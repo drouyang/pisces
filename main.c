@@ -50,7 +50,7 @@ module_param(kernel_path, charp, S_IRWXU);
 char *initrd_path = "/home/ouyang/gemini/kitten-1.3.0/arch/x86_64/boot/isoimage/initrd.img";
 module_param(initrd_path, charp, S_IRWXU);
 
-char *boot_cmd_line = "console=serial init_argv=\"one two three\" init_envp=\"a=1 b=2 c=3\"";
+char *boot_cmd_line = "console=gemini init_argv=\"one two three\" init_envp=\"a=1 b=2 c=3\"";
 module_param(boot_cmd_line, charp, S_IRWXU);
 
 
@@ -62,6 +62,8 @@ static struct cdev c_dev;
 static struct gemini_mmap_t gemini_mmap;
 static struct boot_params_t *boot_params;
 static struct shared_info_t *shared_info;
+static char console_buffer[1024*50];
+static u64 console_idx = 0;
 
 void test(void)
 {
@@ -213,6 +215,27 @@ static long device_ioctl(
                     t--;
                 }
 
+                break;
+            
+            }
+        case G_IOCTL_READ_CONSOLE_BUFFER:
+            {
+                struct gemini_cons_t *console = &shared_info->console;
+                u64 *cons = &console->out_cons;
+                u64 *prod = &console->out_prod;
+
+                gemini_spin_lock(&console->lock_out);
+                
+                while(!(*prod == *cons)) {//not empty
+                    console_buffer[console_idx++] = console->out[*cons];
+                    *cons = (*cons + 1) % GEMINI_CONSOLE_SIZE_OUT;
+                }
+
+                gemini_spin_unlock(&console->lock_out);
+                printk(KERN_INFO "===GEMINI_GUEST START===\n");
+                printk(KERN_INFO "%s", console_buffer);
+                printk(KERN_INFO "===GEMINI_GUEST END===\n");
+                
                 break;
             
             }
