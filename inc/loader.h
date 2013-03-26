@@ -2,7 +2,7 @@
 #define _LOADER_H_
 
 #include "pgtables_64.h"
-#include "gemini.h"
+#include "pisces.h"
 
 typedef struct bootstrap_pgt {
   pgd64_t level4_pgt[NUM_PGD_ENTRIES];
@@ -14,5 +14,5 @@ typedef struct bootstrap_pgt {
 
 void pgtable_setup_ident(unsigned long mem_base, unsigned long mem_len);
 long load_image(char *path, unsigned long mem_base);
-struct boot_params_t *setup_memory_layout(struct gemini_mmap_t *mmap);
+struct boot_params_t *setup_memory_layout(struct pisces_mmap_t *mmap);
 #endif

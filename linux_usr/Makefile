@@ -1,10 +1,8 @@
-TARGET := gemini_mem_rm gemini_ioctl
+TARGET := pisces_ioctl
 
 all: $(TARGET)
 
-gemini_mem_rm: gemini_mem_rm.c
-
-gemini_ioctl: gemini_ioctl.c ../inc/gemini_dev.h
+pisces_ioctl: pisces_ioctl.c ../inc/pisces_dev.h
 
 clean:
 	rm $(TARGET)

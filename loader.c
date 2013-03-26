@@ -1,6 +1,6 @@
 #include"inc/loader.h"
 #include"inc/pgtables_64.h"
-#include"inc/gemini.h"
+#include"inc/pisces.h"
 
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
@@ -38,16 +38,16 @@ void pgtable_setup_ident(unsigned long mem_base, unsigned long mem_len)
         bootstrap_pgt = (bootstrap_pgt_t *) __get_free_pages (GFP_KERNEL, ORDER);
         memset(bootstrap_pgt, 0, sizeof(bootstrap_pgt_t));
         /*
-        printk("GEMINI: level4_pgt va: 0x%lx, pa: 0x%lx\n", 
+        printk("PISCES: level4_pgt va: 0x%lx, pa: 0x%lx\n", 
                 (unsigned long) bootstrap_pgt->level4_pgt,
                 __pa((unsigned long) bootstrap_pgt->level4_pgt));
-        printk("GEMINI: level3_pgt va: 0x%lx, pa: 0x%lx\n", 
+        printk("PISCES: level3_pgt va: 0x%lx, pa: 0x%lx\n", 
                 (unsigned long) bootstrap_pgt->level3_ident_pgt,
                 __pa((unsigned long) bootstrap_pgt->level3_ident_pgt));
-        printk("GEMINI: level2_pgt va: 0x%lx, pa: 0x%lx\n", 
+        printk("PISCES: level2_pgt va: 0x%lx, pa: 0x%lx\n", 
                 (unsigned long) bootstrap_pgt->level2_ident_pgt,
                 __pa((unsigned long) bootstrap_pgt->level2_ident_pgt));
-        printk("GEMINI: level1_pgt va: 0x%lx, pa: 0x%lx\n", 
+        printk("PISCES: level1_pgt va: 0x%lx, pa: 0x%lx\n", 
                 (unsigned long) bootstrap_pgt->level1_ident_pgt,
                 __pa((unsigned long) bootstrap_pgt->level1_ident_pgt));
                 */
@@ -65,21 +65,21 @@ void pgtable_setup_ident(unsigned long mem_base, unsigned long mem_len)
         bootstrap_pgt->level4_pgt[PGD_INDEX(mem_base)].present = 1; 
         bootstrap_pgt->level4_pgt[PGD_INDEX(mem_base)].writable = 1; 
         bootstrap_pgt->level4_pgt[PGD_INDEX(mem_base)].accessed = 1; 
-        //printk("GEMINI: level4[%llu].base_addr = %llx\n", PGD_INDEX(mem_base), tmp);
+        //printk("PISCES: level4[%llu].base_addr = %llx\n", PGD_INDEX(mem_base), tmp);
 
         tmp = PAGE_TO_BASE_ADDR(__pa(bootstrap_pgt->level2_ident_pgt));
         bootstrap_pgt->level3_ident_pgt[PUD_INDEX(mem_base)].base_addr =  tmp;
         bootstrap_pgt->level3_ident_pgt[PUD_INDEX(mem_base)].present =  1;
         bootstrap_pgt->level3_ident_pgt[PUD_INDEX(mem_base)].writable =  1;
         bootstrap_pgt->level3_ident_pgt[PUD_INDEX(mem_base)].accessed =  1;
-        //printk("GEMINI: level3[%llu].base_addr = %llx\n", PUD_INDEX(mem_base), tmp);
+        //printk("PISCES: level3[%llu].base_addr = %llx\n", PUD_INDEX(mem_base), tmp);
 
         tmp = PAGE_TO_BASE_ADDR(__pa(bootstrap_pgt->level1_ident_pgt));
         bootstrap_pgt->level2_ident_pgt[PMD_INDEX(mem_base)].base_addr =  tmp;
         bootstrap_pgt->level2_ident_pgt[PMD_INDEX(mem_base)].present =  1;
         bootstrap_pgt->level2_ident_pgt[PMD_INDEX(mem_base)].writable =  1;
         bootstrap_pgt->level2_ident_pgt[PMD_INDEX(mem_base)].accessed =  1;
-        //printk("GEMINI: level2[%llu].base_addr = %llx\n", PMD_INDEX(mem_base), tmp);
+        //printk("PISCES: level2[%llu].base_addr = %llx\n", PMD_INDEX(mem_base), tmp);
 
         for (i = 0; i < NUM_PTE_ENTRIES; i++) {
             bootstrap_pgt->level1_ident_pgt[i].base_addr = PAGE_TO_BASE_ADDR(mem_base + (i<<PAGE_POWER));
@@ -87,10 +87,10 @@ void pgtable_setup_ident(unsigned long mem_base, unsigned long mem_len)
             bootstrap_pgt->level1_ident_pgt[i].writable = 1;
             bootstrap_pgt->level1_ident_pgt[i].accessed = 1;
         }
-        //printk("GEMINI: level1[0].base_addr = %llx\n", (u64) bootstrap_pgt->level1_ident_pgt[0].base_addr);
-        //printk("GEMINI: level1[1].base_addr = %llx\n", (u64) bootstrap_pgt->level1_ident_pgt[1].base_addr);
-        //printk("GEMINI: cr3 va: 0x%lx\n", (unsigned long) pgd_base);
-        //printk("GEMINI: cr3[0].base_addr: 0x%lx\n", (unsigned long) pgd_base[0].base_addr);
+        //printk("PISCES: level1[0].base_addr = %llx\n", (u64) bootstrap_pgt->level1_ident_pgt[0].base_addr);
+        //printk("PISCES: level1[1].base_addr = %llx\n", (u64) bootstrap_pgt->level1_ident_pgt[1].base_addr);
+        //printk("PISCES: cr3 va: 0x%lx\n", (unsigned long) pgd_base);
+        //printk("PISCES: cr3[0].base_addr: 0x%lx\n", (unsigned long) pgd_base[0].base_addr);
     }
 
     return;
@@ -117,9 +117,9 @@ long load_image(char *path, unsigned long addr)
     // read
     pos = 0;
     vfs_read(filp, __va(addr), 512 * 1024 * 1024, &pos);
-    //printk(KERN_INFO "GEMINI: read %ld bytes (%lu KB) from file\n", (long) pos, (long) pos / 1024);
+    //printk(KERN_INFO "PISCES: read %ld bytes (%lu KB) from file\n", (long) pos, (long) pos / 1024);
 
-    //printk(KERN_INFO "GEMINI: %s", (char *)__va(addr));
+    //printk(KERN_INFO "PISCES: %s", (char *)__va(addr));
 
     // close 
     set_fs(oldfs);
@@ -139,7 +139,7 @@ void loader_exit(void) {
  */
 extern char *kernel_path;
 extern char *initrd_path;
-struct boot_params_t *setup_memory_layout(struct gemini_mmap_t *mmap) 
+struct boot_params_t *setup_memory_layout(struct pisces_mmap_t *mmap) 
 {
     long mem_base = mmap->map[0].addr;
     long base = mem_base;
@@ -156,7 +156,6 @@ struct boot_params_t *setup_memory_layout(struct gemini_mmap_t *mmap)
     local_boot_params.kernel_addr = base;
     local_boot_params.kernel_size = size;
 
-    printk(KERN_INFO "GEMINI: kernel base 0x%lx size %ld\n", base, size);
 
     
     /* 2M memory gap between kernel and initrd*/
@@ -167,7 +166,6 @@ struct boot_params_t *setup_memory_layout(struct gemini_mmap_t *mmap)
     local_boot_params.initrd_addr = base;
     local_boot_params.initrd_size = size;
 
-    printk(KERN_INFO "GEMINI: initrd base 0x%lx size %ld\n", base, size);
 
     // 3. shared_info load to next page
     base += (((size>>PAGE_SHIFT)+1)<<PAGE_SHIFT); //4K roundup
@@ -176,17 +174,22 @@ struct boot_params_t *setup_memory_layout(struct gemini_mmap_t *mmap)
     local_boot_params.shared_info_addr = base;
     local_boot_params.shared_info_size = offset;
 
-    printk(KERN_INFO "GEMINI: shared_info base 0x%lx size %ld\n", base, size);
 
     // copy boot params to offlined memory
     memset((void *)shared_info, 0, sizeof(struct shared_info_t));
-    shared_info->magic = GEMINI_MAGIC;
+    shared_info->magic = PISCES_MAGIC;
     boot_params = &shared_info->boot_params;
     memcpy(boot_params, &local_boot_params, sizeof(struct boot_params_t));
 
-    memcpy(&boot_params->mmap, mmap, sizeof(struct gemini_mmap_t));
+    memcpy(&boot_params->mmap, mmap, sizeof(struct pisces_mmap_t));
 
-    printk(KERN_INFO "GEMINI: mmap[0] base 0x%llx size 0x%llx\n", boot_params->mmap.map[0].addr, boot_params->mmap.map[0].size);
+    printk(KERN_INFO "PISCES: guest image loaded\n");
+#if 0
+    printk(KERN_INFO "PISCES: kernel base 0x%lx size %ld\n", base, size);
+    printk(KERN_INFO "PISCES: initrd base 0x%lx size %ld\n", base, size);
+    printk(KERN_INFO "PISCES: shared_info base 0x%lx size %ld\n", base, size);
+    printk(KERN_INFO "PISCES: mmap[0] base 0x%llx size 0x%llx\n", boot_params->mmap.map[0].addr, boot_params->mmap.map[0].size);
+#endif
 
     return boot_params;
 }

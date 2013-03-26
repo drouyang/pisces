@@ -1,6 +1,6 @@
-obj-m += gemini.o
+obj-m += pisces.o
 
-gemini-objs := main.o wakeup_secondary.o loader.o #trampoline.o
+pisces-objs := main.o wakeup_secondary.o loader.o #trampoline.o
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules

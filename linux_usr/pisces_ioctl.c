@@ -1,4 +1,4 @@
-#include"../inc/gemini_dev.h"
+#include"../inc/pisces_dev.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
         int ioctl_num = 0;
 
         if (argc < 2) {
-            printf("Usage: ./gemini_ioctl <num>\n");
+            printf("Usage: ./pisces_ioctl <num>\n");
             printf("1000 PING\n");
             printf("1001 PREPARE_SECONDARY\n");
             printf("1002 LOAD_IMAGE\n");

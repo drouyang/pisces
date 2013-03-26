@@ -1,12 +1,12 @@
-#ifndef _GEMINI_DEV_H_
-#define _GEMINI_DEV_H_
+#ifndef _PISCES_DEV_H_
+#define _PISCES_DEV_H_
 
 /* 
  * The name of the device file 
  */
-#define DEVICE_NAME "gemini"
+#define DEVICE_NAME "pisces"
 
-/* Gemini global ioctls */
+/* Pisces global ioctls */
 
 #define G_IOCTL_MIN    1000
 #define G_IOCTL_PING    1000
