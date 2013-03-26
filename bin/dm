@@ -1,1 +1,1 @@
-sudo dmesg | tail -n20
+sudo dmesg | tail -n35
