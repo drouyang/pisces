@@ -216,8 +216,11 @@ static ssize_t device_read(
         size_t length,
         loff_t *offset)
 {
-    printk(KERN_INFO "Read\n");
-    return 0;
+    int count = (length < console_idx)? length : console_idx;
+
+    if (copy_to_user(buffer, console_buffer, count))
+        return -EFAULT;
+    return count;
 }
 static ssize_t device_write(
         struct file *file,
