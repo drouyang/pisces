@@ -280,7 +280,8 @@ static long device_ioctl(
                 struct pisces_cons_t *console = &shared_info->console;
                 u64 *cons = &console->out_cons;
                 u64 *prod = &console->out_prod;
-                int n = 0;
+                int offset;
+                char *start;
 
                 pisces_spin_lock(&console->lock_out);
                 
@@ -291,12 +292,23 @@ static long device_ioctl(
 
                 pisces_spin_unlock(&console->lock_out);
 
+
+                start = console_buffer;
+                offset = 0;
                 printk(KERN_INFO "===PISCES_GUEST START===\n");
+                offset = printk(KERN_INFO "%s", start);
+                printk(KERN_INFO "hello");
+                printk(KERN_INFO "%s", start+400);
+                /*
                 do {
-                n += printk(KERN_INFO "%s", console_buffer+n);
-                } while (n+1 < console_idx);
+                    offset = printk(KERN_INFO "%s", start);
+                    start += offset+1;
+                    while (*start != 0) start--;
+                    start++;
+                } while (start < console_buffer+console_idx);
+                */
                 printk(KERN_INFO "===PISCES_GUEST END===\n");
-                printk(KERN_INFO "PISCES: %d char printed out of %lld\n", n, console_idx);
+                printk(KERN_INFO "PISCES: %ld char printed out of %lld\n", start-console_buffer, console_idx);
                 
                 break;
             
