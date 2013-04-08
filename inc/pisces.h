@@ -59,7 +59,7 @@ static inline void pisces_spin_unlock(pisces_spinlock_t *lock)
 // cons is queue tail
 // cons == prod-1 => queue is empty
 // prod == cons-1 => queue is full
-#define PISCES_CONSOLE_SIZE_OUT 4096
+#define PISCES_CONSOLE_SIZE_OUT (1024*6)
 #define PISCES_CONSOLE_SIZE_IN 1024
 struct pisces_cons_t {
   // in buffer 1K
