@@ -1,0 +1,10 @@
+#!/bin/bash
+sudo \
+qemu-kvm \
+    -m 1024 \
+    -smp 8 \
+    -net nic -net user \
+    -hda ../../fedora17-pisces.img \
+    -s &
+
+    #-append "root=/dev/mapper/vg_fedora17--bg1-lv_root ro rd.md=0 rd.dm=0 KEYTABLE=us SYSFONT=True rd.lvm.lv=vg_fedora17-bg1/lv_root LANG=en_US.UTF-8 rd.lvm.lv=vg_fedora17-bg1/lv_swap rd.luks=0" \
