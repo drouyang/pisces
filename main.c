@@ -27,6 +27,7 @@
 #include<asm/realmode.h>
 #include<asm/idle.h>
 #include<asm/cpu.h>
+#include<asm/uaccess.h>
 
 
 #define AUTHOR "Jiannan Ouyang <ouyang@cs.pitt.edu>"
@@ -216,10 +217,23 @@ static ssize_t device_read(
         size_t length,
         loff_t *offset)
 {
-    int count = (length < console_idx)? length : console_idx;
+    int count = 0;
+    struct pisces_cons_t *console = &shared_info->console;
+    u64 *cons = &console->out_cons;
+    u64 *prod = &console->out_prod;
 
-    if (copy_to_user(buffer, console_buffer, count))
+    while(!(*prod == *cons)) {//not empty
+        console_buffer[console_idx++] = console->out[*cons];
+        *cons = (*cons + 1) % PISCES_CONSOLE_SIZE_OUT;
+    }
+
+    if (*offset >= console_idx)
+        return 0;
+
+    count = (length < console_idx-*offset)? length : console_idx-*offset;
+    if (copy_to_user(buffer, console_buffer+*offset, count))
         return -EFAULT;
+    *offset += count;
     return count;
 }
 static ssize_t device_write(
@@ -278,12 +292,14 @@ static long device_ioctl(
                 break;
             
             }
+            /*
         case G_IOCTL_READ_CONSOLE_BUFFER:
             {
                 struct pisces_cons_t *console = &shared_info->console;
                 u64 *cons = &console->out_cons;
                 u64 *prod = &console->out_prod;
-                int n = 0;
+                int offset;
+                char *start;
 
                 pisces_spin_lock(&console->lock_out);
                 
@@ -294,16 +310,19 @@ static long device_ioctl(
 
                 pisces_spin_unlock(&console->lock_out);
 
+
+                start = console_buffer;
+                offset = 0;
                 printk(KERN_INFO "===PISCES_GUEST START===\n");
-                do {
-                n += printk(KERN_INFO "%s", console_buffer+n);
-                } while (n+1 < console_idx);
+                offset = printk(KERN_INFO "%s", start);
+                printk(KERN_INFO "hello");
+                printk(KERN_INFO "%s", start+400);
                 printk(KERN_INFO "===PISCES_GUEST END===\n");
-                printk(KERN_INFO "PISCES: %d char printed out of %lld\n", n, console_idx);
+                printk(KERN_INFO "PISCES: %ld char printed out of %lld\n", start-console_buffer, console_idx);
                 
                 break;
             
-            }
+            }*/
 
 
     }

@@ -1,3 +1,2 @@
 #!/bin/bash
-/home/ouyang/pisces/pisces/linux_usr/pisces_ioctl 1005
-dm
+cat /dev/pisces
