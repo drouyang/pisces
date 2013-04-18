@@ -118,6 +118,26 @@ struct pisces_mpc_table {
 	unsigned int reserved;
 };
 
+#define	PISCES_MP_PROCESSOR	0
+#define	PISCES_MP_BUS		1
+#define	PISCES_MP_IOAPIC	2
+#define	PISCES_MP_INTSRC	3
+#define	PISCES_MP_LINTSRC	4
+
+struct pisces_mpc_processor
+{               
+  unsigned char type;
+  unsigned char apicid; /* Local APIC number */
+  unsigned char apicver;  /* Its versions */
+  unsigned char cpuflag;
+#define PISCES_CPU_ENABLED  1 /* Processor is available */
+#define PISCES_CPU_BSP      2 /* Processor is the BP */
+  unsigned int cpufeature;
+  unsigned int featureflag; /* CPUID feature value */
+  unsigned int reserved[2];
+};
+
+
 struct boot_params_t {
   // cpu map
   

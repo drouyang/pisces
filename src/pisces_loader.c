@@ -229,7 +229,6 @@ int kick_offline_cpu(void)
     int apicid = apic->cpu_present_to_apicid(cpu_id);
     unsigned long start_ip = real_mode_header->trampoline_start;
 
-    printk(KERN_INFO "PISCES: test\n");
     // gdt for the kernel to access user space memory
     early_gdt_descr.address = (unsigned long)per_cpu(gdt_page, cpu_id).gdt;
 
@@ -299,12 +298,99 @@ static int mpf_check(void)
     return 0;
 }
 
+static unsigned char cal_checksum(char *s, int len)
+{
+        unsigned char checksum = 0;
+
+        while (len--)
+            checksum -= *s++;
+
+        return checksum;
+}
+
+/**
+ * Parses the input MP table, modify for Pisces needs
+ */
+static void fix_mpc(struct pisces_mpc_table *mpc)
+{
+	int count=sizeof(*mpc);
+	unsigned char *mpt=((unsigned char *)mpc)+count;
+
+	/* Now process all of the configuration blocks in the table. */
+	while (count < mpc->length) {
+		switch(*mpt) {
+			case PISCES_MP_PROCESSOR:
+			{
+				struct pisces_mpc_processor *m=
+					(struct pisces_mpc_processor *)mpt;
+                                // JO: hardcode BSP and available cpus 
+                                if (m->apicid != 1) {
+                                    m->cpuflag &= ~PISCES_CPU_ENABLED;
+                                    m->cpuflag &= ~PISCES_CPU_BSP;
+                                    printk(KERN_INFO "resver cpu apicid %d\n", m->apicid);
+                                } else {
+                                    m->cpuflag |= PISCES_CPU_BSP;
+                                }
+
+				mpt += sizeof(*m);
+				count += sizeof(*m);
+				break;
+			}
+                        default:
+                        {
+                            mpc->length = count;
+                            break;
+                        }
+		}
+	}
+
+        // fix checksum
+        boot_params->mpc.checksum = 0;
+        boot_params->mpc.checksum = 
+            cal_checksum((unsigned char *)&boot_params->mpc, boot_params->mpc.length);
+}
+
+/*
+ * setup the MP table by modify from the linux copy
+ */
+static int mpf_setup(void)
+{
+    unsigned long mpf_found = *(unsigned long *)mpf_found_addr;
+    struct pisces_mpf_intel *mpf = (struct pisces_mpf_intel *)mpf_found; 
+
+    printk(KERN_INFO "PISCES: setup MP tables\n"); 
+
+    if (mpf_check() < 0) {
+        return -1;
+    }
+    // copy mpf header
+    memcpy(&boot_params->mpf, 
+            mpf, 
+            sizeof(struct pisces_mpf_intel)); 
+    // copy mpc header
+    memcpy(&boot_params->mpc, 
+            __va(mpf->physptr), 
+            sizeof(struct pisces_mpc_table));
+    // copy mpc
+    memcpy(&boot_params->mpc, 
+            __va(mpf->physptr), 
+            boot_params->mpc.length); 
+
+    // fix mpc address in mpf and checksum
+    boot_params->mpf.physptr = __pa(&boot_params->mpc);
+    boot_params->mpf.checksum = 0;
+    boot_params->mpf.checksum = cal_checksum((unsigned char *)&boot_params->mpf, 16);
+
+    // modify MP table to fit Pisces
+    fix_mpc(&boot_params->mpc);
+
+    return 0;
+}
+
 void start_instance(void)
 {
 
     struct pisces_mmap_t *mmap;
-    unsigned long mpf_found = *(unsigned long *)mpf_found_addr;
-    struct pisces_mpf_intel *mpf = (struct pisces_mpf_intel *)mpf_found; 
 
     // 0. setup offlined memory map
     mmap = memory_init();
@@ -326,35 +412,10 @@ void start_instance(void)
 #endif
 
     // 2. setup MP tables, copy MP table from linux
-    if (mpf_check() < 0) {
+    if (mpf_setup() < 0) {
         printk(KERN_INFO "PISCES: start instance failed.");
         return;
     }
-
-    memcpy(&boot_params->mpf, 
-            mpf, 
-            sizeof(struct pisces_mpf_intel)); // copy mpf header
-    memcpy(&boot_params->mpc, 
-            __va(mpf->physptr), 
-            sizeof(struct pisces_mpc_table)); // copy mpc header
-    memcpy(&boot_params->mpc, 
-            __va(mpf->physptr), 
-            boot_params->mpc.length); // copy mpc
-    // fix mpc address in mpf
-    boot_params->mpf.physptr = __pa(&boot_params->mpc);
-    // fix MP Floating Pointer (mpf) checksum
-    {
-        unsigned char checksum = 0;
-        int len = 16;
-        unsigned char *mp = (unsigned char *) &boot_params->mpf;
-
-        boot_params->mpf.checksum = 0;
-        while (len--)
-            checksum -= *mp++;
-        boot_params->mpf.checksum = checksum;
-    }
-
-    printk(KERN_INFO "PISCES: setup MP tables\n"); 
 
     // 3. kick offlined cpu
     kick_offline_cpu();
