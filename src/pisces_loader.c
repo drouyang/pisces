@@ -1,20 +1,26 @@
-#include"inc/loader.h"
-#include"inc/pgtables_64.h"
-#include"inc/pisces.h"
-
 #include <linux/fs.h>
-#include <linux/buffer_head.h>
+//#include <linux/buffer_head.h>
+#include<linux/percpu.h>
+#include<asm/desc.h>
 #include <asm/segment.h>
 #include <asm/uaccess.h>
+#include<asm/realmode.h>
+
+#include"pisces_loader.h"
+#include"pgtables_64.h"
+#include"pisces.h"
+#include"pisces_mod.h"
 
 #define ORDER 2
 #define PAGE_SHIFT_2M 21
 
-bootstrap_pgt_t *bootstrap_pgt = NULL;
 
-void map_offline_memory(unsigned long mem_base, unsigned long mem_len) {
+static bootstrap_pgt_t *bootstrap_pgt = NULL;
+static struct pisces_mmap_t pisces_mmap;
+static struct boot_params_t *boot_params;
+static struct pisces_mpf_intel *mpf;
 
-};
+extern int wakeup_secondary_cpu_via_init(int, unsigned long);
 
 // setup bootstrap page tables - bootstrap_pgt
 // 4M identity mapping from mem_base
@@ -192,4 +198,92 @@ struct boot_params_t *setup_memory_layout(struct pisces_mmap_t *mmap)
 #endif
 
     return boot_params;
+}
+
+static void pisces_trampoline(void)
+{
+    unsigned long pgd_phys = __pa((unsigned long)bootstrap_pgt->level4_pgt);
+    unsigned long target = (unsigned long)(boot_params->kernel_addr);
+    int magic = PISCES_MAGIC;
+
+    printk(KERN_INFO "PISCES: jump to physical address 0x%lx\n", target);
+    __asm__ ( "movq %0, %%rax\n\t"
+            "movq %%rax, %%cr3\n\t" //cr3
+            "movl %2, %%esi\n\t" // PISCES_MAGIC
+            "movq %1, %%rax\n\t" //target
+            "jmp *%%rax\n\t" // should never return
+            "hlt\n\t"
+            : 
+            : "r" (pgd_phys), "r" (target), "r" ((unsigned int)boot_params->shared_info_addr | magic)
+            : "%rax", "%esi");
+}
+
+// use linux trampoline code to init offlined cpu, but hijack and jump to pisces_trampoline
+// in pisces_trampoline, setup ident mapping and jump to kernel code
+int kick_offline_cpu(void) 
+{
+    int ret = 0;
+    int apicid = apic->cpu_present_to_apicid(cpu_id);
+    unsigned long start_ip = real_mode_header->trampoline_start;
+
+    // gdt for the kernel to access user space memory
+    early_gdt_descr.address = (unsigned long)per_cpu(gdt_page, cpu_id).gdt;
+
+    // setup ident mapping for pisces_trampoline
+    pgtable_setup_ident(mem_base, mem_len);
+
+    // our pisces_trampoline
+    initial_code = (unsigned long) pisces_trampoline;
+
+    printk(KERN_INFO "PISCES: CPU%d (apic_id %d) wakeup CPU%lu (apic_id %d) via INIT\n", smp_processor_id(), apic->cpu_present_to_apicid(smp_processor_id()), cpu_id, apicid);
+    ret = wakeup_secondary_cpu_via_init(apicid, start_ip);
+    return ret;
+
+}
+void start_instance(void)
+{
+        struct pisces_mmap_t *mmap = &pisces_mmap;
+
+        // 0. setup offlined memory map
+        mmap->nr_map = 1;
+        mmap->map[0].addr = mem_base;
+        mmap->map[0].size = mem_len;
+
+        // 1. load images, setup loader memory layout
+        boot_params = setup_memory_layout(mmap);
+        strcpy(boot_params->cmd_line, boot_cmd_line);
+        shared_info = container_of(boot_params, struct shared_info_t, boot_params);
+        
+#if 0
+        // check and compare with original binary file using xxd
+        printk(KERN_INFO "PISCES: boot command line: %s\n", boot_params->cmd_line); 
+        printk(KERN_INFO "PISCES: kernel image header 0x%lx: 0x%lx\n", 
+                boot_params->kernel_addr, *(unsigned long *)__va(boot_params->kernel_addr));
+        printk(KERN_INFO "PISCES: initrd image header 0x%lx: 0x%lx\n", 
+                boot_params->initrd_addr, *(unsigned long *)__va(boot_params->initrd_addr));
+#endif
+
+        // 2. setup MP tables
+        memcpy(&boot_params->mpf, mpf, sizeof(struct pisces_mpf_intel));
+        memcpy(&boot_params->mpc, __va(mpf->physptr), sizeof(struct pisces_mpc_table));
+        memcpy(&boot_params->mpc, __va(mpf->physptr), boot_params->mpc.length);
+        boot_params->mpf.physptr = __pa(&boot_params->mpc);
+
+        // update MP Floating Pointer (mpf) checksum
+        {
+            unsigned char checksum = 0;
+            int len = 16;
+            unsigned char *mp = (unsigned char *) &boot_params->mpf;
+
+            boot_params->mpf.checksum = 0;
+            while (len--)
+                checksum -= *mp++;
+            boot_params->mpf.checksum = checksum;
+        }
+
+        printk(KERN_INFO "PISCES: MP tables length %d\n", boot_params->mpc.length); 
+
+        // 3. kick offlined cpu
+        kick_offline_cpu();
+
 }

@@ -1,6 +1,10 @@
 obj-m += pisces.o
 
-pisces-objs := main.o wakeup_secondary.o loader.o #trampoline.o
+pisces-objs :=  src/main.o \
+    		src/pisces_dev.o \
+		src/pisces_loader.o \
+		src/wakeup_secondary.o \
+		src/domain_xcall.o 
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules

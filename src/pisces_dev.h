@@ -26,4 +26,6 @@
 
 #define G_IOCTL_MAX    1005
 
+int device_init(void);
+void device_exit(void);
 #endif

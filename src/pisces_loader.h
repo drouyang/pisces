@@ -1,5 +1,5 @@
-#ifndef _LOADER_H_
-#define _LOADER_H_
+#ifndef _PISCES_LOADER_H_
+#define _PISCES_LOADER_H_
 
 #include "pgtables_64.h"
 #include "pisces.h"
@@ -15,4 +15,7 @@ typedef struct bootstrap_pgt {
 void pgtable_setup_ident(unsigned long mem_base, unsigned long mem_len);
 long load_image(char *path, unsigned long mem_base);
 struct boot_params_t *setup_memory_layout(struct pisces_mmap_t *mmap);
+int kick_offline_cpu(void);
+
+void start_instance(void);
 #endif
