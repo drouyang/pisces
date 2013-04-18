@@ -1,20 +1,14 @@
-= The GEMINI Kernel Module =
-== run ==
-1. insert/update gemini module
-modins/modupdate
-modls
+= The PISCES Kernel Module =
+== first run ==
+irq // setup irq affinity
+ginit // offline memory and cpu
+modins
+gg // print kitten output
 
-2. reserve memory and cpu
-cpurm <N>
-cpuls
-memrm <N>
-memls
-
-3. update gemini parameter <mem_base, mem_len, cpu_map>
-
-4. load OS image
-
-5. start
+== rerun ==
+ginit
+modupdate
+gg
 
 == design ==
 * trampoline

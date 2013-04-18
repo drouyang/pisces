@@ -14,7 +14,7 @@ extern char *initrd_path;
 
 extern char *boot_cmd_line;
 
-extern unsigned long mpf_addr;
+extern unsigned long mpf_found_addr;
 
 extern struct shared_info_t *shared_info;
 

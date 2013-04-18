@@ -1,5 +1,4 @@
 #include <linux/fs.h>
-//#include <linux/buffer_head.h>
 #include<linux/percpu.h>
 #include<asm/desc.h>
 #include <asm/segment.h>
@@ -18,7 +17,6 @@
 static bootstrap_pgt_t *bootstrap_pgt = NULL;
 static struct pisces_mmap_t pisces_mmap;
 static struct boot_params_t *boot_params;
-static struct pisces_mpf_intel *mpf;
 
 extern int wakeup_secondary_cpu_via_init(int, unsigned long);
 
@@ -138,9 +136,9 @@ void loader_exit(void) {
 }
 
 /* loader memory layout
- * 1. shared_info
- * 2. initrd
- * 3. kernel image // 2M aligned
+ * 1. kernel image // 2M aligned
+ * 2. initrd // 2M aligned
+ * 2. shared_info
  *
  */
 extern char *kernel_path;
@@ -150,7 +148,6 @@ struct boot_params_t *setup_memory_layout(struct pisces_mmap_t *mmap)
     long mem_base = mmap->map[0].addr;
     long base = mem_base;
     long size = 0;
-    long offset = 0;
     struct shared_info_t *shared_info;
     struct boot_params_t *boot_params;
     struct boot_params_t local_boot_params;
@@ -167,7 +164,7 @@ struct boot_params_t *setup_memory_layout(struct pisces_mmap_t *mmap)
     /* 2M memory gap between kernel and initrd*/
 
     // 2. initrd 
-    base = mem_base + (512<<PAGE_SHIFT); //roundup
+    base = mem_base + (512<<PAGE_SHIFT); // 512*4k = 2M aligned
     size = load_image(initrd_path, base);
     local_boot_params.initrd_addr = base;
     local_boot_params.initrd_size = size;
@@ -178,7 +175,7 @@ struct boot_params_t *setup_memory_layout(struct pisces_mmap_t *mmap)
     shared_info = (struct shared_info_t *)__va(base);
     size = sizeof(struct shared_info_t);
     local_boot_params.shared_info_addr = base;
-    local_boot_params.shared_info_size = offset;
+    local_boot_params.shared_info_size = size;
 
 
     // copy boot params to offlined memory
@@ -189,13 +186,19 @@ struct boot_params_t *setup_memory_layout(struct pisces_mmap_t *mmap)
 
     memcpy(&boot_params->mmap, mmap, sizeof(struct pisces_mmap_t));
 
-    printk(KERN_INFO "PISCES: guest image loaded\n");
-#if 0
-    printk(KERN_INFO "PISCES: kernel base 0x%lx size %ld\n", base, size);
-    printk(KERN_INFO "PISCES: initrd base 0x%lx size %ld\n", base, size);
-    printk(KERN_INFO "PISCES: shared_info base 0x%lx size %ld\n", base, size);
-    printk(KERN_INFO "PISCES: mmap[0] base 0x%llx size 0x%llx\n", boot_params->mmap.map[0].addr, boot_params->mmap.map[0].size);
-#endif
+    printk(KERN_INFO "PISCES: loader memroy map:\n");
+    printk(KERN_INFO "  kernel:        [0x%lx, 0x%lx), size 0x%lx\n",
+            boot_params->kernel_addr,
+            boot_params->kernel_addr+boot_params->kernel_size,
+            boot_params->kernel_size);
+    printk(KERN_INFO "  initrd:        [0x%lx, 0x%lx), size 0x%lx\n",
+            boot_params->initrd_addr, 
+            boot_params->initrd_addr+boot_params->initrd_size,
+            boot_params->initrd_size);
+    printk(KERN_INFO "  shared_info:   [0x%lx, 0x%lx), size 0x%lx\n",
+            boot_params->shared_info_addr, 
+            boot_params->shared_info_addr+boot_params->shared_info_size,
+            boot_params->shared_info_size);
 
     return boot_params;
 }
@@ -226,6 +229,7 @@ int kick_offline_cpu(void)
     int apicid = apic->cpu_present_to_apicid(cpu_id);
     unsigned long start_ip = real_mode_header->trampoline_start;
 
+    printk(KERN_INFO "PISCES: test\n");
     // gdt for the kernel to access user space memory
     early_gdt_descr.address = (unsigned long)per_cpu(gdt_page, cpu_id).gdt;
 
@@ -240,50 +244,119 @@ int kick_offline_cpu(void)
     return ret;
 
 }
+
+static struct pisces_mmap_t *memory_init(void) 
+{
+    struct pisces_mmap_t *mmap = &pisces_mmap;
+    int i;
+
+    mmap->nr_map = 1;
+    mmap->map[0].addr = mem_base;
+    mmap->map[0].size = mem_len;
+
+    printk(KERN_INFO "PISCES: offlined memory map:\n");
+    for(i=0; i<mmap->nr_map; i++) {
+        printk(KERN_INFO "  %d: [0x%llx, 0x%llx),  size 0x%llx\n",
+                i,
+                mmap->map[i].addr,
+                mmap->map[i].addr+mmap->map[i].size,
+                mmap->map[i].size);
+    }
+
+    return mmap;
+}
+
+static int mpf_check(void)
+{
+    unsigned long mpf_found = *(unsigned long *) mpf_found_addr;
+    struct pisces_mpf_intel *mpf = (struct pisces_mpf_intel *)mpf_found;
+    struct mpc_table *mpc = NULL;
+    char *str = (char *) mpf_found;
+
+    if (!mpf) {
+        printk(KERN_INFO "PISCES: No MP Table found.\n");
+        return -1;
+    }
+
+    if (str[0]!='_' || str[1]!='M' || str[2]!='P' || str[3]!='_') {
+        printk("PISCES: wrong mpf signiture \"%c%c%c%c\"\n", str[0], str[1], str[2], str[3]);
+        return -1;
+    }
+
+    if (mpf->feature1 != 0)
+        return -1;
+    if (!mpf->physptr)
+        return -1;
+
+    /*
+     * Parse the MP configuration
+     */
+    mpc = (struct mpc_table *)phys_to_virt(mpf->physptr);
+    if (memcmp(mpc->signature, MPC_SIGNATURE, 4)) {
+        printk(KERN_INFO "PISCES: wrong mpc signiture");
+        return -1;
+    }
+    return 0;
+}
+
 void start_instance(void)
 {
-        struct pisces_mmap_t *mmap = &pisces_mmap;
 
-        // 0. setup offlined memory map
-        mmap->nr_map = 1;
-        mmap->map[0].addr = mem_base;
-        mmap->map[0].size = mem_len;
+    struct pisces_mmap_t *mmap;
+    unsigned long mpf_found = *(unsigned long *)mpf_found_addr;
+    struct pisces_mpf_intel *mpf = (struct pisces_mpf_intel *)mpf_found; 
 
-        // 1. load images, setup loader memory layout
-        boot_params = setup_memory_layout(mmap);
-        strcpy(boot_params->cmd_line, boot_cmd_line);
-        shared_info = container_of(boot_params, struct shared_info_t, boot_params);
-        
+    // 0. setup offlined memory map
+    mmap = memory_init();
+
+    // 1. load images, setup loader memory layout
+    boot_params = setup_memory_layout(mmap);
+    strcpy(boot_params->cmd_line, boot_cmd_line);
+    shared_info = container_of(boot_params, struct shared_info_t, boot_params);
+
+    printk(KERN_INFO "PISCES: boot command line:\n"); 
+    printk(KERN_INFO "  %s\n", boot_params->cmd_line); 
+
+    // check and compare with original binary file using xxd
 #if 0
-        // check and compare with original binary file using xxd
-        printk(KERN_INFO "PISCES: boot command line: %s\n", boot_params->cmd_line); 
-        printk(KERN_INFO "PISCES: kernel image header 0x%lx: 0x%lx\n", 
-                boot_params->kernel_addr, *(unsigned long *)__va(boot_params->kernel_addr));
-        printk(KERN_INFO "PISCES: initrd image header 0x%lx: 0x%lx\n", 
-                boot_params->initrd_addr, *(unsigned long *)__va(boot_params->initrd_addr));
+    printk(KERN_INFO "PISCES: kernel image header 0x%lx: 0x%lx\n", 
+            boot_params->kernel_addr, *(unsigned long *)__va(boot_params->kernel_addr));
+    printk(KERN_INFO "PISCES: initrd image header 0x%lx: 0x%lx\n", 
+            boot_params->initrd_addr, *(unsigned long *)__va(boot_params->initrd_addr));
 #endif
 
-        // 2. setup MP tables
-        memcpy(&boot_params->mpf, mpf, sizeof(struct pisces_mpf_intel));
-        memcpy(&boot_params->mpc, __va(mpf->physptr), sizeof(struct pisces_mpc_table));
-        memcpy(&boot_params->mpc, __va(mpf->physptr), boot_params->mpc.length);
-        boot_params->mpf.physptr = __pa(&boot_params->mpc);
+    // 2. setup MP tables, copy MP table from linux
+    if (mpf_check() < 0) {
+        printk(KERN_INFO "PISCES: start instance failed.");
+        return;
+    }
 
-        // update MP Floating Pointer (mpf) checksum
-        {
-            unsigned char checksum = 0;
-            int len = 16;
-            unsigned char *mp = (unsigned char *) &boot_params->mpf;
+    memcpy(&boot_params->mpf, 
+            mpf, 
+            sizeof(struct pisces_mpf_intel)); // copy mpf header
+    memcpy(&boot_params->mpc, 
+            __va(mpf->physptr), 
+            sizeof(struct pisces_mpc_table)); // copy mpc header
+    memcpy(&boot_params->mpc, 
+            __va(mpf->physptr), 
+            boot_params->mpc.length); // copy mpc
+    // fix mpc address in mpf
+    boot_params->mpf.physptr = __pa(&boot_params->mpc);
+    // fix MP Floating Pointer (mpf) checksum
+    {
+        unsigned char checksum = 0;
+        int len = 16;
+        unsigned char *mp = (unsigned char *) &boot_params->mpf;
 
-            boot_params->mpf.checksum = 0;
-            while (len--)
-                checksum -= *mp++;
-            boot_params->mpf.checksum = checksum;
-        }
+        boot_params->mpf.checksum = 0;
+        while (len--)
+            checksum -= *mp++;
+        boot_params->mpf.checksum = checksum;
+    }
 
-        printk(KERN_INFO "PISCES: MP tables length %d\n", boot_params->mpc.length); 
+    printk(KERN_INFO "PISCES: setup MP tables\n"); 
 
-        // 3. kick offlined cpu
-        kick_offline_cpu();
+    // 3. kick offlined cpu
+    kick_offline_cpu();
 
 }
