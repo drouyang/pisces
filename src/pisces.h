@@ -140,6 +140,12 @@ struct pisces_mpc_processor
 
 struct boot_params_t {
   // cpu map
+
+  // coordinator domain cpu apic id
+  unsigned long domain_xcall_master_cpuid;
+
+  // domain cross call vector id
+  unsigned long domain_xcall_vector_id;
   
   // mem map
   struct pisces_mmap_t mmap;
