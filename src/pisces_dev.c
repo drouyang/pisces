@@ -13,10 +13,11 @@
 #include"pisces_mod.h"      
 #include"pisces_loader.h"      
 #include"pisces.h"      
+#include"domain_xcall.h"      
 
+struct cdev c_dev;  
 static dev_t dev_num; // <major , minor> 
 static struct class *cl; // <major , minor> 
-static struct cdev c_dev;  
 static char console_buffer[1024*50];
 static u64 console_idx = 0;
 
@@ -24,14 +25,14 @@ static int device_open(struct inode *inode, struct file *file)
 {
     //printk(KERN_INFO "Open\n");
 
-    try_module_get(THIS_MODULE);
+    //try_module_get(THIS_MODULE);
     return 0;
 }
 static int device_release(struct inode *inode, struct file *file)
 {
     //printk(KERN_INFO "Release\n");
 
-    module_put(THIS_MODULE);
+    //module_put(THIS_MODULE);
     return 0;
 }
 

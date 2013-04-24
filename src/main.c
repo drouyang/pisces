@@ -4,25 +4,11 @@
 #include"pisces.h"
 #include"pisces_loader.h"
 #include"pisces_dev.h"      /* device file ioctls*/
+#include"domain_xcall.h"
 
-
-
-/*
-#include<linux/init.h>
-#include<linux/smp.h>
-#include<linux/sched.h>
-#include<linux/percpu.h>
-#include<linux/bootmem.h>
-#include<linux/tboot.h>
-#include<linux/gfp.h>
-#include<linux/cpuidle.h>
-
-#include<asm/apic.h>
-#include<asm/desc.h>
-#include<asm/idle.h>
-#include<asm/cpu.h>
-#include<asm/uaccess.h>
-*/
+#include<linux/irq.h>
+#include<linux/interrupt.h>
+#include<asm/irq.h>
 
 
 #define AUTHOR "Jiannan Ouyang <ouyang@cs.pitt.edu>"
@@ -60,20 +46,45 @@ static int pisces_init(void)
     int ret = 0; 
 
     printk(KERN_INFO "PISCES: module loaded\n");
+        /*
+    {
+        int i;
+        struct irq_desc *desc;
+
+        i = 235;
+        desc = irq_to_desc(i);
+        printk(KERN_INFO "%d: status=%08x\n",
+                i, (u32) desc->status_use_accessors);
+        for_each_irq_desc(i, desc) {
+            printk(KERN_INFO "%d: status=%08x\n",
+                    i, (u32) desc->status_use_accessors);
+        }
+    
+    }
+        */
+
 
     ret = device_init();
     if (ret < 0) {
         printk(KERN_INFO "PISCES: device file registeration failed\n");
-        return -1;
+        return 0;
     }
 
-    start_instance();
+    ret = domain_xcall_init();
+    if (ret < 0) {
+        printk(KERN_INFO "PISCES: domain_xcall_init failed\n");
+        return 0;
+    }
+
+
+    //start_instance();
 
     return 0;
 }
 
 static void pisces_exit(void)
 {
+    domain_xcall_exit();
     device_exit();
     printk(KERN_INFO "PISCES: module unloaded\n");
     return;
