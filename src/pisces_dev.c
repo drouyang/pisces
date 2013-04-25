@@ -77,18 +77,18 @@ static long device_ioctl(
 {
     long ret;
     switch (ioctl_num) {
-        case G_IOCTL_PING:
+        case P_IOCTL_PING:
             printk(KERN_INFO "PISCES: mem_base 0x%lx, mem_len 0x%lx, cpuid %lu, kernel_path '%s'\n", 
                     mem_base, mem_len, cpu_id, kernel_path);
             break;
 
-        case G_IOCTL_PREPARE_SECONDARY:
+        case P_IOCTL_PREPARE_SECONDARY:
 
             printk(KERN_INFO "PISCES: setup bootstrap page table for [0x%lx, 0x%lx)\n", 
                     mem_base, mem_base+mem_len);
             pgtable_setup_ident(mem_base, mem_len);
 
-        case G_IOCTL_LOAD_IMAGE:
+        case P_IOCTL_LOAD_IMAGE:
 
             ret = load_image(kernel_path, mem_base);
             printk(KERN_INFO "PISCES: load %lu bytes (%lu KB) to physicall address 0x%lx from %s\n",
@@ -96,13 +96,13 @@ static long device_ioctl(
 
             break;
 
-        case G_IOCTL_START_SECONDARY:
+        case P_IOCTL_START_SECONDARY:
             printk(KERN_INFO "PISCES: start secondary cpu %ld\n", cpu_id);
             kick_offline_cpu();
 
             break;
 
-        case G_IOCTL_PRINT_IMAGE:
+        case P_IOCTL_PRINT_IMAGE:
             {
                 long *p = (long *)__va(mem_base);
                 //long *p = (long *)0x8000000;
@@ -117,37 +117,9 @@ static long device_ioctl(
                 break;
             
             }
-            /*
-        case G_IOCTL_READ_CONSOLE_BUFFER:
-            {
-                struct pisces_cons_t *console = &shared_info->console;
-                u64 *cons = &console->out_cons;
-                u64 *prod = &console->out_prod;
-                int offset;
-                char *start;
-
-                pisces_spin_lock(&console->lock_out);
-                
-                while(!(*prod == *cons)) {//not empty
-                    console_buffer[console_idx++] = console->out[*cons];
-                    *cons = (*cons + 1) % PISCES_CONSOLE_SIZE_OUT;
-                }
-
-                pisces_spin_unlock(&console->lock_out);
-
-
-                start = console_buffer;
-                offset = 0;
-                printk(KERN_INFO "===PISCES_GUEST START===\n");
-                offset = printk(KERN_INFO "%s", start);
-                printk(KERN_INFO "hello");
-                printk(KERN_INFO "%s", start+400);
-                printk(KERN_INFO "===PISCES_GUEST END===\n");
-                printk(KERN_INFO "PISCES: %ld char printed out of %lld\n", start-console_buffer, console_idx);
-                
-                break;
-            
-            }*/
+        case P_IOCTL_EXIT:
+            domain_xcall_exit();
+            break;
 
 
     }

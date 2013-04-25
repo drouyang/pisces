@@ -9,6 +9,7 @@
 #include"pgtables_64.h"
 #include"pisces.h"
 #include"pisces_mod.h"
+#include"domain_xcall.h"
 
 #define ORDER 2
 #define PAGE_SHIFT_2M 21
@@ -397,9 +398,13 @@ static int mpf_setup(void)
 
 static int cpu_info_init(void)
 {
+    int apicid = apic->cpu_present_to_apicid(smp_processor_id());
+
     // cpu map
-    boot_params->domain_xcall_master_cpuid = 0;
-    boot_params->domain_xcall_vector_id = 0;
+
+    // domain_xcall
+    boot_params->domain_xcall_master_apicid = apicid;
+    boot_params->domain_xcall_vector = vector;
 
     if (mpf_setup() < 0) {
         printk(KERN_INFO "PISCES: start instance failed.");

@@ -1,3 +1,2 @@
-sudo rmmod pisces
-sudo insmod /home/ouyang/pisces/pisces/pisces.ko
-sudo chmod 666 /dev/pisces
+modrm
+modins

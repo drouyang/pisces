@@ -1,4 +1,4 @@
-#include"../inc/pisces_dev.h"
+#include"../src/pisces_dev.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,12 +18,12 @@ int main(int argc, char *argv[])
             printf("1001 PREPARE_SECONDARY\n");
             printf("1002 LOAD_IMAGE\n");
             printf("1003 START_SECONDARY\n");
-            printf("1005 READ_CONSOLE_BUFFER\n");
+            printf("1005 EXIT\n");
             exit(-1);
         }
 
         ioctl_num = atoi(argv[1]);
-        if (ioctl_num < G_IOCTL_MIN || ioctl_num > G_IOCTL_MAX) {
+        if (ioctl_num < P_IOCTL_MIN || ioctl_num > P_IOCTL_MAX) {
             printf("Error: ioctl number %d out of range.\n", ioctl_num);
             exit(-1);
         }

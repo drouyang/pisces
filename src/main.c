@@ -38,8 +38,9 @@ module_param(boot_cmd_line, charp, S_IRWXU);
 unsigned long mpf_found_addr = 0xffffffff81bd1c00;
 module_param(mpf_found_addr, ulong, S_IRWXU);
 
-struct shared_info_t *shared_info;
 
+// This pointer is usable only after the memory layout has been setup
+struct shared_info_t *shared_info;
 
 static int pisces_init(void)
 {
@@ -76,15 +77,13 @@ static int pisces_init(void)
         return 0;
     }
 
-
-    //start_instance();
+    start_instance();
 
     return 0;
 }
 
 static void pisces_exit(void)
 {
-    domain_xcall_exit();
     device_exit();
     printk(KERN_INFO "PISCES: module unloaded\n");
     return;

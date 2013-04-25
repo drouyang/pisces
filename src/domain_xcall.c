@@ -5,21 +5,31 @@
  */
 #include<linux/interrupt.h>
 #include<linux/irq.h>
+#include<linux/pci.h>
 #include<linux/export.h>
-#include"domain_xcall.h"
+#include<asm/desc.h>
 #include"pisces.h"
+#include"domain_xcall.h"
 
-static int irq = PISCES_DOMAIN_XCALL_VECTOR;
+int irq = 0;
+int vector = 247;
 
 /*
  * Domain cross call is handled like a syscall.
  * Caller apic_id, xcall_id and params are passed through shared memory
  */
+/*
 static irqreturn_t domain_xcall_interrupt(int irq, void *dev_id)
 {
     printk(KERN_INFO "PISCES: domain xcall received\n");
 
     return IRQ_HANDLED;
+}
+*/
+
+static void domain_xcall_IPI_callback(void)
+{
+    printk(KERN_INFO "PISCES: domain xcall received\n");
 }
 
 extern struct cdev c_dev;  
@@ -30,44 +40,62 @@ extern struct cdev c_dev;
  */
 int domain_xcall_init(void)
 {
+#if 0
     static struct irq_chip pisces_irq_chip;
     int ret;
+    int (*create_irq)(void); 
     
-
-    irq = irq_alloc_descs(irq, 0, 1, numa_node_id());
-
-    if (irq < 0) {
-        printk(KERN_INFO "PISCES: fail to allocate irq %d\n", irq);
-        return -1;
-    } else {
-        printk(KERN_INFO "PISCES: allocate irq %d for domain_xcall\n", irq);
+    create_irq= (int (*)(void))0xffffffff81029240;
     
-    }
 
     pisces_irq_chip = dummy_irq_chip;
-    pisces_irq_chip.name = "pisces";
+    pisces_irq_chip.name = " PISCES-XCALL";
+
+    irq = create_irq();
+
+    /*
+    ret = irq_alloc_descs(irq, 0, 1, numa_node_id());
+
+    if (ret < 0) {
+        printk(KERN_INFO "PISCES: fail to allocate irq %d, error code %d\n", irq, ret);
+        return -1;
+    } 
+    */
+
     irq_set_chip_and_handler(irq, &pisces_irq_chip, handle_simple_irq);
 
     ret = request_irq(irq, 
             domain_xcall_interrupt,
-            IRQF_DISABLED | IRQF_TRIGGER_FALLING,
-            "pisces_domain_xcall",
+            0,
+            "pisces",
             NULL);
 
+    enable_irq(irq);
+
     if (ret) {
-        printk(KERN_INFO "PISCES: request_irq %d failed, error code %d\n", 
-                PISCES_DOMAIN_XCALL_VECTOR,
+        printk(KERN_INFO "PISCES: failed to request_irq %d, error code %d\n", 
+                irq,
                 ret);
         return -1;
     } 
+
+    vector = irq + 16;
+
+    printk(KERN_INFO "PISCES: allocate irq %d for domain_xcall\n", irq);
+    //alloc_intr_gate(PISCES_DOMAIN_XCALL_VECTOR, domain_xcall_interrupt);
+#endif
+    void (**x86_platform_ipi_callback)(void);
+
+    x86_platform_ipi_callback = (void (**)(void))0xffffffff81bbb148;
+    *x86_platform_ipi_callback = domain_xcall_IPI_callback;
 
     return 0;
 }
 
 void domain_xcall_exit(void)
 {
-    free_irq(irq, NULL);
-    irq_free_descs(irq, 1);
-
+    //free_irq(irq, NULL);
+    //irq_free_descs(irq, 1);
+    //printk(KERN_INFO "PISCES: free irq %d for domain_xcall\n", irq);
 }
 
