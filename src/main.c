@@ -17,25 +17,10 @@
 
 //extern bootstrap_pgt_t *bootstrap_pgt;
 
-  unsigned long mem_base = 0x8000000;
-  module_param(mem_base, ulong, S_IRWXU);
-  
-  unsigned long mem_len = 0x8000000;
-  module_param(mem_len, ulong, S_IRWXU);
-  
+
   unsigned long cpu_id = 1;
   module_param(cpu_id, ulong, S_IRWXU);
   
-  char *kernel_path = "/home/ouyang/pisces/kitten-1.3.0/vmlwk.bin";
-  module_param(kernel_path, charp, S_IRWXU);
-  
-  char *initrd_path = "/home/ouyang/pisces/kitten-1.3.0/init_task";
-  module_param(initrd_path, charp, S_IRWXU);
-  
-  char *boot_cmd_line = "console=pisces init_argv=\"one two three\" init_envp=\"a=1 b=2 c=3\"";
-  module_param(boot_cmd_line, charp, S_IRWXU);
-
-
 
 unsigned long mpf_found_addr = 0xffffffff81bd1c00;
 module_param(mpf_found_addr, ulong, S_IRWXU);

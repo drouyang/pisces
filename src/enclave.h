@@ -36,7 +36,7 @@ struct pisces_enclave {
 
     // But, for now we're just going to hard code it
     uintptr_t base_addr;
-    
+    u64 mem_size;
     
 };
 

@@ -96,18 +96,18 @@ static long device_ioctl(struct file * file, unsigned int ioctl,
 
 
         case P_IOCTL_PING:
-            printk(KERN_INFO "PISCES: mem_base 0x%lx, mem_len 0x%lx, cpuid %lu, kernel_path '%s'\n", 
-                    mem_base, mem_len, cpu_id, kernel_path);
+            printk(KERN_INFO "PISCES: Base Addr: %p, mem size: %llu, cpuid %lu, kernel_path '%s'\n", 
+		   (void *)enclave->base_addr, enclave->mem_size, cpu_id, enclave->kern_path);
             break;
 
         case P_IOCTL_PREPARE_SECONDARY:
 
-            printk(KERN_INFO "PISCES: setup bootstrap page table for [0x%lx, 0x%lx)\n", 
-                    mem_base, mem_base+mem_len);
+            printk(KERN_INFO "PISCES: setup bootstrap page table for [%p, %p)\n", 
+		   (void *)enclave->base_addr, (void *)(enclave->base_addr + enclave->mem_size));
             pgtable_setup_ident(enclave);
 
         case P_IOCTL_LOAD_IMAGE: {
-	    struct pisces_image * img = kmalloc(sizeof(struct pisces_image), GFP_KERNEL);;
+	    struct pisces_image * img = kmalloc(sizeof(struct pisces_image), GFP_KERNEL);
 
 	    if (IS_ERR(img)) {
 		printk(KERN_ERR "Could not allocate space for pisces image\n");
@@ -141,10 +141,10 @@ static long device_ioctl(struct file * file, unsigned int ioctl,
 
         case P_IOCTL_PRINT_IMAGE:
             {
-                long *p = (long *)__va(mem_base);
+                long *p = (long *)__va(enclave->base_addr);
                 //long *p = (long *)0x8000000;
                 int t=10;
-                printk(KERN_INFO "PISCES: physicall address 0x%lx\n", mem_base);
+                printk(KERN_INFO "PISCES: physicall address 0x%lx\n", enclave->base_addr);
                 while (t>0) {
                     printk(KERN_INFO "%p\t", (void *)*p);
                     p++;
@@ -231,4 +231,7 @@ void device_exit(void) {
     device_destroy(cl, dev_num);
     class_destroy(cl);
     unregister_chrdev_region(dev_num, 1);
+
+    remove_proc_entry(PISCES_PROC_DIR, NULL);
+    
 }

@@ -144,7 +144,7 @@ static struct pisces_mmap_t * mmap_init(struct pisces_enclave * enclave)
 
     mmap->nr_map = 1;
     mmap->map[0].addr = enclave->base_addr;
-    mmap->map[0].size = mem_len;
+    mmap->map[0].size = enclave->mem_size;
 
     printk(KERN_INFO "PISCES: offlined memory map:\n");
     for(i=0; i<mmap->nr_map; i++) {
@@ -164,8 +164,7 @@ static struct pisces_mmap_t * mmap_init(struct pisces_enclave * enclave)
  * 2. shared_info
  *
  */
-extern char *kernel_path;
-extern char *initrd_path;
+
 static void mem_layout_init(struct pisces_enclave * enclave) 
 {
     long mem_base;
@@ -182,7 +181,7 @@ static void mem_layout_init(struct pisces_enclave * enclave)
     base = mem_base;
 
     // 1. kernel image
-    size = load_image(kernel_path, base);
+    size = load_image(enclave->kern_path, base);
     local_boot_params.kernel_addr = base;
     local_boot_params.kernel_size = size;
 
@@ -192,7 +191,7 @@ static void mem_layout_init(struct pisces_enclave * enclave)
 
     // 2. initrd 
     base = mem_base + (512<<PAGE_SHIFT); // 512*4k = 2M aligned
-    size = load_image(initrd_path, base);
+    size = load_image(enclave->initrd_path, base);
     local_boot_params.initrd_addr = base;
     local_boot_params.initrd_size = size;
 
@@ -214,7 +213,7 @@ static void mem_layout_init(struct pisces_enclave * enclave)
     memcpy(&boot_params->mmap, mmap, sizeof(struct pisces_mmap_t));
 
     // boot command line
-    strcpy(boot_params->cmd_line, boot_cmd_line);
+    strcpy(boot_params->cmd_line, enclave->kern_cmdline);
 
     printk(KERN_INFO "PISCES: loader memroy map:\n");
     printk(KERN_INFO "  kernel:        [0x%lx, 0x%lx), size 0x%lx\n",
