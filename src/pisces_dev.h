@@ -5,6 +5,7 @@
  * The name of the device file 
  */
 #define DEVICE_NAME "pisces"
+#define PISCES_PROC_DIR "pisces"
 
 /* Pisces global ioctls */
 
@@ -25,6 +26,25 @@
 #define P_IOCTL_EXIT 1005
 
 #define P_IOCTL_MAX    1005
+
+#define P_IOCTL_ADD_MEM 1006
+
+struct memory_range {
+    unsigned long long base_addr;
+    unsigned long long pages;
+} __attribute__((packed));
+
+
+
+struct pisces_image {
+    char kern_path[1024];
+    char initrd_path[1024];
+    char cmd_line[1024];
+
+    unsigned long long memsize_in_bytes;
+    unsigned long long num_cpus;
+} __attribute__((packed));
+
 
 int device_init(void);
 void device_exit(void);

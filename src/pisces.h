@@ -10,69 +10,15 @@
 #ifndef _PISCES_H_
 #define _PISCES_H_
 
+
+
 #define PISCES_MAGIC 0x5a
 #define PISCES_MAGIC_MASK 0xff
+
+
 typedef unsigned long long u64;
 typedef unsigned int u32;
 
-
-/* REP NOP (PAUSE) is a good thing to insert into busy-wait loops. */
-static inline void pisces_cpu_relax(void)
-{
-	__asm__ __volatile__("rep;nop": : :"memory");
-}
-
-/*
- * Note: no "lock" prefix even on SMP: xchg always implies lock anyway
- * Note 2: xchg has side effect, so that attribute volatile is necessary,
- *	  but generally the primitive is invalid, *ptr is output argument. --ANK
- */
-static inline unsigned long pisces_xchg8(volatile void * ptr, unsigned char x )
-{
-  __asm__ __volatile__("xchgb %0,%1"
-                       :"=r" (x)
-                       :"m" (*(volatile unsigned char *)ptr), "0" (x)
-                       :"memory");
-  return x;
-}
-typedef unsigned char pisces_spinlock_t;
-
-static inline void pisces_spin_init(pisces_spinlock_t *lock)
-{
-  *lock = 0;
-}
-static inline void pisces_spin_lock(pisces_spinlock_t *lock)
-{
-  while (1) {
-    if(pisces_xchg8(lock, 1)==0) return;
-    while(*lock) pisces_cpu_relax();
-  }
-}
-static inline void pisces_spin_unlock(pisces_spinlock_t *lock)
-{
-  __asm__ __volatile__ ("": : :"memory");
-  *lock = 0;
-}
-
-// in out buffer as a circular queue
-// prod is queue head, point to an available slot
-// cons is queue tail
-// cons == prod-1 => queue is empty
-// prod == cons-1 => queue is full
-#define PISCES_CONSOLE_SIZE_OUT (1024*6)
-#define PISCES_CONSOLE_SIZE_IN 1024
-struct pisces_cons_t {
-  // in buffer 1K
-  //pisces_spinlock_t lock_in;
-  //char in[PISCES_CONSOLE_SIZE_IN];
-  //u64 in_cons, in_prod;
-
-  // out buffer 2K
-  pisces_spinlock_t lock_out;
-  char out[PISCES_CONSOLE_SIZE_OUT];
-  u64 out_cons, out_prod;
-
-} __attribute__((packed));
 
 // boot memory map
 #define PISCES_MEMMAP_MAX 1
@@ -171,9 +117,15 @@ struct boot_params_t {
   unsigned long shared_info_size;
 } __attribute__((packed));
 
+
+#include "pisces_cons.h"
+
+
 struct shared_info_t {
-  u64 magic;
-  struct boot_params_t boot_params;
-  struct pisces_cons_t console;
+    u64 magic;
+    struct boot_params_t boot_params;
+    struct pisces_cons console;
 } __attribute__((packed));
+
+
 #endif 
