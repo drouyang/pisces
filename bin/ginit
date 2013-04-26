@@ -1,7 +1,12 @@
 cpuadd 1
+cpuadd 2
+cpuadd 7
 memadd 1
+
 cpurm 1
+cpurm 2
 cpurm 7
 memrm 1
+
 cpuls
 memls

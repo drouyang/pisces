@@ -332,13 +332,15 @@ static void fix_mpc(struct pisces_mpc_table *mpc)
 				struct pisces_mpc_processor *m=
 					(struct pisces_mpc_processor *)mpt;
                                 // JO: hardcode BSP and available cpus 
-                                if (m->apicid != 1) {
+                                if (m->apicid != 1 && m->apicid != 2) {
                                     m->cpuflag &= ~PISCES_CPU_ENABLED;
                                     m->cpuflag &= ~PISCES_CPU_BSP;
                                     printk(KERN_INFO "  disable cpu apicid %d\n", m->apicid);
-                                } else {
+                                } else if (m->apicid == 1){
                                     m->cpuflag |= PISCES_CPU_BSP;
                                     printk(KERN_INFO "  enable  cpu apicid %d (BSP)\n", m->apicid);
+                                } else {
+                                    printk(KERN_INFO "  enable  cpu apicid %d\n", m->apicid);
                                 }
 
 				mpt += sizeof(*m);
