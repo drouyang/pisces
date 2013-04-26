@@ -10,14 +10,13 @@
 #ifndef _PISCES_H_
 #define _PISCES_H_
 
+#include <linux/types.h>
 
 
 #define PISCES_MAGIC 0x5a
 #define PISCES_MAGIC_MASK 0xff
 
 
-typedef unsigned long long u64;
-typedef unsigned int u32;
 
 
 // boot memory map
@@ -121,7 +120,7 @@ struct boot_params_t {
 #include "pisces_cons.h"
 
 
-struct shared_info_t {
+struct shared_info {
     u64 magic;
     struct boot_params_t boot_params;
     struct pisces_cons console;

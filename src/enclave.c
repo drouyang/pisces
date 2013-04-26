@@ -7,6 +7,7 @@
 #include <linux/slab.h>
 
 #include "enclave.h"
+#include "mm.h"
 
 struct pisces_enclave *  pisces_create_enclave(struct pisces_image * img) {
 

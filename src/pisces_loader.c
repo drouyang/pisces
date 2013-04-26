@@ -165,12 +165,11 @@ static struct pisces_mmap_t * mmap_init(struct pisces_enclave * enclave)
  *
  */
 
-static void mem_layout_init(struct pisces_enclave * enclave) 
-{
+static void mem_layout_init(struct pisces_enclave * enclave) {
     long mem_base;
     long base;
     long size = 0;
-    struct pisces_mmap_t *mmap; 
+    struct pisces_mmap_t * mmap = NULL; 
     struct boot_params_t local_boot_params;
 
     mmap = mmap_init(enclave);
@@ -198,16 +197,16 @@ static void mem_layout_init(struct pisces_enclave * enclave)
 
     // 3. shared_info load to next page
     base += (((size>>PAGE_SHIFT)+1)<<PAGE_SHIFT); //4K roundup
-    shared_info = (struct shared_info_t *)__va(base);
-    size = sizeof(struct shared_info_t);
+    enclave->shared = (struct shared_info *)__va(base);
+    size = sizeof(struct shared_info);
     local_boot_params.shared_info_addr = base;
     local_boot_params.shared_info_size = size;
 
 
     // copy boot params to offlined memory
-    memset((void *)shared_info, 0, sizeof(struct shared_info_t));
-    shared_info->magic = PISCES_MAGIC;
-    boot_params = &shared_info->boot_params;
+    memset((void *)enclave->shared, 0, sizeof(struct shared_info));
+    enclave->shared->magic = PISCES_MAGIC;
+    boot_params = &(enclave->shared->boot_params);
     memcpy(boot_params, &local_boot_params, sizeof(struct boot_params_t));
 
     memcpy(&boot_params->mmap, mmap, sizeof(struct pisces_mmap_t));
@@ -266,8 +265,11 @@ int kick_offline_cpu(struct pisces_enclave * enclave)
     // our pisces_trampoline
     initial_code = (unsigned long) pisces_trampoline;
 
-    printk(KERN_INFO "PISCES: CPU%d (apic_id %d) wakeup CPU%lu (apic_id %d) via INIT\n", smp_processor_id(), apic->cpu_present_to_apicid(smp_processor_id()), cpu_id, apicid);
+    printk(KERN_INFO "PISCES: CPU%d (apic_id %d) wakeup CPU%lu (apic_id %d) via INIT\n", 
+	   smp_processor_id(), apic->cpu_present_to_apicid(smp_processor_id()), cpu_id, apicid);
+
     ret = wakeup_secondary_cpu_via_init(apicid, start_ip);
+
     return ret;
 
 }

@@ -38,6 +38,8 @@ struct pisces_enclave {
     uintptr_t base_addr;
     u64 mem_size;
     
+    struct shared_info * shared;
+
 };
 
 
