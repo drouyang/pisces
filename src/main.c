@@ -78,7 +78,6 @@ static int pisces_init(void) {
         return 0;
     }
 
-    start_instance();
 
     return 0;
 }

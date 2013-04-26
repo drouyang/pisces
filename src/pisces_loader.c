@@ -1,15 +1,16 @@
 #include <linux/fs.h>
-#include<linux/percpu.h>
-#include<asm/desc.h>
+#include <linux/percpu.h>
+#include <asm/desc.h>
 #include <asm/segment.h>
 #include <asm/uaccess.h>
-#include<asm/realmode.h>
+#include <asm/realmode.h>
 
-#include"pisces_loader.h"
-#include"pgtables_64.h"
-#include"pisces.h"
-#include"pisces_mod.h"
-#include"domain_xcall.h"
+#include "pisces_loader.h"
+#include "pgtables_64.h"
+#include "pisces.h"
+#include "pisces_mod.h"
+#include "domain_xcall.h"
+
 
 #define ORDER 2
 #define PAGE_SHIFT_2M 21
@@ -23,7 +24,7 @@ extern int wakeup_secondary_cpu_via_init(int, unsigned long);
 
 // setup bootstrap page tables - bootstrap_pgt
 // 4M identity mapping from mem_base
-void pgtable_setup_ident(unsigned long mem_base, unsigned long mem_len)
+void pgtable_setup_ident(struct pisces_enclave * enclave)
 {
 
     u64 cr3;
@@ -34,7 +35,7 @@ void pgtable_setup_ident(unsigned long mem_base, unsigned long mem_len)
 
     pgd_base = (pgd64_t *) CR3_TO_PGD_VA(cr3);
 
-    pgde = pgd_base + PGD_INDEX(mem_base);
+    pgde = pgd_base + PGD_INDEX(enclave->base_addr);
 
     {
         int i;
@@ -57,7 +58,7 @@ void pgtable_setup_ident(unsigned long mem_base, unsigned long mem_len)
                 __pa((unsigned long) bootstrap_pgt->level1_ident_pgt));
                 */
 
-        memcpy(bootstrap_pgt->level4_pgt, pgd_base, sizeof(NUM_PGD_ENTRIES*sizeof(u64)));
+        memcpy(bootstrap_pgt->level4_pgt, pgd_base, sizeof(NUM_PGD_ENTRIES * sizeof(u64)));
 
         //pgde->base_addr = PAGE_TO_BASE_ADDR(__pa(bootstrap_pgt->level3_ident_pgt));
         //pgde->present = 1; 
@@ -66,28 +67,28 @@ void pgtable_setup_ident(unsigned long mem_base, unsigned long mem_len)
 
         //bootstrap_pgt->level4_pgt[0] = *((pgd_2MB_t *)&level3_ident_pgt);
         tmp = PAGE_TO_BASE_ADDR(__pa(bootstrap_pgt->level3_ident_pgt));
-        bootstrap_pgt->level4_pgt[PGD_INDEX(mem_base)].base_addr = tmp;
-        bootstrap_pgt->level4_pgt[PGD_INDEX(mem_base)].present = 1; 
-        bootstrap_pgt->level4_pgt[PGD_INDEX(mem_base)].writable = 1; 
-        bootstrap_pgt->level4_pgt[PGD_INDEX(mem_base)].accessed = 1; 
-        //printk("PISCES: level4[%llu].base_addr = %llx\n", PGD_INDEX(mem_base), tmp);
+        bootstrap_pgt->level4_pgt[PGD_INDEX(enclave->base_addr)].base_addr = tmp;
+        bootstrap_pgt->level4_pgt[PGD_INDEX(enclave->base_addr)].present = 1; 
+        bootstrap_pgt->level4_pgt[PGD_INDEX(enclave->base_addr)].writable = 1; 
+        bootstrap_pgt->level4_pgt[PGD_INDEX(enclave->base_addr)].accessed = 1; 
+        //printk("PISCES: level4[%llu].base_addr = %llx\n", PGD_INDEX(enclave->base_addr), tmp);
 
         tmp = PAGE_TO_BASE_ADDR(__pa(bootstrap_pgt->level2_ident_pgt));
-        bootstrap_pgt->level3_ident_pgt[PUD_INDEX(mem_base)].base_addr =  tmp;
-        bootstrap_pgt->level3_ident_pgt[PUD_INDEX(mem_base)].present =  1;
-        bootstrap_pgt->level3_ident_pgt[PUD_INDEX(mem_base)].writable =  1;
-        bootstrap_pgt->level3_ident_pgt[PUD_INDEX(mem_base)].accessed =  1;
-        //printk("PISCES: level3[%llu].base_addr = %llx\n", PUD_INDEX(mem_base), tmp);
+        bootstrap_pgt->level3_ident_pgt[PUD_INDEX(enclave->base_addr)].base_addr =  tmp;
+        bootstrap_pgt->level3_ident_pgt[PUD_INDEX(enclave->base_addr)].present =  1;
+        bootstrap_pgt->level3_ident_pgt[PUD_INDEX(enclave->base_addr)].writable =  1;
+        bootstrap_pgt->level3_ident_pgt[PUD_INDEX(enclave->base_addr)].accessed =  1;
+        //printk("PISCES: level3[%llu].base_addr = %llx\n", PUD_INDEX(enclave->base_addr), tmp);
 
         tmp = PAGE_TO_BASE_ADDR(__pa(bootstrap_pgt->level1_ident_pgt));
-        bootstrap_pgt->level2_ident_pgt[PMD_INDEX(mem_base)].base_addr =  tmp;
-        bootstrap_pgt->level2_ident_pgt[PMD_INDEX(mem_base)].present =  1;
-        bootstrap_pgt->level2_ident_pgt[PMD_INDEX(mem_base)].writable =  1;
-        bootstrap_pgt->level2_ident_pgt[PMD_INDEX(mem_base)].accessed =  1;
-        //printk("PISCES: level2[%llu].base_addr = %llx\n", PMD_INDEX(mem_base), tmp);
+        bootstrap_pgt->level2_ident_pgt[PMD_INDEX(enclave->base_addr)].base_addr =  tmp;
+        bootstrap_pgt->level2_ident_pgt[PMD_INDEX(enclave->base_addr)].present =  1;
+        bootstrap_pgt->level2_ident_pgt[PMD_INDEX(enclave->base_addr)].writable =  1;
+        bootstrap_pgt->level2_ident_pgt[PMD_INDEX(enclave->base_addr)].accessed =  1;
+        //printk("PISCES: level2[%llu].base_addr = %llx\n", PMD_INDEX(enclave->base_addr), tmp);
 
         for (i = 0; i < NUM_PTE_ENTRIES; i++) {
-            bootstrap_pgt->level1_ident_pgt[i].base_addr = PAGE_TO_BASE_ADDR(mem_base + (i<<PAGE_POWER));
+            bootstrap_pgt->level1_ident_pgt[i].base_addr = PAGE_TO_BASE_ADDR(enclave->base_addr + (i << PAGE_POWER));
             bootstrap_pgt->level1_ident_pgt[i].present = 1;
             bootstrap_pgt->level1_ident_pgt[i].writable = 1;
             bootstrap_pgt->level1_ident_pgt[i].accessed = 1;
@@ -101,7 +102,7 @@ void pgtable_setup_ident(unsigned long mem_base, unsigned long mem_len)
     return;
 }
 
-long load_image(char *path, unsigned long addr)
+long load_image(char * path, unsigned long addr)
 {
     struct file* filp = NULL;
     mm_segment_t oldfs;
@@ -136,13 +137,13 @@ void loader_exit(void) {
     free_pages((unsigned long)bootstrap_pgt, ORDER);
 }
 
-static struct pisces_mmap_t *mmap_init(void) 
+static struct pisces_mmap_t * mmap_init(struct pisces_enclave * enclave) 
 {
     struct pisces_mmap_t *mmap = &pisces_mmap;
     int i;
 
     mmap->nr_map = 1;
-    mmap->map[0].addr = mem_base;
+    mmap->map[0].addr = enclave->base_addr;
     mmap->map[0].size = mem_len;
 
     printk(KERN_INFO "PISCES: offlined memory map:\n");
@@ -165,7 +166,7 @@ static struct pisces_mmap_t *mmap_init(void)
  */
 extern char *kernel_path;
 extern char *initrd_path;
-static void mem_layout_init(void) 
+static void mem_layout_init(struct pisces_enclave * enclave) 
 {
     long mem_base;
     long base;
@@ -173,7 +174,7 @@ static void mem_layout_init(void)
     struct pisces_mmap_t *mmap; 
     struct boot_params_t local_boot_params;
 
-    mmap = mmap_init();
+    mmap = mmap_init(enclave);
 
     BUG_ON(mmap->nr_map < 1);
 
@@ -251,7 +252,7 @@ static void pisces_trampoline(void)
 
 // use linux trampoline code to init offlined cpu, but hijack and jump to pisces_trampoline
 // in pisces_trampoline, setup ident mapping and jump to kernel code
-int kick_offline_cpu(void) 
+int kick_offline_cpu(struct pisces_enclave * enclave) 
 {
     int ret = 0;
     int apicid = apic->cpu_present_to_apicid(cpu_id);
@@ -261,7 +262,7 @@ int kick_offline_cpu(void)
     early_gdt_descr.address = (unsigned long)per_cpu(gdt_page, cpu_id).gdt;
 
     // setup ident mapping for pisces_trampoline
-    pgtable_setup_ident(mem_base, mem_len);
+    pgtable_setup_ident(enclave);
 
     // our pisces_trampoline
     initial_code = (unsigned long) pisces_trampoline;
@@ -416,14 +417,14 @@ static int cpu_info_init(void)
     return 0;
 }
 
-void start_instance(void)
+void start_instance(struct pisces_enclave * enclave)
 {
     // memory init goes first because we need to setup share_info
     // region first
-    mem_layout_init();
+    mem_layout_init(enclave);
 
     if (cpu_info_init() >= 0) {
-        kick_offline_cpu();
+        kick_offline_cpu(enclave);
     }
 
 }

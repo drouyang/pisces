@@ -5,8 +5,11 @@
  */
 
 
+
 #ifndef __MM_H__
 #define __MM_H__
+
+#include <linux/types.h>
 
 
 struct memdesc {
@@ -18,6 +21,11 @@ struct memdesc {
 };
 
 
+uintptr_t pisces_alloc_pages_on_node(u64 num_pages, int node_id);
+uintptr_t pisces_alloc_pages(u64 num_pages);
+int pisces_mem_init( void );
+
+int pisces_add_mem(uintptr_t base_addr, u64 num_pages);
 
 
 #endif

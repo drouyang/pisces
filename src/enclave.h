@@ -16,8 +16,12 @@
 
 struct pisces_enclave {
 
-    char * initrd_path;
+    // We'll just hold on to the image for now,
+    // We need to get rid of this soon though
+    struct pisces_img * tmp_image_ptr;
+
     char * kern_path;
+    char * initrd_path;
     char * kern_cmdline;
 
     u32 num_cpus;
@@ -27,13 +31,18 @@ struct pisces_enclave {
 
     struct pisces_cons cons;
 
+    // This is what we will want eventually.....
     struct list_head memdesc_list;
 
+    // But, for now we're just going to hard code it
+    uintptr_t base_addr;
+    
+    
 };
 
 
 
-int pisces_create_enclave(struct pisces_image * img);
+struct pisces_enclave *  pisces_create_enclave(struct pisces_image * img);
 
 
 #endif

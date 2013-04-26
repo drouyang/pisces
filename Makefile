@@ -11,7 +11,8 @@ pisces-objs :=  src/main.o \
 		src/buddy.o \
 		src/enclave.o \
 		src/pisces_lock.o \
-		src/numa.o 
+		src/numa.o \
+		src/mm.o
 
 all:
 	make -C $(KERN_PATH) M=$(PWD) modules
