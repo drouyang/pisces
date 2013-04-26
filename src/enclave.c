@@ -12,6 +12,8 @@ struct pisces_enclave *  pisces_create_enclave(struct pisces_image * img) {
 
     struct pisces_enclave * enclave = NULL;
 
+    printk(KERN_DEBUG "Creating Pisces Enclave\n");
+
 
     enclave = kmalloc(sizeof(struct pisces_enclave), GFP_KERNEL);
     

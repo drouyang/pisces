@@ -18,7 +18,7 @@ struct pisces_enclave {
 
     // We'll just hold on to the image for now,
     // We need to get rid of this soon though
-    struct pisces_img * tmp_image_ptr;
+    struct pisces_image * tmp_image_ptr;
 
     char * kern_path;
     char * initrd_path;
