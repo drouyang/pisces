@@ -29,7 +29,8 @@ struct pisces_enclave *  pisces_create_enclave(struct pisces_image * img) {
     enclave->initrd_path = img->initrd_path;
     enclave->kern_cmdline = img->cmd_line;
 
-    //   enclave->base_addr = buddy_alloc(
+    enclave->mem_size = 128 * 1024 * 1024;
+    enclave->base_addr = pisces_alloc_pages((128 * 1024 * 1024) / 4096);
 
     return enclave;
 }
