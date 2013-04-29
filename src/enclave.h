@@ -29,16 +29,20 @@ struct pisces_enclave {
     cpumask_t assigned_cpus;
 
 
+
     struct pisces_cons cons;
 
+    
     // This is what we will want eventually.....
     struct list_head memdesc_list;
 
+    u32 memdesc_num;
+
     // But, for now we're just going to hard code it
-    uintptr_t base_addr;
+    uintptr_t base_addr_pa;
     u64 mem_size;
     
-    struct shared_info * shared;
+
 
 };
 

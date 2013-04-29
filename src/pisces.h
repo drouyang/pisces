@@ -18,18 +18,23 @@
 
 
 
+/* Pisces Boot loader memory layout
+ * 1. boot parameters // 4KB aligned
+ *     ->  Memory map is appended to this structure
+ * 3. Console ring buffer (64KB) // 4KB aligned
+ * 4. kernel image // 2M aligned
+ * 5. initrd // 2M aligned
+
+ *
+ */
+
 
 // boot memory map
-#define PISCES_MEMMAP_MAX 1
-struct pisces_mmap_entry_t {
+struct pisces_mmap_entry {
   u64 addr;
   u64 size;
 } __attribute__((packed));
 
-struct pisces_mmap_t {
-  int nr_map;
-  struct pisces_mmap_entry_t map[PISCES_MEMMAP_MAX];
-} __attribute__((packed));
 
 // cpu map, future work
 #define PISCES_CPU_MAX 1
@@ -38,30 +43,30 @@ struct pisces_mmap_t {
 /* Intel MP Floating Pointer Structure */
 struct pisces_mpf_intel {
 	char signature[4];		/* "_MP_"			*/
-	unsigned int physptr;		/* Configuration table address	*/
-	unsigned char length;		/* Our length (paragraphs)	*/
-	unsigned char specification;	/* Specification version	*/
-	unsigned char checksum;		/* Checksum (makes sum 0)	*/
-	unsigned char feature1;		/* Standard or configuration ?	*/
-	unsigned char feature2;		/* Bit7 set for IMCR|PIC	*/
-	unsigned char feature3;		/* Unused (0)			*/
-	unsigned char feature4;		/* Unused (0)			*/
-	unsigned char feature5;		/* Unused (0)			*/
-};
+	u32 physptr;		/* Configuration table address	*/
+	u8 length;		/* Our length (paragraphs)	*/
+	u8 specification;	/* Specification version	*/
+	u8 checksum;		/* Checksum (makes sum 0)	*/
+	u8 feature1;		/* Standard or configuration ?	*/
+	u8 feature2;		/* Bit7 set for IMCR|PIC	*/
+	u8 feature3;		/* Unused (0)			*/
+	u8 feature4;		/* Unused (0)			*/
+	u8 feature5;		/* Unused (0)			*/
+} __attribute__((packed));
 
 struct pisces_mpc_table {
 	char signature[4];
-	unsigned short length;		/* Size of table */
+	u16 length;		/* Size of table */
 	char spec;			/* 0x01 */
 	char checksum;
 	char oem[8];
 	char productid[12];
-	unsigned int oemptr;		/* 0 if not present */
-	unsigned short oemsize;		/* 0 if not present */
-	unsigned short oemcount;
-	unsigned int lapic;		/* APIC address */
-	unsigned int reserved;
-};
+	u32 oemptr;		/* 0 if not present */
+	u16 oemsize;		/* 0 if not present */
+	u16 oemcount;
+	u32 lapic;		/* APIC address */
+	u32 reserved;
+} __attribute__((packed));
 
 #define	PISCES_MP_PROCESSOR	0
 #define	PISCES_MP_BUS		1
@@ -71,60 +76,57 @@ struct pisces_mpc_table {
 
 struct pisces_mpc_processor
 {               
-  unsigned char type;
-  unsigned char apicid; /* Local APIC number */
-  unsigned char apicver;  /* Its versions */
-  unsigned char cpuflag;
+  u8 type;
+  u8 apicid; /* Local APIC number */
+  u8 apicver;  /* Its versions */
+  u8 cpuflag;
 #define PISCES_CPU_ENABLED  1 /* Processor is available */
 #define PISCES_CPU_BSP      2 /* Processor is the BP */
-  unsigned int cpufeature;
-  unsigned int featureflag; /* CPUID feature value */
-  unsigned int reserved[2];
-};
-
-
-struct boot_params_t {
-  // cpu map
-
-  // coordinator domain cpu apic id
-  unsigned long domain_xcall_master_apicid;
-
-  // domain cross call vector id
-  unsigned long domain_xcall_vector;
-  
-  // mem map
-  struct pisces_mmap_t mmap;
-
-  // MP table
-  struct pisces_mpf_intel mpf; // Intel multiprocessor floating pointer
-  struct pisces_mpc_table mpc; // MP config table
-  char mpc_entries[1024];  // space for a number of mpc entries
-
-  // cmd_line
-  char cmd_line[1024];
-
-  // kernel
-  unsigned long kernel_addr;
-  unsigned long kernel_size;
-
-  // initrd
-  unsigned long initrd_addr;
-  unsigned long initrd_size;
-
-  // shared_info
-  unsigned long shared_info_addr;
-  unsigned long shared_info_size;
+  u32 cpufeature;
+  u32 featureflag; /* CPUID feature value */
+  u32 reserved[2];
 } __attribute__((packed));
 
 
-#include "pisces_cons.h"
-
-
-struct shared_info {
+struct pisces_boot_params {
     u64 magic;
-    struct boot_params_t boot_params;
-    struct pisces_cons console;
+    // cpu map
+    
+    // coordinator domain cpu apic id
+    u64 domain_xcall_master_apicid;
+
+    // domain cross call vector id
+    u64 domain_xcall_vector;
+  
+    // MP table
+    struct pisces_mpf_intel mpf; // Intel multiprocessor floating pointer
+    struct pisces_mpc_table mpc; // MP config table
+    char mpc_entries[1024];  // space for a number of mpc entries
+    
+    // cmd_line
+    char cmd_line[1024];
+
+    // kernel
+    u64 kernel_addr;
+    u64 kernel_size;
+    
+    // initrd
+    u64 initrd_addr;
+    u64 initrd_size;
+    
+
+    // The address of the ring buffer used for the early console
+    u64 console_ring_addr;
+    u64 console_ring_size;
+
+
+    // This is the address of an array of mmap entries.
+    u64 num_mmap_entries;
+    struct pisces_mmap_entry mmap[0];
+
 } __attribute__((packed));
+
+
 
 
 #endif 

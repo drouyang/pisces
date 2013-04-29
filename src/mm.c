@@ -50,6 +50,17 @@ uintptr_t pisces_alloc_pages(u64 num_pages) {
 
 
 
+void pisces_free_pages(uintptr_t page_addr, u64 num_pages) {
+    int node_id = numa_addr_to_node(page_addr);
+    //PrintDebug("Freeing Memory page %p\n", (void *)page_addr);
+    
+    buddy_free(memzones[node_id], page_addr, get_order(num_pages * PAGE_SIZE) + PAGE_SHIFT);
+
+    return;
+}
+
+
+
 int pisces_mem_init(void) {
     int num_nodes = numa_num_nodes();
     int node_id = 0;

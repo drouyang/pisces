@@ -11,6 +11,7 @@ pisces-objs :=  src/main.o \
 		src/buddy.o \
 		src/enclave.o \
 		src/pisces_lock.o \
+		src/pisces_ringbuf.o \
 		src/numa.o \
 		src/mm.o
 
