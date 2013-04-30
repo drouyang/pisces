@@ -52,9 +52,13 @@ static int device_release(struct inode *inode, struct file *file)
     return 0;
 }
 
+
+// For now just forward reads to the console, and we'll just access the global enclave
+#include "pisces_cons.h"
 static ssize_t device_read(struct file *file, char __user *buffer,
 			   size_t length, loff_t *offset) {
-    return -EINVAL;
+
+    return console_read(file, buffer, length, offset);
 }
 
 

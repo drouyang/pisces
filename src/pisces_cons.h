@@ -6,11 +6,9 @@
 #ifndef __PISCES_CONS_H__
 #define __PISCES_CONS_H__
 
+#include <linux/types.h>
 
-#include "enclave.h"
-
-
-
+struct pisces_enclave;
 
 // Embedded ringbuffer that maps into a 64KB chunk of memory
 struct pisces_cons_ringbuf {
@@ -29,6 +27,10 @@ struct pisces_cons {
 
 } __attribute__((packed));
 
+
+
+int console_read(struct file *file, char __user *buffer,
+		 size_t length, loff_t *offset);
 
 int pisces_cons_init(struct pisces_enclave * enclave, 
 		     struct pisces_cons_ringbuf * ringbuf);
