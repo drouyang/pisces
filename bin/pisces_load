@@ -1,0 +1,50 @@
+#!/bin/python
+from optparse import OptionParser
+
+parser = OptionParser()
+
+# create guest instance from config file
+parser.add_option("-f", type = "string", dest="guest_cfg",
+        help="start guest from config.json", metavar="FILE")
+
+parser.add_option("--name", type = "string", dest="name",
+        help="number of cpus assigned to guest", metavar="NAME")
+
+parser.add_option("-c", type = "int", dest="cpu_num",
+        help="number of cpus assigned to guest", metavar="N")
+
+parser.add_option("-m", type = "int", dest="mem_size",
+        help="size of memory assigned to guest", metavar="N")
+
+parser.add_option("--kernel", type = "string", dest="kernel",
+        help="kernel image path (vmlwk.bin)", metavar="PATH")
+
+parser.add_option("--initrd", type = "string", dest="initrd",
+        help="initrd path", metavar="PATH")
+
+parser.add_option("--cmdline", type = "string", dest="cmdline",
+        help="kernel boot command line parameters", metavar="CMD")
+
+(options, args) = parser.parse_args()
+
+if options.guest_cfg != None:
+    print 'load config file "' + options.guest_cfg + '"'
+
+elif options.name != None \
+         and options.cpu_num != None \
+         and options.mem_size != None \
+         and options.kernel != None \
+        and options.initrd != None\
+        and options.cmdline != None:
+    print "Create guest "+'"'+options.name+'"'
+    print "  # of CPUs:\t", options.cpu_num
+    print "  memory size:\t", options.cpu_num, "MB"
+    print "  kernel:\t" + options.kernel
+    print "  initrd:\t" + options.initrd
+    print "  cmdline:\t" + '"'+options.cmdline+'"'
+
+else:
+    parser.print_help();
+
+
+

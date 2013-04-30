@@ -1,0 +1,21 @@
+#!/bin/python
+from optparse import OptionParser
+
+pisces_dev_path = '/dev/pisces'
+
+parser = OptionParser()
+
+parser.add_option("-n", type = "int", dest="guest_id",
+        help="launch guest by id", metavar="N")
+
+parser.add_option("--name", type = "string", dest="guest_name",
+        help="luanch guest by name", metavar="NAME")
+
+(options, args) = parser.parse_args()
+
+if options.guest_id != None:
+    print 'launch guest', options.guest_id
+elif options.guest_name != None:
+    print 'launch guest "%s"'%(options.guest_name)
+else:
+    print 'launch default guest'

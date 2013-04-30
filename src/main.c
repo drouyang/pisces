@@ -1,3 +1,7 @@
+/* Pisces: multi-instance OS framework
+ * (c) Jiannan Ouyang, 2013
+ * (c) Jack Lange, 2013
+ */
 #include<linux/kernel.h>
 #include<linux/module.h>
 
@@ -12,14 +16,11 @@
 
 
 #define AUTHOR "Jiannan Ouyang <ouyang@cs.pitt.edu>"
-#define DESC "Pisces: native os consolidation"
+#define DESC "Pisces: multi-instance OS framework"
 
 
-//extern bootstrap_pgt_t *bootstrap_pgt;
-
-
-  unsigned long cpu_id = 1;
-  module_param(cpu_id, ulong, S_IRWXU);
+unsigned long cpu_id = 1;
+module_param(cpu_id, ulong, S_IRWXU);
   
 
 unsigned long mpf_found_addr = 0xffffffff81bd1c00;
@@ -31,23 +32,6 @@ static int pisces_init(void) {
     int ret = 0; 
 
     printk(KERN_INFO "PISCES: module loaded\n");
-        /*
-    {
-        int i;
-        struct irq_desc *desc;
-
-        i = 235;
-        desc = irq_to_desc(i);
-        printk(KERN_INFO "%d: status=%08x\n",
-                i, (u32) desc->status_use_accessors);
-        for_each_irq_desc(i, desc) {
-            printk(KERN_INFO "%d: status=%08x\n",
-                    i, (u32) desc->status_use_accessors);
-        }
-    
-    }
-        */
-
 
     ret = device_init();
     if (ret < 0) {
