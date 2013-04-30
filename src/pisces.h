@@ -12,6 +12,8 @@
 
 #include <linux/types.h>
 
+#include "pgtables.h"
+
 
 #define PISCES_MAGIC 0x5a
 #define PISCES_MAGIC_MASK 0xff
@@ -19,14 +21,25 @@
 
 
 /* Pisces Boot loader memory layout
- * 1. boot parameters // 4KB aligned
- *     ->  Memory map is appended to this structure
- * 3. Console ring buffer (64KB) // 4KB aligned
- * 4. kernel image // 2M aligned
- * 5. initrd // 2M aligned
 
+ * 1. boot parameters // 4KB aligned
+ *     ->  Trampoline code sits at the start of this structure 
+ *     ->  Memory map is appended to this structure
+ * 2. Console ring buffer (64KB) // 4KB aligned
+ * 3. Identity mapped page tables // 4KB aligned (5 Pages)
+ * 4. MPTable // 4KB aligned 
+ * 5. kernel image // 2M aligned
+ * 6. initrd // 2M aligned
  *
  */
+
+struct pisces_ident_pgt {
+    pml4e64_t     pml[MAX_PML4E64_ENTRIES];
+    pdpe64_t      pdp_phys[MAX_PDPE64_ENTRIES];
+    pdpe64_t      pdp_virt[MAX_PDPE64_ENTRIES];
+    pde64_2MB_t   pd_phys[MAX_PDE64_ENTRIES]; // 512 * 2M = 1G
+    pde64_2MB_t   pd_virt[MAX_PDE64_ENTRIES]; // 512 * 2M = 1G    
+};
 
 
 // boot memory map
@@ -68,11 +81,11 @@ struct pisces_mpc_table {
 	u32 reserved;
 } __attribute__((packed));
 
-#define	PISCES_MP_PROCESSOR	0
-#define	PISCES_MP_BUS		1
-#define	PISCES_MP_IOAPIC	2
-#define	PISCES_MP_INTSRC	3
-#define	PISCES_MP_LINTSRC	4
+#define	PISCES_MP_PROCESSOR	0x0
+#define	PISCES_MP_BUS		0x1
+#define	PISCES_MP_IOAPIC	0x2
+#define	PISCES_MP_INTSRC	0x3
+#define	PISCES_MP_LINTSRC	0x4
 
 struct pisces_mpc_processor
 {               
@@ -80,15 +93,22 @@ struct pisces_mpc_processor
   u8 apicid; /* Local APIC number */
   u8 apicver;  /* Its versions */
   u8 cpuflag;
-#define PISCES_CPU_ENABLED  1 /* Processor is available */
-#define PISCES_CPU_BSP      2 /* Processor is the BP */
+#define PISCES_CPU_ENABLED  0x1 /* Processor is available */
+#define PISCES_CPU_BSP      0x2 /* Processor is the BP */
   u32 cpufeature;
   u32 featureflag; /* CPUID feature value */
   u32 reserved[2];
 } __attribute__((packed));
 
 
+
+/* All addresses in this structure are physical addresses */
 struct pisces_boot_params {
+    
+    // Embedded asm to load page tables and  jump to kernel
+    u8 launch_code[64]; 
+
+
     u64 magic;
     // cpu map
     
@@ -119,6 +139,7 @@ struct pisces_boot_params {
     u64 console_ring_addr;
     u64 console_ring_size;
 
+    u64 ident_pgt_addr;
 
     // This is the address of an array of mmap entries.
     u64 num_mmap_entries;
