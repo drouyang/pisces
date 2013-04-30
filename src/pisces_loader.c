@@ -12,9 +12,6 @@
 #include "domain_xcall.h"
 
 
-#define ORDER 2
-#define PAGE_SHIFT_2M 21
-
 
 extern int wakeup_secondary_cpu_via_init(int, unsigned long);
 
@@ -195,7 +192,7 @@ static void pisces_trampoline(struct pisces_enclave * enclave) {
     // esi =  PISCES_MAGIC + base_addr
 
     __asm__ ( 
-	     "jmp *%%rcx\n\t"
+	     "jmp *%%rbx\n\t"
 	     : 
 	     : "a" (boot_params->ident_pgt_addr), 
 	       "b" (boot_params->launch_code), 
