@@ -16,7 +16,7 @@
 
 
 #define PISCES_MAGIC 0x5a
-#define PISCES_MAGIC_MASK 0xff
+#define PISCES_MAGIC_MASK 0x00000000000000ffLL
 
 
 

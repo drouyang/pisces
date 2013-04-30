@@ -24,9 +24,9 @@ static inline u32 sizeof_boot_params(struct pisces_enclave * enclave) {
 
 // setup bootstrap page tables - bootstrap_pgt
 // 4M identity mapping from mem_base
-int setup_ident_pts(struct pisces_enclave * enclave,
-		    struct pisces_boot_params * boot_params, 
-		    uintptr_t target_addr) {
+static int setup_ident_pts(struct pisces_enclave * enclave,
+			   struct pisces_boot_params * boot_params, 
+			   uintptr_t target_addr) {
     u64 tmp = 0;
     struct pisces_ident_pgt * ident_pgt = (struct pisces_ident_pgt *)__va(target_addr);
     memset(ident_pgt, 0, sizeof(struct pisces_ident_pgt));
@@ -206,7 +206,6 @@ static int setup_mmap(struct pisces_enclave * enclave, struct pisces_boot_params
 
 static void launch_code(void) {
 	__asm__ (
-
 		 "movq %%rax, %%cr3\n\t" //cr3
 		 "jmp *%%rbx\n\t" // should never return
 		 "hlt\n\t"
@@ -214,6 +213,7 @@ static void launch_code(void) {
 }
 asm("launch_code_end:");
 extern u8 launch_code_end;
+
 
 static int setup_boot_params(struct pisces_enclave * enclave) {
     uintptr_t offset = 0;
