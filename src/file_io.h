@@ -2,6 +2,8 @@
  *  (c) Jack Lange, 2012
  */
 
+#include <linux/fcntl.h>
+
 int file_mkdir(const char * pathname, unsigned short perms, int recurse);
 
 

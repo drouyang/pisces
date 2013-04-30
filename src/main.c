@@ -27,8 +27,6 @@ unsigned long mpf_found_addr = 0xffffffff81bd1c00;
 module_param(mpf_found_addr, ulong, S_IRWXU);
 
 
-// This pointer is usable only after the memory layout has been setup
-struct shared_info_t *shared_info;
 
 static int pisces_init(void) {
     int ret = 0; 

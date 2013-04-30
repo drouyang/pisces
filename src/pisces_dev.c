@@ -97,15 +97,15 @@ static long device_ioctl(struct file * file, unsigned int ioctl,
 
         case P_IOCTL_PING:
             printk(KERN_INFO "PISCES: Base Addr: %p, mem size: %llu, cpuid %lu, kernel_path '%s'\n", 
-		   (void *)enclave->base_addr, enclave->mem_size, cpu_id, enclave->kern_path);
+		   (void *)enclave->base_addr_pa, enclave->mem_size, cpu_id, enclave->kern_path);
             break;
 
         case P_IOCTL_PREPARE_SECONDARY:
 
             printk(KERN_INFO "PISCES: setup bootstrap page table for [%p, %p)\n", 
-		   (void *)enclave->base_addr, (void *)(enclave->base_addr + enclave->mem_size));
-            pgtable_setup_ident(enclave);
+		   (void *)enclave->base_addr_pa, (void *)(enclave->base_addr_pa + enclave->mem_size));
 
+	    break;
         case P_IOCTL_LOAD_IMAGE: {
 	    struct pisces_image * img = kmalloc(sizeof(struct pisces_image), GFP_KERNEL);
 
@@ -128,7 +128,7 @@ static long device_ioctl(struct file * file, unsigned int ioctl,
 		return -EFAULT;
 	    }
 
-	    start_instance(enclave);
+	    launch_enclave(enclave);
 
 
             break;
@@ -141,10 +141,10 @@ static long device_ioctl(struct file * file, unsigned int ioctl,
 
         case P_IOCTL_PRINT_IMAGE:
             {
-                long *p = (long *)__va(enclave->base_addr);
+                long *p = (long *)__va(enclave->base_addr_pa);
                 //long *p = (long *)0x8000000;
                 int t=10;
-                printk(KERN_INFO "PISCES: physicall address 0x%lx\n", enclave->base_addr);
+                printk(KERN_INFO "PISCES: physicall address 0x%lx\n", enclave->base_addr_pa);
                 while (t>0) {
                     printk(KERN_INFO "%p\t", (void *)*p);
                     p++;

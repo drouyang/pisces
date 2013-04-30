@@ -4,14 +4,21 @@
 
 
 #include "pisces_lock.h"
+#include "pisces_ringbuf.h"
 
-// in out buffer as a circular queue
-// prod is queue head, point to an available slot
-// cons is queue tail
-// cons == prod-1 => queue is empty
-// prod == cons-1 => queue is full
-#define PISCES_CONSOLE_SIZE_OUT (1024 * 6)
-#define PISCES_CONSOLE_SIZE_IN 1024
+
+
+
+// Embedded ringbuffer that maps into a 64KB chunk of memory
+struct pisces_cons_ringbuf {
+    u64 lock;
+    u64 read_idx;
+    u64 write_idx;
+    u8 buf[(64 * 1024) - 24];
+} __attribute__((packed));
+
+
+
 
 struct pisces_cons {
     // in buffer 1K
@@ -19,15 +26,7 @@ struct pisces_cons {
     //char in[PISCES_CONSOLE_SIZE_IN];
     //u64 in_cons, in_prod;
     
-    // out buffer 2K
-    struct pisces_spinlock output_lock;
-    char out[PISCES_CONSOLE_SIZE_OUT];
-    u64 out_cons;
-    u64 out_prod;
-
-
-    char console_buffer[1024 * 50];
-    u64 console_idx ;
+    struct pisces_cons_ringbuf * cons_ringbuf;
 
 } __attribute__((packed));
 
