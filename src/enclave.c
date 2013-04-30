@@ -57,12 +57,13 @@ static int setup_ident_pts(struct pisces_enclave * enclave,
     ident_pgt->pml[PML4E64_INDEX(enclave->base_addr_pa)].writable  = 1; 
     ident_pgt->pml[PML4E64_INDEX(enclave->base_addr_pa)].accessed  = 1; 
 
-    tmp = PAGE_TO_BASE_ADDR(__pa(ident_pgt->pdp_virt));
-    ident_pgt->pml[PML4E64_INDEX(__va(enclave->base_addr_pa))].pdp_base_addr = tmp;
-    ident_pgt->pml[PML4E64_INDEX(__va(enclave->base_addr_pa))].present   = 1; 
-    ident_pgt->pml[PML4E64_INDEX(__va(enclave->base_addr_pa))].writable  = 1; 
-    ident_pgt->pml[PML4E64_INDEX(__va(enclave->base_addr_pa))].accessed  = 1; 
-
+    if ((PML4E64_INDEX(__va(enclave->base_addr_pa)) != PML4E64_INDEX(enclave->base_addr_pa))) { 
+        tmp = PAGE_TO_BASE_ADDR(__pa(ident_pgt->pdp_virt));
+        ident_pgt->pml[PML4E64_INDEX(__va(enclave->base_addr_pa))].pdp_base_addr = tmp;
+        ident_pgt->pml[PML4E64_INDEX(__va(enclave->base_addr_pa))].present   = 1; 
+        ident_pgt->pml[PML4E64_INDEX(__va(enclave->base_addr_pa))].writable  = 1; 
+        ident_pgt->pml[PML4E64_INDEX(__va(enclave->base_addr_pa))].accessed  = 1; 
+    }
     //printk("PISCES: level4[%llu].base_addr = %llx\n", PML4E64_INDEX(enclave->base_addr), tmp);
 
     tmp = PAGE_TO_BASE_ADDR(__pa(ident_pgt->pd_phys));
@@ -80,20 +81,22 @@ static int setup_ident_pts(struct pisces_enclave * enclave,
 
     //printk("PISCES: level3[%llu].base_addr = %llx\n", PDPE64_INDEX(enclave->base_addr), tmp);
 
-    tmp = PAGE_TO_BASE_ADDR_2MB(enclave->base_addr_pa);
-    ident_pgt->pd_phys[PDE64_INDEX(enclave->base_addr_pa)].page_base_addr  = tmp;
-    ident_pgt->pd_phys[PDE64_INDEX(enclave->base_addr_pa)].present         = 1;
-    ident_pgt->pd_phys[PDE64_INDEX(enclave->base_addr_pa)].writable        = 1;
-    ident_pgt->pd_phys[PDE64_INDEX(enclave->base_addr_pa)].accessed        = 1;
-    ident_pgt->pd_phys[PDE64_INDEX(enclave->base_addr_pa)].large_page      = 1;
+    for (tmp = enclave->base_addr_pa; tmp < (enclave->base_addr_pa + enclave->mem_size); tmp += PAGE_SIZE_2MB) {
+        tmp = PAGE_TO_BASE_ADDR_2MB(tmp);
+        ident_pgt->pd_phys[PDE64_INDEX(tmp)].page_base_addr  = tmp;
+        ident_pgt->pd_phys[PDE64_INDEX(tmp)].present         = 1;
+        ident_pgt->pd_phys[PDE64_INDEX(tmp)].writable        = 1;
+        ident_pgt->pd_phys[PDE64_INDEX(tmp)].accessed        = 1;
+        ident_pgt->pd_phys[PDE64_INDEX(tmp)].large_page      = 1;
 
 
-    tmp = PAGE_TO_BASE_ADDR_2MB((u64)__va(enclave->base_addr_pa));
-    ident_pgt->pd_virt[PDE64_INDEX(__va(enclave->base_addr_pa))].page_base_addr  = tmp;
-    ident_pgt->pd_virt[PDE64_INDEX(__va(enclave->base_addr_pa))].present         = 1;
-    ident_pgt->pd_virt[PDE64_INDEX(__va(enclave->base_addr_pa))].writable        = 1;
-    ident_pgt->pd_virt[PDE64_INDEX(__va(enclave->base_addr_pa))].accessed        = 1;
-    ident_pgt->pd_virt[PDE64_INDEX(__va(enclave->base_addr_pa))].large_page      = 1;
+        tmp = PAGE_TO_BASE_ADDR_2MB((u64)__va(tmp));
+        ident_pgt->pd_virt[PDE64_INDEX(__va(tmp))].page_base_addr  = tmp;
+        ident_pgt->pd_virt[PDE64_INDEX(__va(tmp))].present         = 1;
+        ident_pgt->pd_virt[PDE64_INDEX(__va(tmp))].writable        = 1;
+        ident_pgt->pd_virt[PDE64_INDEX(__va(tmp))].accessed        = 1;
+        ident_pgt->pd_virt[PDE64_INDEX(__va(tmp))].large_page      = 1;
+    }
     //printk("PISCES: level2[%llu].base_addr = %llx\n", PDE64_INDEX(enclave->base_addr), tmp);
 
 
