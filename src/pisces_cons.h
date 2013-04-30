@@ -1,10 +1,13 @@
+/* Pisces Enclave 
+ * (c) 2013, Jack Lange, (jacklange@cs.pitt.edu)
+ * (c) 2013, Jiannan Ouyang, (ouyang@cs.pitt.edu)
+ */
+
 #ifndef __PISCES_CONS_H__
 #define __PISCES_CONS_H__
 
 
-
-#include "pisces_lock.h"
-#include "pisces_ringbuf.h"
+#include "enclave.h"
 
 
 
@@ -21,14 +24,16 @@ struct pisces_cons_ringbuf {
 
 
 struct pisces_cons {
-    // in buffer 1K
-    //struct pisces_spinlock lock_in;
-    //char in[PISCES_CONSOLE_SIZE_IN];
-    //u64 in_cons, in_prod;
     
     struct pisces_cons_ringbuf * cons_ringbuf;
 
 } __attribute__((packed));
+
+
+int pisces_cons_init(struct pisces_enclave * enclave, 
+		     struct pisces_cons_ringbuf * ringbuf);
+
+
 
 
 #endif

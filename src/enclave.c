@@ -252,6 +252,13 @@ static int setup_boot_params(struct pisces_enclave * enclave) {
     // Initialize Console Ring buffer (64KB)
     offset += ALIGN(offset, PAGE_SIZE_4KB);
     //    boot_params->console_ring_addr
+    if (pisces_cons_init(enclave, (struct pisces_cons_ringbuf *)(base_addr + offset)) == -1) {
+	printk(KERN_ERR "Error initializing Pisces Console\n");
+	return -1;
+    }
+    
+    boot_params->console_ring_addr = __pa(base_addr + offset);
+    boot_params->console_ring_size = sizeof(struct pisces_cons_ringbuf);
 
     offset += sizeof(struct pisces_cons_ringbuf);
     printk("console initialized. Offset at %p\n", (void *)(base_addr + offset));

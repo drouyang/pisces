@@ -14,3 +14,13 @@ static ssize_t device_read(struct file *file, char __user *buffer,
     *offset += count;
     return count;
 }
+
+
+
+int pisces_cons_init(struct pisces_enclave * enclave, 
+		     struct pisces_cons_ringbuf * ringbuf) {
+
+
+    return 0;
+
+}
