@@ -14,7 +14,8 @@ pisces-objs :=  src/main.o \
 		src/pisces_ringbuf.o \
 		src/numa.o \
 		src/mm.o \
-		src/file_io.o
+		src/file_io.o \
+		src/launch_code.o
 
 all:
 	make -C $(KERN_PATH) M=$(PWD) modules

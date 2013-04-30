@@ -28,10 +28,10 @@ static int setup_ident_pts(struct pisces_enclave * enclave,
 			   struct pisces_boot_params * boot_params, 
 			   uintptr_t target_addr) {
     u64 tmp = 0;
-    struct pisces_ident_pgt * ident_pgt = (struct pisces_ident_pgt *)__va(target_addr);
+    struct pisces_ident_pgt * ident_pgt = (struct pisces_ident_pgt *)target_addr;
     memset(ident_pgt, 0, sizeof(struct pisces_ident_pgt));
 
-    boot_params->ident_pgt_addr = target_addr;
+    boot_params->ident_pgt_addr = __pa(target_addr);
 
     /*
       printk("PISCES: level4_pgt va: 0x%lx, pa: 0x%lx\n", 
@@ -188,6 +188,8 @@ static int setup_mmap(struct pisces_enclave * enclave, struct pisces_boot_params
 
     boot_params->num_mmap_entries = enclave->memdesc_num;
 
+    printk("enclave=%p, boot_params=%p\n", enclave, boot_params);
+
     printk(KERN_INFO "PISCES: setting up memory map:\n");
 
     for (i = 0; i < enclave->memdesc_num; i++) {
@@ -204,15 +206,7 @@ static int setup_mmap(struct pisces_enclave * enclave, struct pisces_boot_params
     return 0;
 }
 
-static void launch_code(void) {
-	__asm__ (
-		 "movq %%rax, %%cr3\n\t" //cr3
-		 "jmp *%%rbx\n\t" // should never return
-		 "hlt\n\t"
-		 :::);
-}
-asm("launch_code_end:");
-extern u8 launch_code_end;
+
 
 
 static int setup_boot_params(struct pisces_enclave * enclave) {
@@ -231,8 +225,12 @@ static int setup_boot_params(struct pisces_enclave * enclave) {
 
     // copy in loading ASM
     {
-	printk("Launch code is %lu bytes\n", ((uintptr_t)launch_code_end - (uintptr_t)launch_code));
-	memcpy(boot_params->launch_code, launch_code, (u64)launch_code_end - (u64)launch_code);
+	extern u8 launch_code_start;
+	extern u8 launch_code_end;
+	printk("Launch code is at %p, end is at %p\n", &launch_code_start, &launch_code_end);
+
+	printk("Launch code is %lu bytes\n", ((uintptr_t)&launch_code_end - (uintptr_t)&launch_code_start));
+	memcpy(boot_params->launch_code, &launch_code_start, (u64)&launch_code_end - (u64)&launch_code_start);
     }    
 
 
@@ -248,39 +246,47 @@ static int setup_boot_params(struct pisces_enclave * enclave) {
     }
 
     offset += sizeof_boot_params(enclave);
+    printk("boot params initialized. Offset at %p\n", (void *)(base_addr + offset));
+    
 
     // Initialize Console Ring buffer (64KB)
-    offset = ALIGN(offset, PAGE_SIZE_4KB);
+    offset += ALIGN(offset, PAGE_SIZE_4KB);
     //    boot_params->console_ring_addr
 
     offset += sizeof(struct pisces_cons_ringbuf);
+    printk("console initialized. Offset at %p\n", (void *)(base_addr + offset));
     
 
     // Identity mapped page tables
     offset = ALIGN(offset, PAGE_SIZE_4KB);
-    
+    printk("Setting up Ident PTS at Offset at %p\n", (void *)(base_addr + offset));
+
     if (setup_ident_pts(enclave, boot_params, base_addr + offset) == -1) {
 	printk(KERN_ERR "Error configuring identity mapped page tables\n");
 	return -1;
     }
     offset += sizeof(struct pisces_ident_pgt);
 
+    printk("\t Ident PTS done.Offset at %p\n", (void *)(base_addr + offset));
 
 
     // 1. kernel image
     offset = ALIGN(offset, PAGE_SIZE_2MB);
 
+    printk("Loading Kernel. Offset at %p\n", (void *)(base_addr + offset));
     if (load_kernel(enclave, boot_params, base_addr + offset) == -1) {
 	printk(KERN_ERR "Error loading kernel to target (%p)\n", (void *)(base_addr + offset));
 	return -1;
     }
 
     offset += boot_params->kernel_size;
+    printk("\t kernel loaded. Offset at %p\n", (void *)(base_addr + offset));
     
 
     // 2. initrd 
     offset = ALIGN(offset, PAGE_SIZE_2MB);
 
+    printk("Loading InitRD. Offset at %p\n", (void *)(base_addr + offset));
     if (load_initrd(enclave, boot_params, base_addr + offset) == -1) {
 	printk(KERN_ERR "Error loading initrd to target (%p)\n", (void *)(base_addr + offset));
 	return -1;
@@ -288,6 +294,7 @@ static int setup_boot_params(struct pisces_enclave * enclave) {
 
     offset += boot_params->initrd_size;
 
+    printk("\tInitRD loaded. Offset at %p\n", (void *)(base_addr + offset));
 
     printk(KERN_INFO "PISCES: loader memroy map:\n");
     printk(KERN_INFO "  kernel:        [%p, %p), size %llu\n",
@@ -326,8 +333,10 @@ struct pisces_enclave *  pisces_create_enclave(struct pisces_image * img) {
     enclave->initrd_path = img->initrd_path;
     enclave->kern_cmdline = img->cmd_line;
 
+    enclave->memdesc_num = 1;
     enclave->mem_size = 128 * 1024 * 1024;
     enclave->base_addr_pa = pisces_alloc_pages((128 * 1024 * 1024) / PAGE_SIZE_4KB);
+
 
     memset(__va(enclave->base_addr_pa), 0, 128 * 1024 * 1024);
 
