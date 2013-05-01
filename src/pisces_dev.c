@@ -132,8 +132,11 @@ static long device_ioctl(struct file * file, unsigned int ioctl,
 		return -EFAULT;
 	    }
 
-	    launch_enclave(enclave);
+	    break;
+	}
+	case P_IOCTL_LAUNCH_ENCLAVE:{
 
+	    launch_enclave(enclave);
 
             break;
 	}

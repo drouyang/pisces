@@ -17,6 +17,7 @@
 #define P_IOCTL_PREPARE_SECONDARY    1001
 
 #define P_IOCTL_LOAD_IMAGE    1002
+#define P_IOCTL_LAUNCH_ENCLAVE    1100
 
 // Boot secondary cpu via INIT, secondary cpu will jump to hooker() in long mode
 #define P_IOCTL_START_SECONDARY    1003
