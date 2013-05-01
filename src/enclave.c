@@ -66,14 +66,14 @@ static int setup_ident_pts(struct pisces_enclave * enclave,
     }
     //printk("PISCES: level4[%llu].base_addr = %llx\n", PML4E64_INDEX(enclave->base_addr), tmp);
 
-    tmp = PAGE_TO_BASE_ADDR(__pa(ident_pgt->pd_phys));
+    tmp = PAGE_TO_BASE_ADDR(__pa(ident_pgt->pd));
     ident_pgt->pdp_phys[PDPE64_INDEX(enclave->base_addr_pa)].pd_base_addr = tmp;
     ident_pgt->pdp_phys[PDPE64_INDEX(enclave->base_addr_pa)].present   = 1;
     ident_pgt->pdp_phys[PDPE64_INDEX(enclave->base_addr_pa)].writable  = 1;
     ident_pgt->pdp_phys[PDPE64_INDEX(enclave->base_addr_pa)].accessed  = 1;
 
 
-    tmp = PAGE_TO_BASE_ADDR(__pa(ident_pgt->pd_virt));
+    tmp = PAGE_TO_BASE_ADDR(__pa(ident_pgt->pd));
     ident_pgt->pdp_virt[PDPE64_INDEX(__va(enclave->base_addr_pa))].pd_base_addr = tmp;
     ident_pgt->pdp_virt[PDPE64_INDEX(__va(enclave->base_addr_pa))].present   = 1;
     ident_pgt->pdp_virt[PDPE64_INDEX(__va(enclave->base_addr_pa))].writable  = 1;
@@ -90,12 +90,6 @@ static int setup_ident_pts(struct pisces_enclave * enclave,
         ident_pgt->pd_phys[PDE64_INDEX(tmp)].large_page      = 1;
 
 
-        tmp = PAGE_TO_BASE_ADDR_2MB((u64)__va(tmp));
-        ident_pgt->pd_virt[PDE64_INDEX(__va(tmp))].page_base_addr  = tmp;
-        ident_pgt->pd_virt[PDE64_INDEX(__va(tmp))].present         = 1;
-        ident_pgt->pd_virt[PDE64_INDEX(__va(tmp))].writable        = 1;
-        ident_pgt->pd_virt[PDE64_INDEX(__va(tmp))].accessed        = 1;
-        ident_pgt->pd_virt[PDE64_INDEX(__va(tmp))].large_page      = 1;
     }
     //printk("PISCES: level2[%llu].base_addr = %llx\n", PDE64_INDEX(enclave->base_addr), tmp);
 
@@ -117,7 +111,7 @@ static int load_kernel(struct pisces_enclave * enclave,
     struct file * kern_image = file_open(enclave->kern_path, O_RDONLY);
     u64 bytes_read = 0;
     
-    if (IS_ERR(kern_image)) {
+    if (kern_image == NULL) {
 	printk(KERN_ERR "Error opening kernel image (%s)\n", enclave->kern_path);
 	return -1;
     }
@@ -155,7 +149,7 @@ static int load_initrd(struct pisces_enclave * enclave,
     struct file * initrd_image = file_open(enclave->initrd_path, O_RDONLY);
     u64 bytes_read = 0;
     
-    if (IS_ERR(initrd_image)) {
+    if (initrd_image == NULL) {
 	printk(KERN_ERR "Error opening initrd (%s)\n", enclave->initrd_path);
 	return -1;
     }
