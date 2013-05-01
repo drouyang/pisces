@@ -37,8 +37,7 @@ struct pisces_ident_pgt {
     pml4e64_t     pml[MAX_PML4E64_ENTRIES];
     pdpe64_t      pdp_phys[MAX_PDPE64_ENTRIES];
     pdpe64_t      pdp_virt[MAX_PDPE64_ENTRIES];
-    pde64_2MB_t   pd_phys[MAX_PDE64_ENTRIES]; // 512 * 2M = 1G
-    pde64_2MB_t   pd_virt[MAX_PDE64_ENTRIES]; // 512 * 2M = 1G    
+    pde64_2MB_t   pd[MAX_PDE64_ENTRIES]; // 512 * 2M = 1G
 };
 
 
