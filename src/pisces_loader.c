@@ -1,5 +1,6 @@
 #include <linux/fs.h>
 #include <linux/percpu.h>
+#include <linux/kallsyms.h>
 #include <asm/desc.h>
 #include <asm/segment.h>
 #include <asm/uaccess.h>
@@ -212,12 +213,12 @@ int kick_offline_cpu(struct pisces_enclave * enclave)
 {
     int ret = 0;
     int apicid = apic->cpu_present_to_apicid(cpu_id);
-    unsigned long start_ip = real_mode_header->trampoline_start;
+    u64 header_addr = kallsyms_lookup_name("real_mode_header");
+    struct real_mode_header * header = *(struct real_mode_header **)header_addr;
+    u64 start_ip = header->trampoline_start;
 
     // gdt for the kernel to access user space memory
     early_gdt_descr.address = (unsigned long)per_cpu(gdt_page, cpu_id).gdt;
-
-
 
     // our pisces_trampoline
     initial_code = (unsigned long) pisces_trampoline;
@@ -225,7 +226,7 @@ int kick_offline_cpu(struct pisces_enclave * enclave)
     printk(KERN_INFO "PISCES: CPU%d (apic_id %d) wakeup CPU%lu (apic_id %d) via INIT\n", 
 	   smp_processor_id(), apic->cpu_present_to_apicid(smp_processor_id()), cpu_id, apicid);
 
-    ret = wakeup_secondary_cpu_via_init(apicid, start_ip);
+    //ret = wakeup_secondary_cpu_via_init(apicid, start_ip);
 
     return ret;
 
