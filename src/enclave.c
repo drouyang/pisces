@@ -22,82 +22,35 @@ static inline u32 sizeof_boot_params(struct pisces_enclave * enclave) {
 
 
 
-// setup bootstrap page tables - bootstrap_pgt
+// setup bootstrap page tables - pisces_ident_pgt
 // 4M identity mapping from mem_base
 static int setup_ident_pts(struct pisces_enclave * enclave,
 			   struct pisces_boot_params * boot_params, 
 			   uintptr_t target_addr) {
-    u64 tmp = 0;
+    u64 addr = 0;
+    int i = 0;
     struct pisces_ident_pgt * ident_pgt = (struct pisces_ident_pgt *)target_addr;
     memset(ident_pgt, 0, sizeof(struct pisces_ident_pgt));
 
-    boot_params->ident_pgt_addr = __pa(target_addr);
+    boot_params->level3_ident_pgt = __pa(target_addr);
 
-    /*
-      printk("PISCES: level4_pgt va: 0x%lx, pa: 0x%lx\n", 
-      (unsigned long) bootstrap_pgt->level4_pgt,
-      __pa((unsigned long) bootstrap_pgt->level4_pgt));
-      printk("PISCES: level3_pgt va: 0x%lx, pa: 0x%lx\n", 
-      (unsigned long) bootstrap_pgt->level3_ident_pgt,
-      __pa((unsigned long) bootstrap_pgt->level3_ident_pgt));
-      printk("PISCES: level2_pgt va: 0x%lx, pa: 0x%lx\n", 
-      (unsigned long) bootstrap_pgt->level2_ident_pgt,
-      __pa((unsigned long) bootstrap_pgt->level2_ident_pgt));
-      printk("PISCES: level1_pgt va: 0x%lx, pa: 0x%lx\n", 
-      (unsigned long) bootstrap_pgt->level1_ident_pgt,
-      __pa((unsigned long) bootstrap_pgt->level1_ident_pgt));
-    */
+    addr = PAGE_TO_BASE_ADDR(__pa(ident_pgt->pd));
+    ident_pgt->pdp[PDPE64_INDEX(__va(enclave->base_addr_pa))].pd_base_addr = addr;
+    ident_pgt->pdp[PDPE64_INDEX(__va(enclave->base_addr_pa))].present   = 1;
+    ident_pgt->pdp[PDPE64_INDEX(__va(enclave->base_addr_pa))].writable  = 1;
+    ident_pgt->pdp[PDPE64_INDEX(__va(enclave->base_addr_pa))].accessed  = 1;
 
-
-
-    //ident_pgt->level4_pgt[0] = *((pgd_2MB_t *)&level3_ident_pgt);
-    tmp = PAGE_TO_BASE_ADDR(__pa(ident_pgt->pdp_phys));
-    ident_pgt->pml[PML4E64_INDEX(enclave->base_addr_pa)].pdp_base_addr = tmp;
-    ident_pgt->pml[PML4E64_INDEX(enclave->base_addr_pa)].present   = 1; 
-    ident_pgt->pml[PML4E64_INDEX(enclave->base_addr_pa)].writable  = 1; 
-    ident_pgt->pml[PML4E64_INDEX(enclave->base_addr_pa)].accessed  = 1; 
-
-    if ((PML4E64_INDEX(__va(enclave->base_addr_pa)) != PML4E64_INDEX(enclave->base_addr_pa))) { 
-        tmp = PAGE_TO_BASE_ADDR(__pa(ident_pgt->pdp_virt));
-        ident_pgt->pml[PML4E64_INDEX(__va(enclave->base_addr_pa))].pdp_base_addr = tmp;
-        ident_pgt->pml[PML4E64_INDEX(__va(enclave->base_addr_pa))].present   = 1; 
-        ident_pgt->pml[PML4E64_INDEX(__va(enclave->base_addr_pa))].writable  = 1; 
-        ident_pgt->pml[PML4E64_INDEX(__va(enclave->base_addr_pa))].accessed  = 1; 
+    // 512 * 2M = 1G
+    for (i = 0, addr = enclave->base_addr_pa; 
+            i < MAX_PDE64_ENTRIES; 
+            i++, addr += PAGE_SIZE_2MB) {
+        addr = PAGE_TO_BASE_ADDR_2MB(addr);
+        ident_pgt->pd[PDE64_INDEX(addr)].page_base_addr  = addr;
+        ident_pgt->pd[PDE64_INDEX(addr)].present         = 1;
+        ident_pgt->pd[PDE64_INDEX(addr)].writable        = 1;
+        ident_pgt->pd[PDE64_INDEX(addr)].accessed        = 1;
+        ident_pgt->pd[PDE64_INDEX(addr)].large_page      = 1;
     }
-    //printk("PISCES: level4[%llu].base_addr = %llx\n", PML4E64_INDEX(enclave->base_addr), tmp);
-
-    tmp = PAGE_TO_BASE_ADDR(__pa(ident_pgt->pd));
-    ident_pgt->pdp_phys[PDPE64_INDEX(enclave->base_addr_pa)].pd_base_addr = tmp;
-    ident_pgt->pdp_phys[PDPE64_INDEX(enclave->base_addr_pa)].present   = 1;
-    ident_pgt->pdp_phys[PDPE64_INDEX(enclave->base_addr_pa)].writable  = 1;
-    ident_pgt->pdp_phys[PDPE64_INDEX(enclave->base_addr_pa)].accessed  = 1;
-
-
-    tmp = PAGE_TO_BASE_ADDR(__pa(ident_pgt->pd));
-    ident_pgt->pdp_virt[PDPE64_INDEX(__va(enclave->base_addr_pa))].pd_base_addr = tmp;
-    ident_pgt->pdp_virt[PDPE64_INDEX(__va(enclave->base_addr_pa))].present   = 1;
-    ident_pgt->pdp_virt[PDPE64_INDEX(__va(enclave->base_addr_pa))].writable  = 1;
-    ident_pgt->pdp_virt[PDPE64_INDEX(__va(enclave->base_addr_pa))].accessed  = 1;
-
-    //printk("PISCES: level3[%llu].base_addr = %llx\n", PDPE64_INDEX(enclave->base_addr), tmp);
-
-    for (tmp = enclave->base_addr_pa; tmp < (enclave->base_addr_pa + enclave->mem_size); tmp += PAGE_SIZE_2MB) {
-        tmp = PAGE_TO_BASE_ADDR_2MB(tmp);
-        ident_pgt->pd_phys[PDE64_INDEX(tmp)].page_base_addr  = tmp;
-        ident_pgt->pd_phys[PDE64_INDEX(tmp)].present         = 1;
-        ident_pgt->pd_phys[PDE64_INDEX(tmp)].writable        = 1;
-        ident_pgt->pd_phys[PDE64_INDEX(tmp)].accessed        = 1;
-        ident_pgt->pd_phys[PDE64_INDEX(tmp)].large_page      = 1;
-
-
-    }
-    //printk("PISCES: level2[%llu].base_addr = %llx\n", PDE64_INDEX(enclave->base_addr), tmp);
-
-
-    //printk("PISCES: level1[0].base_addr = %llx\n", (u64) ident_pgt->level1_ident_pgt[0].base_addr);
-    //printk("PISCES: level1[1].base_addr = %llx\n", (u64) ident_pgt->level1_ident_pgt[1].base_addr);
-    //printk("PISCES: cr3 va: 0x%lx\n", (unsigned long) pgd_base);
-    //printk("PISCES: cr3[0].base_addr: 0x%lx\n", (unsigned long) pgd_base[0].base_addr);
 
     return 0;
 }

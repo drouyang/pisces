@@ -9,7 +9,11 @@
 #include "pisces.h"
 #include "enclave.h"
 
-
+struct launch_code_header {
+    u64 ident_pgt_addr;
+    u64 kernel_addr;
+    u64 real_mode_data_addr;
+};
 
 
 int kick_offline_cpu(struct pisces_enclave * enclave);

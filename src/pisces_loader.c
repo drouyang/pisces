@@ -7,10 +7,10 @@
 #include <asm/realmode.h>
 
 #include "pisces_loader.h"
-
 #include "pisces.h"
 #include "pisces_mod.h"
 #include "domain_xcall.h"
+#include "pgtables.h"
 
 
 
@@ -181,7 +181,6 @@ static int cpu_info_init(void)
     return 0;
 }
 
-#endif
 
 static void pisces_trampoline(struct pisces_enclave * enclave) {  
     struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->base_addr_pa);
@@ -204,6 +203,7 @@ static void pisces_trampoline(struct pisces_enclave * enclave) {
     // Will never get here
     return;
 }
+#endif
 
 
 
@@ -211,22 +211,57 @@ static void pisces_trampoline(struct pisces_enclave * enclave) {
 // in pisces_trampoline, setup ident mapping and jump to kernel code
 int kick_offline_cpu(struct pisces_enclave * enclave) 
 {
+
     int ret = 0;
     int apicid = apic->cpu_present_to_apicid(cpu_id);
-    u64 header_addr = kallsyms_lookup_name("real_mode_header");
-    struct real_mode_header * header = *(struct real_mode_header **)header_addr;
-    u64 start_ip = header->trampoline_start;
+    struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->base_addr_pa);
 
-    // gdt for the kernel to access user space memory
-    early_gdt_descr.address = (unsigned long)per_cpu(gdt_page, cpu_id).gdt;
+    // setup pisces launch code
+    {
+        extern u8 launch_code_header_asm;
+        struct launch_code_header * launch_code_header = (struct launch_code_header *) &launch_code_header_asm;
 
-    // our pisces_trampoline
-    initial_code = (unsigned long) pisces_trampoline;
+        launch_code_header->kernel_addr = boot_params->kernel_addr;
+        launch_code_header->real_mode_data_addr = enclave->base_addr_pa | PISCES_MAGIC;
 
-    printk(KERN_INFO "PISCES: CPU%d (apic_id %d) wakeup CPU%lu (apic_id %d) via INIT\n", 
-	   smp_processor_id(), apic->cpu_present_to_apicid(smp_processor_id()), cpu_id, apicid);
+    }
 
-    //ret = wakeup_secondary_cpu_via_init(apicid, start_ip);
+    // setup linux trampoline
+    {
+        u64 header_addr = kallsyms_lookup_name("real_mode_header");
+        struct real_mode_header * real_mode_header = *(struct real_mode_header **)header_addr;
+        u64 start_ip = real_mode_header->trampoline_start;
+        struct trampoline_header * trampoline_header = (struct trampoline_header *) __va(real_mode_header->trampoline_header);
+        pml4e64_t * pml = (pml4e64_t *) __va(real_mode_header->trampoline_pgd);
+        pml4e64_t tmp_pml0;
+
+        /* 
+         * setup page table used by linux trampoline
+         */
+
+        // backup old pml[0] which points to level3_ident_pgt that maps 1G
+        tmp_pml0 = pml[0];
+
+        // use the level3_ident_pgt setup in create_enclave()
+	pml[0].pdp_base_addr = PAGE_TO_BASE_ADDR_4KB((u64)__pa(boot_params->level3_ident_pgt));
+	pml[0].present = 1;
+        pml[0].writable = 1;
+        pml[0].accessed = 1;
+
+
+        // setup target address of linux trampoline
+        trampoline_header->start = enclave->base_addr_pa;
+
+        // wakeup CPU INIT/INIT/SINIT
+        printk(KERN_INFO "PISCES: CPU%d (apic_id %d) wakeup CPU%lu (apic_id %d) via INIT\n", 
+                smp_processor_id(), apic->cpu_present_to_apicid(smp_processor_id()), cpu_id, apicid);
+        //ret = wakeup_secondary_cpu_via_init(apicid, start_ip);
+
+        // restore pml[0]
+        pml[0] = tmp_pml0;
+    }
+
+
 
     return ret;
 

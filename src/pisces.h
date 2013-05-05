@@ -34,9 +34,11 @@
  */
 
 struct pisces_ident_pgt {
-    pml4e64_t     pml[MAX_PML4E64_ENTRIES];
-    pdpe64_t      pdp_phys[MAX_PDPE64_ENTRIES];
-    pdpe64_t      pdp_virt[MAX_PDPE64_ENTRIES];
+    //pml4e64_t     pml[MAX_PML4E64_ENTRIES];
+    //pdpe64_t      pdp_phys[MAX_PDPE64_ENTRIES];
+    //pdpe64_t      pdp_virt[MAX_PDPE64_ENTRIES];
+    //pde64_2MB_t   pd[MAX_PDE64_ENTRIES]; // 512 * 2M = 1G
+    pdpe64_t      pdp[MAX_PDPE64_ENTRIES];
     pde64_2MB_t   pd[MAX_PDE64_ENTRIES]; // 512 * 2M = 1G
 };
 
@@ -104,7 +106,7 @@ struct pisces_mpc_processor
 /* All addresses in this structure are physical addresses */
 struct pisces_boot_params {
     
-    // Embedded asm to load page tables and  jump to kernel
+    // Embedded asm to load esi and jump to kernel
     u8 launch_code[64]; 
 
 
@@ -138,7 +140,8 @@ struct pisces_boot_params {
     u64 console_ring_addr;
     u64 console_ring_size;
 
-    u64 ident_pgt_addr;
+    // 1G ident mapping for guest kernel
+    u64 level3_ident_pgt;
 
     // This is the address of an array of mmap entries.
     u64 num_mmap_entries;
