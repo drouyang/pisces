@@ -1,4 +1,5 @@
 #include <linux/fs.h>
+#include <linux/mutex.h>
 #include <linux/percpu.h>
 #include <linux/kallsyms.h>
 #include <asm/desc.h>
@@ -12,21 +13,9 @@
 #include "domain_xcall.h"
 #include "pgtables.h"
 
-
-
 extern int wakeup_secondary_cpu_via_init(int, unsigned long);
 
-
-
-
-
 #if 0
-
-
-
-
-
-
 static int mpf_check(void)
 {
     unsigned long mpf_found = *(unsigned long *) mpf_found_addr;
@@ -235,9 +224,15 @@ int kick_offline_cpu(struct pisces_enclave * enclave)
         pml4e64_t * pml = (pml4e64_t *) __va(real_mode_header->trampoline_pgd);
         pml4e64_t tmp_pml0;
 
+        u64 cpu_maps_update_lock_addr =  kallsyms_lookup_name("cpu_add_remove_lock");
+        struct mutex * cpu_maps_update_lock = (struct mutex *)cpu_maps_update_lock_addr;
+
         /* 
          * setup page table used by linux trampoline
          */
+        // hold this lock to serialize trampoline data access
+        // this is the same as cpu_maps_update_begin/done API
+        mutex_lock(cpu_maps_update_lock);
 
         // backup old pml[0] which points to level3_ident_pgt that maps 1G
         tmp_pml0 = pml[0];
@@ -254,14 +249,17 @@ int kick_offline_cpu(struct pisces_enclave * enclave)
 
         // wakeup CPU INIT/INIT/SINIT
         printk(KERN_INFO "PISCES: CPU%d (apic_id %d) wakeup CPU%lu (apic_id %d) via INIT\n", 
-                smp_processor_id(), apic->cpu_present_to_apicid(smp_processor_id()), cpu_id, apicid);
+                smp_processor_id(), 
+                apic->cpu_present_to_apicid(smp_processor_id()), 
+                cpu_id, apicid);
         //ret = wakeup_secondary_cpu_via_init(apicid, start_ip);
 
         // restore pml[0]
         pml[0] = tmp_pml0;
+
+        mutex_unlock(cpu_maps_update_lock);
+
     }
-
-
 
     return ret;
 
