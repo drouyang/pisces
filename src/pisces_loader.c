@@ -205,13 +205,18 @@ int kick_offline_cpu(struct pisces_enclave * enclave)
     int apicid = apic->cpu_present_to_apicid(cpu_id);
     struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->base_addr_pa);
 
+    printk(KERN_DEBUG "Boot Pisces guest cpu\n");
     // setup pisces launch code
     {
-        extern u8 launch_code_header_asm;
-        struct launch_code_header * launch_code_header = (struct launch_code_header *) &launch_code_header_asm;
+        extern u64 launch_code_target_addr;
+        extern u64 launch_code_esi;
 
-        launch_code_header->kernel_addr = boot_params->kernel_addr;
-        launch_code_header->real_mode_data_addr = enclave->base_addr_pa | PISCES_MAGIC;
+        launch_code_target_addr = boot_params->kernel_addr;
+        launch_code_esi = enclave->base_addr_pa | PISCES_MAGIC;
+
+        printk(KERN_DEBUG "Setup launch code parameters:\n");
+        printk(KERN_DEBUG "  target address 0x%p\n", (void *) launch_code_target_addr);
+        printk(KERN_DEBUG "  esi 0x%p\n", (void *) launch_code_esi);
 
     }
 
@@ -242,10 +247,12 @@ int kick_offline_cpu(struct pisces_enclave * enclave)
 	pml[0].present = 1;
         pml[0].writable = 1;
         pml[0].accessed = 1;
+        printk(KERN_DEBUG "Setup trampoline ident page table\n");
 
 
         // setup target address of linux trampoline
         trampoline_header->start = enclave->base_addr_pa;
+        printk(KERN_DEBUG "Setup trampoline target address 0x%p\n", (void *)trampoline_header->start);
 
         // wakeup CPU INIT/INIT/SINIT
         printk(KERN_INFO "PISCES: CPU%d (apic_id %d) wakeup CPU%lu (apic_id %d) via INIT\n", 

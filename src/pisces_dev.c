@@ -134,8 +134,9 @@ static long device_ioctl(struct file * file, unsigned int ioctl,
 
 	    break;
 	}
-	case P_IOCTL_LAUNCH_ENCLAVE:{
+	case P_IOCTL_LAUNCH_ENCLAVE: {
 
+            printk(KERN_DEBUG "Launch Pisces Enclave\n");
 	    launch_enclave(enclave);
 
             break;

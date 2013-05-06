@@ -69,7 +69,7 @@ static int load_kernel(struct pisces_enclave * enclave,
 	return -1;
     }
 
-    boot_params->kernel_addr = target_addr;
+    boot_params->kernel_addr = __pa(target_addr);
     boot_params->kernel_size = file_size(kern_image);
     
     while (bytes_read < boot_params->kernel_size) {
