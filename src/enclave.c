@@ -177,10 +177,14 @@ static int setup_boot_params(struct pisces_enclave * enclave) {
     {
 	extern u8 launch_code_start;
 	extern u8 launch_code_end;
-	printk("Launch code is at %p, end is at %p\n", &launch_code_start, &launch_code_end);
 
-	printk("Launch code is %lu bytes\n", ((uintptr_t)&launch_code_end - (uintptr_t)&launch_code_start));
+
 	memcpy(boot_params->launch_code, &launch_code_start, (u64)&launch_code_end - (u64)&launch_code_start);
+
+	printk("Launch code is at 0x%p, size %lu bytes\n",
+                (void *)__pa(&boot_params->launch_code), 
+                ((u8 *)&launch_code_end - (u8 *)&launch_code_start));
+
     }    
 
 

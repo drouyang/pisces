@@ -206,18 +206,26 @@ int kick_offline_cpu(struct pisces_enclave * enclave)
     struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->base_addr_pa);
 
     printk(KERN_DEBUG "Boot Pisces guest cpu\n");
-    // setup pisces launch code
+
+    // patch launch_code
     {
+	extern u8 launch_code_start;
         extern u64 launch_code_target_addr;
         extern u64 launch_code_esi;
+        u64 *target_addr_ptr = NULL;
+        u64 *esi_ptr = NULL;
 
-        launch_code_target_addr = boot_params->kernel_addr;
-        launch_code_esi = enclave->base_addr_pa | PISCES_MAGIC;
-
-        printk(KERN_DEBUG "Setup launch code parameters:\n");
-        printk(KERN_DEBUG "  target address 0x%p\n", (void *) launch_code_target_addr);
-        printk(KERN_DEBUG "  esi 0x%p\n", (void *) launch_code_esi);
-
+        // setup launch code data
+        target_addr_ptr =  (u64 *)((u8 *)&boot_params->launch_code 
+            + ((u8 *)&launch_code_target_addr - (u8 *)&launch_code_start));
+        esi_ptr =  (u64 *)((u8 *)&boot_params->launch_code 
+            + ((u8 *)&launch_code_esi - (u8 *)&launch_code_start));
+        *target_addr_ptr = boot_params->kernel_addr;
+        *esi_ptr = enclave->base_addr_pa | PISCES_MAGIC;
+        printk(KERN_DEBUG "  patch target address 0x%p at 0x%p\n", 
+                (void *) *target_addr_ptr, (void *) __pa(target_addr_ptr));
+        printk(KERN_DEBUG "  patch esi 0x%p at 0x%p\n", 
+                (void *) *esi_ptr, (void *) __pa(esi_ptr));
     }
 
     // setup linux trampoline
@@ -259,7 +267,7 @@ int kick_offline_cpu(struct pisces_enclave * enclave)
                 smp_processor_id(), 
                 apic->cpu_present_to_apicid(smp_processor_id()), 
                 cpu_id, apicid);
-        //ret = wakeup_secondary_cpu_via_init(apicid, start_ip);
+        ret = wakeup_secondary_cpu_via_init(apicid, start_ip);
 
         // restore pml[0]
         pml[0] = tmp_pml0;
