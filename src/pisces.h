@@ -15,8 +15,7 @@
 #include "pgtables.h"
 
 
-#define PISCES_MAGIC 0x5a
-#define PISCES_MAGIC_MASK 0x00000000000000ffLL
+#define PISCES_MAGIC 0xFE110
 
 
 
@@ -105,13 +104,17 @@ struct pisces_mpc_processor
 
 /* All addresses in this structure are physical addresses */
 struct pisces_boot_params {
-    
+
+
     // Embedded asm to load esi and jump to kernel
     u8 launch_code[64]; 
 
+    u8 init_dbg_buf[16];
 
     u64 magic;
     // cpu map
+
+    u64 cpu_khz;
     
     // coordinator domain cpu apic id
     u64 domain_xcall_master_apicid;

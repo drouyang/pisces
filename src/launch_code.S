@@ -3,7 +3,7 @@
 .globl launch_code_start
 launch_code_start:
     movq launch_code_target_addr(%rip), %rax
-    movl launch_code_esi(%rip), %esi
+    movl launch_code_esi(%rip), %esi 
     jmp *%rax
     hlt
 

@@ -30,6 +30,7 @@ static int setup_ident_pts(struct pisces_enclave * enclave,
     u64 addr = 0;
     int i = 0;
     struct pisces_ident_pgt * ident_pgt = (struct pisces_ident_pgt *)target_addr;
+
     memset(ident_pgt, 0, sizeof(struct pisces_ident_pgt));
 
     boot_params->level3_ident_pgt = __pa(target_addr);
@@ -44,7 +45,9 @@ static int setup_ident_pts(struct pisces_enclave * enclave,
     for (i = 0, addr = enclave->base_addr_pa; 
             i < MAX_PDE64_ENTRIES; 
             i++, addr += PAGE_SIZE_2MB) {
+
         addr = PAGE_TO_BASE_ADDR_2MB(addr);
+
         ident_pgt->pd[PDE64_INDEX(addr)].page_base_addr  = addr;
         ident_pgt->pd[PDE64_INDEX(addr)].present         = 1;
         ident_pgt->pd[PDE64_INDEX(addr)].writable        = 1;
@@ -107,7 +110,7 @@ static int load_initrd(struct pisces_enclave * enclave,
 	return -1;
     }
 
-    boot_params->initrd_addr = target_addr;
+    boot_params->initrd_addr = __pa(target_addr);
     boot_params->initrd_size = file_size(initrd_image);
     
     while (bytes_read < boot_params->initrd_size) {
@@ -173,6 +176,9 @@ static int setup_boot_params(struct pisces_enclave * enclave) {
     }
 
 
+    printk("Setting up boot parameters. BaseAddr=%p\n", (void *)base_addr);
+
+
     // copy in loading ASM
     {
 	extern u8 launch_code_start;
@@ -191,6 +197,9 @@ static int setup_boot_params(struct pisces_enclave * enclave) {
     boot_params->magic = PISCES_MAGIC;
     strncpy(boot_params->cmd_line, enclave->kern_cmdline, 1024);
 
+    // Record pre-calculated cpu speed
+    boot_params->cpu_khz = cpu_khz;
+
 
     // Initialize Memory map
     // Hardcode the mmap size to 1 for now
@@ -203,8 +212,9 @@ static int setup_boot_params(struct pisces_enclave * enclave) {
     printk("boot params initialized. Offset at %p\n", (void *)(base_addr + offset));
     
 
+
     // Initialize Console Ring buffer (64KB)
-    offset += ALIGN(offset, PAGE_SIZE_4KB);
+    offset = ALIGN(offset, PAGE_SIZE_4KB);
     //    boot_params->console_ring_addr
     if (pisces_cons_init(enclave, (struct pisces_cons_ringbuf *)(base_addr + offset)) == -1) {
 	printk(KERN_ERR "Error initializing Pisces Console\n");
@@ -215,7 +225,9 @@ static int setup_boot_params(struct pisces_enclave * enclave) {
     boot_params->console_ring_size = sizeof(struct pisces_cons_ringbuf);
 
     offset += sizeof(struct pisces_cons_ringbuf);
-    printk("console initialized. Offset at %p\n", (void *)(base_addr + offset));
+    printk("console initialized. Offset at %p (target addr=%p, size=%llu)\n", 
+	   (void *)(base_addr + offset), 
+	   (void *)boot_params->console_ring_addr, boot_params->console_ring_size);
     
 
     // Identity mapped page tables

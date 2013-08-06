@@ -1,3 +1,3 @@
 #!/bin/bash
-find /proc/irq/ -iname "smp_affinity_list" | xargs -I{} sudo sh -c "echo 4-7 > {}" \;
-find /proc/irq/ -iname "smp_affinity_list" | xargs -I{} sudo sh -c "cat {}" \;
+find /proc/irq/ -iname "smp_affinity" | xargs -I{} sudo sh -c 'echo "d" > {}' \;
+find /proc/irq/ -iname "smp_affinity" | xargs -I{} sudo sh -c "cat {}" \;
