@@ -6,6 +6,7 @@
 #include "pisces_lock.h"
 
 
+
 /* REP NOP (PAUSE) is a good thing to insert into busy-wait loops. */
 static inline void pisces_cpu_relax(void) {
 	__asm__ __volatile__("rep;nop": : :"memory");
@@ -26,7 +27,7 @@ static inline unsigned long pisces_xchg8(volatile void * ptr, unsigned char x ) 
 
 
 
-void pisces_spin_init(struct pisces_spinlock * lock) {
+void pisces_lock_init(struct pisces_spinlock * lock) {
     lock->raw_lock = 0;
 }
 

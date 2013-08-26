@@ -36,12 +36,11 @@ struct pisces_enclave {
     // This is what we will want eventually.....
     struct list_head memdesc_list;
 
-    u32 memdesc_num;
 
-    // But, for now we're just going to hard code it
-    uintptr_t base_addr_pa;
-    u64 mem_size;
+    uintptr_t bootmem_addr_pa;
+    u64 bootmem_size;
     
+    u32 memdesc_num;
 
 
 };

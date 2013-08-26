@@ -1,4 +1,4 @@
-KERN_PATH=../linux-3.7.1
+KERN_PATH=../linux
 
 
 obj-m += pisces.o

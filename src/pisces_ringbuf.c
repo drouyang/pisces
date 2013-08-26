@@ -47,7 +47,7 @@ int pisces_early_ringbuf_init(struct pisces_early_ringbuf * ring) {
     memset(ring, 0, sizeof(struct pisces_early_ringbuf));
 
     ring->size = EARLY_RINGBUF_SIZE;
-    pisces_spin_init(&(ring->lock));
+    pisces_lock_init(&(ring->lock));
 
     return 0;
 }

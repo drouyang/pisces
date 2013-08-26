@@ -7,15 +7,17 @@
 #define __PISCES_CONS_H__
 
 #include <linux/types.h>
+#include "pisces_lock.h"
 
 struct pisces_enclave;
 
 // Embedded ringbuffer that maps into a 64KB chunk of memory
 struct pisces_cons_ringbuf {
-    u64 lock;
+    struct pisces_spinlock lock;
     u64 read_idx;
     u64 write_idx;
-    u8 buf[(64 * 1024) - 24];
+    u64 cur_len;
+    u8 buf[(64 * 1024) - 32];
 } __attribute__((packed));
 
 

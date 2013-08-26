@@ -12,27 +12,56 @@
 
 
 
+
 int console_read(struct file *file, char __user *buffer,
 		 size_t length, loff_t *offset) {
     extern struct pisces_enclave * enclave;
     struct pisces_cons_ringbuf * ringbuf = enclave->cons.cons_ringbuf;
-    
-//        copy_to_user(buffer + *offset, (__va(enclave->base_addr_pa) + 64), 16);
-   
-//    return 16;
 
-    if (length > ringbuf->write_idx) {
-	length = (ringbuf->write_idx - ringbuf->read_idx);
+    pisces_spin_lock(&(ringbuf->lock));
+
+    if (length > ringbuf->cur_len) {
+	length = ringbuf->cur_len;
     }
 
-    if (copy_to_user(buffer + *offset, ringbuf->buf + ringbuf->read_idx, length)) {
-	printk(KERN_ERR "Error copying console data to user space\n");
-	return -EFAULT;
-    }
+    if (length > 0) {
+	u64 read_len = 0;
 
-    ringbuf->read_idx += length;
-    ringbuf->read_idx %= (64 * 1024) - 24;
+	if (ringbuf->read_idx >= ringbuf->write_idx) {
+	    // first we need to read from read_idx to end of buf
+
+	    read_len = sizeof(ringbuf->buf) - ringbuf->read_idx;
+
+	    if (copy_to_user(buffer + *offset, ringbuf->buf + ringbuf->read_idx, read_len)) {
+		printk(KERN_ERR "Error copying console data to user space\n");
+		pisces_spin_unlock(&(ringbuf->lock));
+		return -EFAULT;
+	    }
+	    
+	    *offset += read_len;
+	    ringbuf->read_idx += read_len;
+	    ringbuf->read_idx %= sizeof(ringbuf->buf);
+	    ringbuf->cur_len -= read_len;
+	}
+	
+	read_len = ringbuf->write_idx - ringbuf->read_idx;
+
+	// read from read_idx to write_idx
+	if (copy_to_user(buffer + *offset, ringbuf->buf + ringbuf->read_idx, read_len)) {
+	    printk(KERN_ERR "Error copying console data to user space\n");
+	    pisces_spin_unlock(&(ringbuf->lock));
+	    return -EFAULT;
+	}
+	
+	*offset += read_len;
+	ringbuf->read_idx += read_len;
+	ringbuf->read_idx %= sizeof(ringbuf->buf);
+	ringbuf->cur_len -= read_len;
+	
+    }
+    pisces_spin_unlock(&(ringbuf->lock));
     
+
     return length;
 }
 
@@ -42,7 +71,7 @@ int pisces_cons_init(struct pisces_enclave * enclave,
 		     struct pisces_cons_ringbuf * ringbuf) {
 
     enclave->cons.cons_ringbuf = ringbuf;
+    pisces_lock_init(&(ringbuf->lock));
 
     return 0;
-
 }

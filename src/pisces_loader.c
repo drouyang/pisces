@@ -172,7 +172,7 @@ static int cpu_info_init(void)
 
 
 static void pisces_trampoline(struct pisces_enclave * enclave) {  
-    struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->base_addr_pa);
+    struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->bootmem_addr_pa);
     printk(KERN_INFO "PISCES: launching kernel at  physical address %p\n", (void *)boot_params->kernel_addr);
 
     // rax = target cr3
@@ -186,7 +186,7 @@ static void pisces_trampoline(struct pisces_enclave * enclave) {
 	     : "a" (boot_params->ident_pgt_addr), 
 	       "b" (boot_params->launch_code), 
 	       "c" (boot_params->kernel_addr), 
-	       "S" (enclave->base_addr_pa)
+	       "S" (enclave->bootmem_addr_pa)
 	     : );
 
     // Will never get here
@@ -203,7 +203,7 @@ int kick_offline_cpu(struct pisces_enclave * enclave)
 
     int ret = 0;
     int apicid = apic->cpu_present_to_apicid(cpu_id);
-    struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->base_addr_pa);
+    struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->bootmem_addr_pa);
 
     printk(KERN_DEBUG "Boot Pisces guest cpu\n");
 
@@ -228,7 +228,7 @@ int kick_offline_cpu(struct pisces_enclave * enclave)
             + ((u8 *)&launch_code_esi - (u8 *)&launch_code_start));
         
 	*target_addr_ptr = boot_params->kernel_addr;
-        *esi_ptr = (enclave->base_addr_pa >> PAGE_SHIFT);
+        *esi_ptr = (enclave->bootmem_addr_pa >> PAGE_SHIFT);
        
 	printk(KERN_DEBUG "  patch target address 0x%p at 0x%p\n", 
                 (void *) *target_addr_ptr, (void *) __pa(target_addr_ptr));
@@ -236,6 +236,7 @@ int kick_offline_cpu(struct pisces_enclave * enclave)
 	printk(KERN_DEBUG "  patch esi 0x%p at 0x%p\n", 
                 (void *) *esi_ptr, (void *) __pa(esi_ptr));
     }
+
 
     // setup linux trampoline
     {
@@ -271,7 +272,7 @@ int kick_offline_cpu(struct pisces_enclave * enclave)
 
         // setup target address of linux trampoline
 	// TODO: This should be the phys-addr of the launch code...
-        trampoline_header->start = enclave->base_addr_pa;
+        trampoline_header->start = enclave->bootmem_addr_pa;
         printk(KERN_DEBUG "Setup trampoline target address 0x%p\n", (void *)trampoline_header->start);
 
         // wakeup CPU INIT/INIT/SINIT

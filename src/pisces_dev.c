@@ -15,6 +15,7 @@
 #include <asm/uaccess.h>
 #include <linux/slab.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 
 #include "pisces_dev.h"      /* device file ioctls*/
 #include "pisces_mod.h"      
@@ -98,19 +99,7 @@ static long device_ioctl(struct file * file, unsigned int ioctl,
             break;
         }
 
-
-        case P_IOCTL_PING:
-            printk(KERN_INFO "PISCES: Base Addr: %p, mem size: %llu, cpuid %lu, kernel_path '%s'\n", 
-		   (void *)enclave->base_addr_pa, enclave->mem_size, cpu_id, enclave->kern_path);
-            break;
-
-        case P_IOCTL_PREPARE_SECONDARY:
-
-            printk(KERN_INFO "PISCES: setup bootstrap page table for [%p, %p)\n", 
-		   (void *)enclave->base_addr_pa, (void *)(enclave->base_addr_pa + enclave->mem_size));
-
-	    break;
-        case P_IOCTL_LOAD_IMAGE: {
+	case P_IOCTL_LOAD_IMAGE: {
 	    struct pisces_image * img = kmalloc(sizeof(struct pisces_image), GFP_KERNEL);
 
 	    if (IS_ERR(img)) {
@@ -141,19 +130,14 @@ static long device_ioctl(struct file * file, unsigned int ioctl,
 
             break;
 	}
-        case P_IOCTL_START_SECONDARY:
-            printk(KERN_INFO "PISCES: start secondary cpu %ld\n", cpu_id);
-            kick_offline_cpu(enclave);
-
-            break;
 
         case P_IOCTL_PRINT_IMAGE:
             {
-                long *p = (long *)__va(enclave->base_addr_pa);
+                long  *p = (long *)__va(enclave->bootmem_addr_pa);
                 //long *p = (long *)0x8000000;
-                int t=10;
-                printk(KERN_INFO "PISCES: physicall address 0x%lx\n", enclave->base_addr_pa);
-                while (t>0) {
+                int t = 10;
+                printk(KERN_INFO "PISCES: physical  address 0x%lx\n", enclave->bootmem_addr_pa);
+                while (t > 0) {
                     printk(KERN_INFO "%p\t", (void *)*p);
                     p++;
                     t--;
@@ -185,6 +169,39 @@ static struct file_operations fops = {
     .open = device_open,
     .release = device_release
 };
+
+
+
+
+
+static int 
+dbg_mem_show(struct seq_file * s, void * v) {
+
+    struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->bootmem_addr_pa);
+  
+    seq_printf(s, "%s: %p", boot_params->init_dbg_buf, (void *)*(((u64*)(boot_params->init_dbg_buf)) + 1));
+    
+  
+    return 0;
+}
+
+
+static int dbg_proc_open(struct inode * inode, struct file * filp) {
+    struct proc_dir_entry * proc_entry = PDE(inode);
+    return single_open(filp, dbg_mem_show, proc_entry->data);
+}
+
+
+static struct file_operations dbg_proc_ops = {
+    .owner = THIS_MODULE,
+    .open = dbg_proc_open, 
+    .read = seq_read,
+    .llseek = seq_lseek, 
+    .release = single_release,
+};
+
+
+
 
 // return device major number, -1 if failed
 int device_init(void) {
@@ -228,6 +245,21 @@ int device_init(void) {
         class_destroy(cl);
         unregister_chrdev_region(dev_num, 1);
         return -1;
+    }
+
+
+    {
+	struct proc_dir_entry * dbg_entry = NULL;
+
+
+	dbg_entry = create_proc_entry("pisces-dbg", 0444, NULL);
+	if (dbg_entry) {
+	    dbg_entry->proc_fops = &dbg_proc_ops;
+	    dbg_entry->data = &enclave;
+	} else {
+	    printk(KERN_ERR "Error creating memoryproc file\n");
+	}
+
     }
 
 

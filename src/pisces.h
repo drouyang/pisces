@@ -23,7 +23,6 @@
 
  * 1. boot parameters // 4KB aligned
  *     ->  Trampoline code sits at the start of this structure 
- *     ->  Memory map is appended to this structure
  * 2. Console ring buffer (64KB) // 4KB aligned
  * 3. Identity mapped page tables // 4KB aligned (5 Pages)
  * 4. MPTable // 4KB aligned 
@@ -42,11 +41,6 @@ struct pisces_ident_pgt {
 };
 
 
-// boot memory map
-struct pisces_mmap_entry {
-  u64 addr;
-  u64 size;
-} __attribute__((packed));
 
 
 // cpu map, future work
@@ -114,6 +108,8 @@ struct pisces_boot_params {
     u64 magic;
     // cpu map
 
+    u64 boot_params_size;
+
     u64 cpu_khz;
     
     // coordinator domain cpu apic id
@@ -146,9 +142,9 @@ struct pisces_boot_params {
     // 1G ident mapping for guest kernel
     u64 level3_ident_pgt;
 
-    // This is the address of an array of mmap entries.
-    u64 num_mmap_entries;
-    struct pisces_mmap_entry mmap[0];
+    u64 base_mem_paddr;
+    u64 base_mem_size;
+
 
 } __attribute__((packed));
 

@@ -11,10 +11,10 @@
 
 struct pisces_spinlock {
     u64 raw_lock; 
-};
+} __attribute__((packed));
 
 
-void pisces_spin_init(struct pisces_spinlock * lock);
+void pisces_lock_init(struct pisces_spinlock * lock);
 void pisces_spin_lock(struct pisces_spinlock * lock);
 void pisces_spin_unlock(struct pisces_spinlock * lock);
 
