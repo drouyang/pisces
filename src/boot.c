@@ -185,9 +185,10 @@ int setup_boot_params(struct pisces_enclave * enclave) {
 	boot_params->magic = PISCES_MAGIC;
 	strncpy(boot_params->cmd_line, enclave->kern_cmdline, 1024);
 	
+	
+	boot_params->cpu_id = enclave->boot_cpu;
 	// Record pre-calculated cpu speed
 	boot_params->cpu_khz = cpu_khz;
-
 
 	boot_params->base_mem_paddr = enclave->bootmem_addr_pa;
 	boot_params->base_mem_size = enclave->bootmem_size;

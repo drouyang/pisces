@@ -35,7 +35,7 @@ struct proc_dir_entry * pisces_proc_dir = NULL;
 // THIS SHOULD GO IN THE PRIVATE DATA STRUCTURE OF THE FILP ASSOCIATED WITH A DYNAMICALLY CREATED DEVICE FILE
 struct pisces_enclave * enclave = NULL;
 
-//static cpumask_t avail_cpus;
+
 
 static int device_open(struct inode *inode, struct file *file)
 {

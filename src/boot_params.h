@@ -6,7 +6,7 @@
 #include "pgtables.h"
 
 
-#define PISCES_MAGIC 0xFE110
+#define PISCES_MAGIC 0x000FE110
 
 struct pisces_enclave;
 
@@ -17,9 +17,8 @@ struct pisces_enclave;
  * 2. Console ring buffer (64KB) // 4KB aligned
  * 3. CMD+CTRL ring buffer // (4KB)
  * 4. Identity mapped page tables // 4KB aligned (5 Pages)
- * 5. MPTable // 4KB aligned 
- * 6. kernel image // 2M aligned
- * 7. initrd // 2M aligned
+ * 5. kernel image // 2M aligned
+ * 6. initrd // 2M aligned
  *
  */
 
@@ -31,6 +30,8 @@ struct pisces_ident_pgt {
     pdpe64_t      pdp[MAX_PDPE64_ENTRIES];
     pde64_2MB_t   pd[MAX_PDE64_ENTRIES]; // 512 * 2M = 1G
 };
+
+
 
 
 
@@ -49,6 +50,7 @@ struct pisces_boot_params {
 
     u64 boot_params_size;
 
+    u64 cpu_id;
     u64 cpu_khz;
     
     // coordinator domain cpu apic id
@@ -56,13 +58,6 @@ struct pisces_boot_params {
 
     // domain cross call vector id
     u64 domain_xcall_vector;
-
-    /*  
-    // MP table
-    struct pisces_mpf_intel mpf; // Intel multiprocessor floating pointer
-    struct pisces_mpc_table mpc; // MP config table
-    char mpc_entries[1024];  // space for a number of mpc entries
-    */
 
     // cmd_line
     char cmd_line[1024];
@@ -98,8 +93,6 @@ struct pisces_boot_params {
 
 
 
-int setup_boot_params(struct pisces_enclave * enclave);
-int boot_enclave(struct pisces_enclave * enclave);
 
 
 
@@ -110,8 +103,6 @@ int boot_enclave(struct pisces_enclave * enclave);
 
 
 #if 0
-
-
 
 
 
@@ -146,6 +137,8 @@ struct pisces_mpc_table {
 	u32 lapic;		/* APIC address */
 	u32 reserved;
 } __attribute__((packed));
+
+
 
 #define	PISCES_MP_PROCESSOR	0x0
 #define	PISCES_MP_BUS		0x1

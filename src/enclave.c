@@ -9,7 +9,11 @@
 
 #include "enclave.h"
 #include "mm.h"
-#include "boot_params.h"
+#include "boot.h"
+
+
+#include "pgtables.h"
+
 
 
 
@@ -40,11 +44,16 @@ struct pisces_enclave *  pisces_create_enclave(struct pisces_image * img) {
     memset(__va(enclave->bootmem_addr_pa), 0, 128 * 1024 * 1024);
 
 
+
+    /* Setup control device in /dev */
+
     return enclave;
 }
 
 
 int pisces_launch_enclave(struct pisces_enclave * enclave) {
+
+    enclave->boot_cpu = 1;
 
     if (setup_boot_params(enclave) == -1) {
 	printk(KERN_ERR "Error setting up boot environment\n");
