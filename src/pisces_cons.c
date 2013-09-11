@@ -7,7 +7,6 @@
 #include <asm/uaccess.h>
 
 #include "pisces_cons.h"
-#include "pisces_dev.h"
 #include "enclave.h"
 
 

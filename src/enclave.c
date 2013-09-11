@@ -7,6 +7,7 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 
+#include "pisces.h"
 #include "enclave.h"
 #include "mm.h"
 #include "boot.h"

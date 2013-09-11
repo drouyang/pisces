@@ -10,7 +10,6 @@
 #include <linux/types.h>
 #include <linux/cpumask.h>
 
-#include "pisces_dev.h"
 #include "pisces_cons.h"
 
 
