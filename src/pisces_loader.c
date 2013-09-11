@@ -1,19 +1,12 @@
-#include <linux/fs.h>
-#include <linux/mutex.h>
-#include <linux/percpu.h>
-#include <linux/kallsyms.h>
-#include <asm/desc.h>
-#include <asm/segment.h>
-#include <asm/uaccess.h>
-#include <asm/realmode.h>
+
 
 #include "pisces_loader.h"
-#include "pisces.h"
 #include "pisces_mod.h"
 #include "domain_xcall.h"
 #include "pgtables.h"
+#include "boot_params.h"
+#include "enclave.h"
 
-extern int wakeup_secondary_cpu_via_init(int, unsigned long);
 
 #if 0
 static int mpf_check(void)
@@ -195,111 +188,3 @@ static void pisces_trampoline(struct pisces_enclave * enclave) {
 #endif
 
 
-
-// use linux trampoline code to init offlined cpu, but hijack and jump to pisces_trampoline
-// in pisces_trampoline, setup ident mapping and jump to kernel code
-int kick_offline_cpu(struct pisces_enclave * enclave) 
-{
-
-    int ret = 0;
-    int apicid = apic->cpu_present_to_apicid(cpu_id);
-    struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->bootmem_addr_pa);
-
-    printk(KERN_DEBUG "Boot Pisces guest cpu\n");
-
-    // patch launch_code
-    {
-	extern u8 launch_code_start;
-	extern u8 launch_code_end;
-
-        extern u64 launch_code_target_addr;
-        extern u64 launch_code_esi;
-        u64 * target_addr_ptr = NULL;
-        u64 * esi_ptr = NULL;
-
-	printk("Patching Launch Code (length = %d bytes)\n", 
-	       (u32)((u8 *)&launch_code_end - (u8 *)&launch_code_start));
-	
-        // setup launch code data
-        target_addr_ptr =  (u64 *)((u8 *)&boot_params->launch_code 
-            + ((u8 *)&launch_code_target_addr - (u8 *)&launch_code_start));
-        
-	esi_ptr =  (u64 *)((u8 *)&boot_params->launch_code 
-            + ((u8 *)&launch_code_esi - (u8 *)&launch_code_start));
-        
-	*target_addr_ptr = boot_params->kernel_addr;
-        *esi_ptr = (enclave->bootmem_addr_pa >> PAGE_SHIFT);
-       
-	printk(KERN_DEBUG "  patch target address 0x%p at 0x%p\n", 
-                (void *) *target_addr_ptr, (void *) __pa(target_addr_ptr));
-        
-	printk(KERN_DEBUG "  patch esi 0x%p at 0x%p\n", 
-                (void *) *esi_ptr, (void *) __pa(esi_ptr));
-    }
-
-
-    // setup linux trampoline
-    {
-        u64 header_addr = kallsyms_lookup_name("real_mode_header");
-        struct real_mode_header * real_mode_header = *(struct real_mode_header **)header_addr;
-        struct trampoline_header * trampoline_header = (struct trampoline_header *) __va(real_mode_header->trampoline_header);
-
-        pml4e64_t * pml = (pml4e64_t *) __va(real_mode_header->trampoline_pgd);
-        pml4e64_t tmp_pml0;
-
-        u64 start_ip = real_mode_header->trampoline_start;
-
-        u64 cpu_maps_update_lock_addr =  kallsyms_lookup_name("cpu_add_remove_lock");
-        struct mutex * cpu_maps_update_lock = (struct mutex *)cpu_maps_update_lock_addr;
-
-        /* 
-         * setup page table used by linux trampoline
-         */
-        // hold this lock to serialize trampoline data access
-        // this is the same as cpu_maps_update_begin/done API
-        mutex_lock(cpu_maps_update_lock);
-
-        // backup old pml[0] which points to level3_ident_pgt that maps 1G
-        tmp_pml0 = pml[0];
-
-        // use the level3_ident_pgt setup in create_enclave()
-	pml[0].pdp_base_addr = PAGE_TO_BASE_ADDR_4KB((u64)__pa(boot_params->level3_ident_pgt));
-	pml[0].present = 1;
-        pml[0].writable = 1;
-        pml[0].accessed = 1;
-        printk(KERN_DEBUG "Setup trampoline ident page table\n");
-
-
-        // setup target address of linux trampoline
-	// TODO: This should be the phys-addr of the launch code...
-        trampoline_header->start = enclave->bootmem_addr_pa;
-        printk(KERN_DEBUG "Setup trampoline target address 0x%p\n", (void *)trampoline_header->start);
-
-        // wakeup CPU INIT/INIT/SINIT
-        printk(KERN_INFO "PISCES: CPU%d (apic_id %d) wakeup CPU%lu (apic_id %d) via INIT\n", 
-                smp_processor_id(), 
-                apic->cpu_present_to_apicid(smp_processor_id()), 
-                cpu_id, apicid);
-        ret = wakeup_secondary_cpu_via_init(apicid, start_ip);
-
-        // restore pml[0]
-        pml[0] = tmp_pml0;
-
-        mutex_unlock(cpu_maps_update_lock);
-
-    }
-
-    return ret;
-
-}
-
-
-
-int launch_enclave(struct pisces_enclave * enclave) {
-
-//  if (cpu_info_init() >= 0) {
-    kick_offline_cpu(enclave);
-//    }
-
-    return 0;
-}

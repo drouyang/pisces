@@ -8,7 +8,6 @@
 #include<linux/pci.h>
 #include<linux/export.h>
 #include<asm/desc.h>
-#include"pisces.h"
 #include"domain_xcall.h"
 
 int irq = 0;

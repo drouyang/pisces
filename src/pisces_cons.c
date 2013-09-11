@@ -17,6 +17,8 @@ int console_read(struct file *file, char __user *buffer,
 		 size_t length, loff_t *offset) {
     extern struct pisces_enclave * enclave;
     struct pisces_cons_ringbuf * ringbuf = enclave->cons.cons_ringbuf;
+    size_t left_to_read = 0;
+    u64 read_len = 0;
 
     pisces_spin_lock(&(ringbuf->lock));
 
@@ -24,14 +26,18 @@ int console_read(struct file *file, char __user *buffer,
 	length = ringbuf->cur_len;
     }
 
-    if (length > 0) {
-	u64 read_len = 0;
+    left_to_read = length;
 
+    if (left_to_read > 0) {
 	if (ringbuf->read_idx >= ringbuf->write_idx) {
 	    // first we need to read from read_idx to end of buf
 
 	    read_len = sizeof(ringbuf->buf) - ringbuf->read_idx;
 
+	    if (read_len > left_to_read) {
+		read_len = left_to_read;
+	    }
+	    
 	    if (copy_to_user(buffer + *offset, ringbuf->buf + ringbuf->read_idx, read_len)) {
 		printk(KERN_ERR "Error copying console data to user space\n");
 		pisces_spin_unlock(&(ringbuf->lock));
@@ -42,9 +48,17 @@ int console_read(struct file *file, char __user *buffer,
 	    ringbuf->read_idx += read_len;
 	    ringbuf->read_idx %= sizeof(ringbuf->buf);
 	    ringbuf->cur_len -= read_len;
+	    left_to_read -= read_len;
 	}
+    } 
+	
+    if (left_to_read > 0) {
 	
 	read_len = ringbuf->write_idx - ringbuf->read_idx;
+
+	if (read_len > left_to_read) {
+	    read_len = left_to_read;
+	}
 
 	// read from read_idx to write_idx
 	if (copy_to_user(buffer + *offset, ringbuf->buf + ringbuf->read_idx, read_len)) {
@@ -57,8 +71,10 @@ int console_read(struct file *file, char __user *buffer,
 	ringbuf->read_idx += read_len;
 	ringbuf->read_idx %= sizeof(ringbuf->buf);
 	ringbuf->cur_len -= read_len;
+	left_to_read -= read_len;
 	
     }
+
     pisces_spin_unlock(&(ringbuf->lock));
     
 

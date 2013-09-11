@@ -1,14 +1,5 @@
-/* Self-contained header file for
- * shared data structures between host instance and guest instance
- * - spinlock
- * - shared_info
- *   - boot_params
- *   - console buffer
- *
- * Jiannan Ouyang (ouyang@cs.pitt.edu)
- */
-#ifndef _PISCES_H_
-#define _PISCES_H_
+#ifndef _BOOT_PARAMS_H_
+#define _BOOT_PARAMS_H_
 
 #include <linux/types.h>
 
@@ -17,17 +8,18 @@
 
 #define PISCES_MAGIC 0xFE110
 
-
+struct pisces_enclave;
 
 /* Pisces Boot loader memory layout
 
  * 1. boot parameters // 4KB aligned
  *     ->  Trampoline code sits at the start of this structure 
  * 2. Console ring buffer (64KB) // 4KB aligned
- * 3. Identity mapped page tables // 4KB aligned (5 Pages)
- * 4. MPTable // 4KB aligned 
- * 5. kernel image // 2M aligned
- * 6. initrd // 2M aligned
+ * 3. CMD+CTRL ring buffer // (4KB)
+ * 4. Identity mapped page tables // 4KB aligned (5 Pages)
+ * 5. MPTable // 4KB aligned 
+ * 6. kernel image // 2M aligned
+ * 7. initrd // 2M aligned
  *
  */
 
@@ -43,14 +35,94 @@ struct pisces_ident_pgt {
 
 
 
+/* All addresses in this structure are physical addresses */
+struct pisces_boot_params {
+
+
+    // Embedded asm to load esi and jump to kernel
+    u8 launch_code[64]; 
+
+    u8 init_dbg_buf[16];
+
+    u64 magic;
+    // cpu map
+
+    u64 boot_params_size;
+
+    u64 cpu_khz;
+    
+    // coordinator domain cpu apic id
+    u64 domain_xcall_master_apicid;
+
+    // domain cross call vector id
+    u64 domain_xcall_vector;
+
+    /*  
+    // MP table
+    struct pisces_mpf_intel mpf; // Intel multiprocessor floating pointer
+    struct pisces_mpc_table mpc; // MP config table
+    char mpc_entries[1024];  // space for a number of mpc entries
+    */
+
+    // cmd_line
+    char cmd_line[1024];
+
+    // kernel
+    u64 kernel_addr;
+    u64 kernel_size;
+    
+    // initrd
+    u64 initrd_addr;
+    u64 initrd_size;
+    
+
+    // The address of the ring buffer used for the early console
+    u64 console_ring_addr;
+    u64 console_ring_size;
+
+    // Address and size of a command/control channel (ringbuffer)
+    u64 control_ring_addr;
+    u64 control_ring_size;
+
+    // 1G ident mapping for guest kernel
+    u64 level3_ident_pgt;
+
+    u64 base_mem_paddr;
+    u64 base_mem_size;
+
+
+} __attribute__((packed));
+
+
+
+
+
+
+int setup_boot_params(struct pisces_enclave * enclave);
+int boot_enclave(struct pisces_enclave * enclave);
+
+
+
+
+
+
+
+
+
+#if 0
+
+
+
+
+
 // cpu map, future work
 #define PISCES_CPU_MAX 1
 
 
 /* Intel MP Floating Pointer Structure */
 struct pisces_mpf_intel {
-	char signature[4];		/* "_MP_"			*/
-	u32 physptr;		/* Configuration table address	*/
+        char signature[4];	/* "_MP_"			*/
+ 	u32 physptr;		/* Configuration table address	*/
 	u8 length;		/* Our length (paragraphs)	*/
 	u8 specification;	/* Specification version	*/
 	u8 checksum;		/* Checksum (makes sum 0)	*/
@@ -94,59 +166,8 @@ struct pisces_mpc_processor
   u32 reserved[2];
 } __attribute__((packed));
 
+#endif
 
-
-/* All addresses in this structure are physical addresses */
-struct pisces_boot_params {
-
-
-    // Embedded asm to load esi and jump to kernel
-    u8 launch_code[64]; 
-
-    u8 init_dbg_buf[16];
-
-    u64 magic;
-    // cpu map
-
-    u64 boot_params_size;
-
-    u64 cpu_khz;
-    
-    // coordinator domain cpu apic id
-    u64 domain_xcall_master_apicid;
-
-    // domain cross call vector id
-    u64 domain_xcall_vector;
-  
-    // MP table
-    struct pisces_mpf_intel mpf; // Intel multiprocessor floating pointer
-    struct pisces_mpc_table mpc; // MP config table
-    char mpc_entries[1024];  // space for a number of mpc entries
-    
-    // cmd_line
-    char cmd_line[1024];
-
-    // kernel
-    u64 kernel_addr;
-    u64 kernel_size;
-    
-    // initrd
-    u64 initrd_addr;
-    u64 initrd_size;
-    
-
-    // The address of the ring buffer used for the early console
-    u64 console_ring_addr;
-    u64 console_ring_size;
-
-    // 1G ident mapping for guest kernel
-    u64 level3_ident_pgt;
-
-    u64 base_mem_paddr;
-    u64 base_mem_size;
-
-
-} __attribute__((packed));
 
 
 

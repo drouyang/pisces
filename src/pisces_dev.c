@@ -19,8 +19,7 @@
 
 #include "pisces_dev.h"      /* device file ioctls*/
 #include "pisces_mod.h"      
-#include "pisces_loader.h"      
-#include "pisces.h"      
+#include "pisces_loader.h"         
 #include "domain_xcall.h"      
 #include "mm.h"
 #include "enclave.h"
@@ -126,7 +125,7 @@ static long device_ioctl(struct file * file, unsigned int ioctl,
 	case P_IOCTL_LAUNCH_ENCLAVE: {
 
             printk(KERN_DEBUG "Launch Pisces Enclave\n");
-	    launch_enclave(enclave);
+	    pisces_launch_enclave(enclave);
 
             break;
 	}
@@ -151,7 +150,6 @@ static long device_ioctl(struct file * file, unsigned int ioctl,
             break;
 
 
-	    //	case P_IOCTL_CONS_CONNECT:
 	default:
 	    printk(KERN_ERR "Invalid Pisces IOCTL: %d\n", ioctl);
 	    return -EINVAL;
@@ -173,6 +171,7 @@ static struct file_operations fops = {
 
 
 
+#include "boot_params.h"
 
 static int 
 dbg_mem_show(struct seq_file * s, void * v) {

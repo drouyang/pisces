@@ -6,8 +6,8 @@
 #ifndef _PISCES_LOADER_H_
 #define _PISCES_LOADER_H_
 
-#include "pisces.h"
-#include "enclave.h"
+
+struct pisces_enclave;
 
 struct launch_code_header {
     u64 kernel_addr;

@@ -5,7 +5,6 @@
 #include<linux/kernel.h>
 #include<linux/module.h>
 
-#include"pisces.h"
 #include"pisces_loader.h"
 #include"pisces_dev.h"      /* device file ioctls*/
 #include"domain_xcall.h"

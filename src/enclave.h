@@ -24,30 +24,28 @@ struct pisces_enclave {
     char * initrd_path;
     char * kern_cmdline;
 
-    u32 num_cpus;
     u32 boot_cpu;
+
+    u32 num_cpus;
     cpumask_t assigned_cpus;
-
-
 
     struct pisces_cons cons;
 
-    
-    // This is what we will want eventually.....
-    struct list_head memdesc_list;
-
-
     uintptr_t bootmem_addr_pa;
     u64 bootmem_size;
-    
-    u32 memdesc_num;
 
+    
+    // This is what we will want eventually.....
+    struct list_head memdesc_list;    
+    u32 memdesc_num;
 
 };
 
 
 
 struct pisces_enclave *  pisces_create_enclave(struct pisces_image * img);
+
+int pisces_launch_enclave(struct pisces_enclave * enclave);
 
 
 #endif
