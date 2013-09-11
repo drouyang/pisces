@@ -19,7 +19,6 @@
 
 #include "pisces_dev.h"      /* device file ioctls*/
 #include "pisces_mod.h"      
-#include "pisces_loader.h"         
 #include "domain_xcall.h"      
 #include "mm.h"
 #include "enclave.h"
@@ -34,7 +33,6 @@ struct proc_dir_entry * pisces_proc_dir = NULL;
 // TEMPORARY PLACE HOLDER FOR ENCLAVE
 // THIS SHOULD GO IN THE PRIVATE DATA STRUCTURE OF THE FILP ASSOCIATED WITH A DYNAMICALLY CREATED DEVICE FILE
 struct pisces_enclave * enclave = NULL;
-
 
 
 static int device_open(struct inode *inode, struct file *file)
