@@ -21,7 +21,6 @@ static inline u32 sizeof_boot_params(struct pisces_enclave * enclave) {
 }
 
 
-
 // setup bootstrap page tables - pisces_ident_pgt
 // 4M identity mapping from mem_base
 static int setup_ident_pts(struct pisces_enclave * enclave,
@@ -140,8 +139,6 @@ static int load_initrd(struct pisces_enclave * enclave,
 
     return 0;
 }
-
-
 
 
 int setup_boot_params(struct pisces_enclave * enclave) {
@@ -318,105 +315,145 @@ int setup_boot_params(struct pisces_enclave * enclave) {
     return 0;
 }
 
-/*
- * TODO: cpu_add(enclave)
- * 1. set lanuch code
- * 2. reset cpu
- */
 
-int boot_enclave(struct pisces_enclave * enclave) {
+/*
+ * Update Pisces trampoline data
+ */
+static void
+setup_pisces_trampoline(
+        struct pisces_enclave *enclave, 
+        u64 target_addr, 
+        u64 esi)
+{
+    extern u8 launch_code_start;
+    extern u8 launch_code_end;
+
+    extern u64 launch_code_target_addr;
+    extern u64 launch_code_esi;
+
+    u64 * target_addr_ptr = NULL;
+    u64 * esi_ptr = NULL;
+    struct pisces_boot_params * boot_params = 
+        (struct pisces_boot_params *)__va(enclave->bootmem_addr_pa);
+
+    printk("Setup Pisces trampoline\n");
+
+    target_addr_ptr =  (u64 *)((u8 *)&boot_params->launch_code 
+            + ((u8 *)&launch_code_target_addr - (u8 *)&launch_code_start));
+    esi_ptr =  (u64 *)((u8 *)&boot_params->launch_code 
+            + ((u8 *)&launch_code_esi - (u8 *)&launch_code_start));
+
+    *target_addr_ptr = target_addr;
+    *esi_ptr = esi;
+
+    printk(KERN_DEBUG "  set target address at 0x%p to 0x%p\n", 
+            (void *) __pa(target_addr_ptr), (void *) *target_addr_ptr);
+    printk(KERN_DEBUG "  set esi value at 0x%p to 0x%p\n", 
+            (void *) __pa(esi_ptr), (void *) *esi_ptr);
+}
+
+static u64 *linux_trampoline_target;
+static struct mutex *linux_trampoline_lock;
+static pml4e64_t *linux_trampoline_pgd;
+static u64 linux_trampoline_startip;
+/*
+ * Init Linux symbols to interact with Linux trampoline
+ */
+void pisces_trampoline_init(void)
+{
+    u64 header_addr = kallsyms_lookup_name("real_mode_header");
+    u64 cpu_maps_update_lock_addr =  kallsyms_lookup_name("cpu_add_remove_lock");
+    struct real_mode_header * real_mode_header = *(struct real_mode_header **)header_addr;
+    struct trampoline_header * trampoline_header = (struct trampoline_header *) __va(real_mode_header->trampoline_header);
+
+    /* u64 *linux_trampoline_target_ptr */
+    linux_trampoline_target = &trampoline_header->start;
+
+    /* struct mutex *linux_trampoline_lock */
+    linux_trampoline_lock = (struct mutex *)cpu_maps_update_lock_addr;
+
+    /* pml4e64_t *linux_trampoline_pgd */
+    linux_trampoline_pgd = (pml4e64_t *) __va(real_mode_header->trampoline_pgd);
+
+    /* u64 *linux_trampoline_startip */
+    linux_trampoline_startip = real_mode_header->trampoline_start;
+
+}
+
+static inline void setup_linux_trampoline_target(u64 target_addr)
+{
+    *linux_trampoline_target = target_addr;
+    printk(KERN_DEBUG "Setup linux trampoline target address 0x%p\n", 
+            (void *)target_addr);
+}
+
+/*
+ * Reset CPU with INIT/INIT/SINIT IPIs
+ */
+static inline void reset_cpu(int apicid)
+{
+    printk(KERN_INFO "PISCES: apic%d reset apic%d\n", 
+            apic->cpu_present_to_apicid(smp_processor_id()), 
+            apicid);
+    wakeup_secondary_cpu_via_init(apicid, linux_trampoline_startip);
+}
+/*
+ * Setup identity mapped page table for Linux trampoline
+ * default only maps first 1G, this function setup mapping
+ * for enclave boot memory
+ *
+ * TODO: restore modification afterwards
+ */
+static void setup_linux_trampoline_pgd(u64 target_addr)
+{
+
+    // use the level3_ident_pgt setup in create_enclave()
+    // pml[0].pdp_base_addr = PAGE_TO_BASE_ADDR_4KB((u64)__pa(boot_params->level3_ident_pgt));
+    // pml[0].present = 1;
+    // pml[0].writable = 1;
+    // pml[0].accessed = 1;
+    // printk(KERN_DEBUG "Setup trampoline ident page table\n");
+}
+
+void cpu_hot_add(struct pisces_enclave * enclave, int apicid)
+{
+    struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->bootmem_addr_pa);
+
+    setup_pisces_trampoline(enclave,
+            boot_params->kernel_addr /**/,
+            0);
+
+    mutex_lock(linux_trampoline_lock);
+    setup_linux_trampoline_pgd(enclave->bootmem_addr_pa);
+    setup_linux_trampoline_target(enclave->bootmem_addr_pa /*TODO*/);
+    reset_cpu(apicid);
+    /* Delay for target CPU to use Linux trampoline*/
+    udelay(500);
+    mutex_unlock(linux_trampoline_lock);
+}
+
+int boot_enclave(struct pisces_enclave * enclave) 
+{
     int ret = 0;
     int apicid = apic->cpu_present_to_apicid(enclave->boot_cpu);
     struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->bootmem_addr_pa);
 
-    printk(KERN_DEBUG "Boot Pisces guest cpu\n");
+    printk(KERN_DEBUG "Boot Enclave...\n");
 
-    // patch launch_code
-    // TODO: independent function
-    {
-	extern u8 launch_code_start;
-	extern u8 launch_code_end;
-
-        extern u64 launch_code_target_addr;
-        extern u64 launch_code_esi;
-        u64 * target_addr_ptr = NULL;
-        u64 * esi_ptr = NULL;
-
-	printk("Patching Launch Code (length = %d bytes)\n", 
-	       (u32)((u8 *)&launch_code_end - (u8 *)&launch_code_start));
-	
-        // setup launch code data
-        target_addr_ptr =  (u64 *)((u8 *)&boot_params->launch_code 
-            + ((u8 *)&launch_code_target_addr - (u8 *)&launch_code_start));
-        
-	esi_ptr =  (u64 *)((u8 *)&boot_params->launch_code 
-            + ((u8 *)&launch_code_esi - (u8 *)&launch_code_start));
-        
-	*target_addr_ptr = boot_params->kernel_addr;
-        *esi_ptr = (enclave->bootmem_addr_pa >> PAGE_SHIFT);
-       
-	printk(KERN_DEBUG "  patch target address 0x%p at 0x%p\n", 
-                (void *) *target_addr_ptr, (void *) __pa(target_addr_ptr));
-        
-	printk(KERN_DEBUG "  patch esi 0x%p at 0x%p\n", 
-                (void *) *esi_ptr, (void *) __pa(esi_ptr));
-    }
-
-
-    // setup linux trampoline
-    // TODO: independent function
-    {
-        u64 header_addr = kallsyms_lookup_name("real_mode_header");
-        struct real_mode_header * real_mode_header = *(struct real_mode_header **)header_addr;
-        struct trampoline_header * trampoline_header = (struct trampoline_header *) __va(real_mode_header->trampoline_header);
-
-        pml4e64_t * pml = (pml4e64_t *) __va(real_mode_header->trampoline_pgd);
-        pml4e64_t tmp_pml0;
-
-        u64 start_ip = real_mode_header->trampoline_start;
-
-        u64 cpu_maps_update_lock_addr =  kallsyms_lookup_name("cpu_add_remove_lock");
-        struct mutex * cpu_maps_update_lock = (struct mutex *)cpu_maps_update_lock_addr;
-
-        printk(KERN_DEBUG "real_mode_header addr 0x%p", (void *)header_addr);
-        printk(KERN_DEBUG "cpu_add_remove_lock addr 0x%p", (void *)cpu_maps_update_lock_addr);
-        /* 
-         * setup page table used by linux trampoline
-         */
-        // hold this lock to serialize trampoline data access
-        // this is the same as cpu_maps_update_begin/done API
-        mutex_lock(cpu_maps_update_lock);
-
-        // backup old pml[0] which points to level3_ident_pgt that maps 1G
-        tmp_pml0 = pml[0];
-
-        // use the level3_ident_pgt setup in create_enclave()
-	pml[0].pdp_base_addr = PAGE_TO_BASE_ADDR_4KB((u64)__pa(boot_params->level3_ident_pgt));
-	pml[0].present = 1;
-        pml[0].writable = 1;
-        pml[0].accessed = 1;
-        printk(KERN_DEBUG "Setup trampoline ident page table\n");
-
-
-        // setup target address of linux trampoline
-	// TODO: This should be the phys-addr of the launch code...
-        trampoline_header->start = enclave->bootmem_addr_pa;
-        printk(KERN_DEBUG "Setup trampoline target address 0x%p\n", (void *)trampoline_header->start);
-
-        // wakeup CPU INIT/INIT/SINIT
-        printk(KERN_INFO "PISCES: CPU%d (apic_id %d) wakeup CPU %u (apic_id %d) via INIT\n", 
-                smp_processor_id(), 
-                apic->cpu_present_to_apicid(smp_processor_id()), 
-                enclave->boot_cpu, apicid);
-        ret = wakeup_secondary_cpu_via_init(apicid, start_ip);
-
-        // restore pml[0]
-        pml[0] = tmp_pml0;
-
-        mutex_unlock(cpu_maps_update_lock);
-
-    }
+    setup_pisces_trampoline(enclave,
+            boot_params->kernel_addr,
+            enclave->bootmem_addr_pa >> PAGE_SHIFT);
+    /*
+     * hold this lock to serialize trampoline data access 
+     * as cpu_maps_update_begin in linux
+     */
+    mutex_lock(linux_trampoline_lock);
+    setup_linux_trampoline_pgd(enclave->bootmem_addr_pa);
+    setup_linux_trampoline_target(enclave->bootmem_addr_pa);
+    reset_cpu(apicid);
+    /* Delay for target CPU to use Linux trampoline*/
+    udelay(500);
+    mutex_unlock(linux_trampoline_lock);
 
     return ret;
-
 }

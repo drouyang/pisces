@@ -22,6 +22,8 @@
 #include "domain_xcall.h"      
 #include "mm.h"
 #include "enclave.h"
+#include "boot.h"
+#include "boot_params.h"
 
 struct cdev c_dev;  
 static dev_t dev_num; // <major , minor> 
@@ -169,7 +171,6 @@ static struct file_operations fops = {
 
 
 
-#include "boot_params.h"
 
 static int 
 dbg_mem_show(struct seq_file * s, void * v) {
@@ -205,6 +206,8 @@ int pisces_init(void) {
     
     pisces_proc_dir = proc_mkdir(PISCES_PROC_DIR, NULL);
 
+
+    pisces_trampoline_init();
 
     if (pisces_mem_init() == -1) {
 	printk(KERN_ERR "Error initializing Pisces Memory Management\n");
