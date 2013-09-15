@@ -318,6 +318,11 @@ int setup_boot_params(struct pisces_enclave * enclave) {
     return 0;
 }
 
+/*
+ * TODO: cpu_add(enclave)
+ * 1. set lanuch code
+ * 2. reset cpu
+ */
 
 int boot_enclave(struct pisces_enclave * enclave) {
     int ret = 0;
@@ -327,6 +332,7 @@ int boot_enclave(struct pisces_enclave * enclave) {
     printk(KERN_DEBUG "Boot Pisces guest cpu\n");
 
     // patch launch_code
+    // TODO: independent function
     {
 	extern u8 launch_code_start;
 	extern u8 launch_code_end;
@@ -358,6 +364,7 @@ int boot_enclave(struct pisces_enclave * enclave) {
 
 
     // setup linux trampoline
+    // TODO: independent function
     {
         u64 header_addr = kallsyms_lookup_name("real_mode_header");
         struct real_mode_header * real_mode_header = *(struct real_mode_header **)header_addr;
@@ -371,6 +378,8 @@ int boot_enclave(struct pisces_enclave * enclave) {
         u64 cpu_maps_update_lock_addr =  kallsyms_lookup_name("cpu_add_remove_lock");
         struct mutex * cpu_maps_update_lock = (struct mutex *)cpu_maps_update_lock_addr;
 
+        printk(KERN_DEBUG "real_mode_header addr 0x%p", (void *)header_addr);
+        printk(KERN_DEBUG "cpu_add_remove_lock addr 0x%p", (void *)cpu_maps_update_lock_addr);
         /* 
          * setup page table used by linux trampoline
          */

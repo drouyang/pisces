@@ -1,0 +1,22 @@
+#!/bin/python
+import subprocess as sb
+
+block_size_str = sb.check_output(["cat","/sys/devices/system/memory/block_size_bytes"])
+block_size_bytes = int(block_size_str.split()[0], 16)
+block_size_MB = block_size_bytes / 1024 / 1024
+print "Memory block size:", block_size_MB, "MB"
+
+mem_removable = 'find /sys/devices/system/memory/ -iname removable -exec cat {} \;'
+#mem_removable = mem_removable.split()
+#print mem_removable
+mem_state = '''find "/sys/devices/system/memory/" -iname "state" -exec cat {} \;'''
+
+removable_list = sb.check_output(mem_removable, shell=True).split()
+
+state_list = sb.check_output(mem_state, shell=True).split()
+
+
+i = 0
+print "num \tremovable \tstatus \t\taddress"
+for i in range(len(removable_list)):
+    print i, "\t", removable_list[i].ljust(10), "\t", state_list[i].ljust(10), "\t", hex(i*block_size_bytes)

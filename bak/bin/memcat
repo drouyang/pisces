@@ -1,0 +1,4 @@
+#!/bin/bash
+sudo su -c "cat /sys/module/gemini/parameters/mem_base"
+sudo su -c "cat /sys/module/gemini/parameters/mem_len"
+

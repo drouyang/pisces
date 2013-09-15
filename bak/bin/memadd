@@ -1,0 +1,9 @@
+#!/bin/bash
+
+if [ $# -ne 1 ]
+then
+echo "Usage: `basename $0` <block num>"
+exit 
+fi
+
+sudo su -c "echo online > /sys/devices/system/memory/memory$1/state"
