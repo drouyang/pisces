@@ -1,3 +1,0 @@
-* cpu1 cpu7
-printk does not work if only cpu1 is offline, kernel panic from CPU7, __die()
-printk works fine if both cpu1 and cpu7 are offline
