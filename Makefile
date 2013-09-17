@@ -6,6 +6,7 @@ obj-m += pisces.o
 pisces-objs :=  src/main.o \
 		src/boot.o \
 		src/pisces_cons.o \
+		src/pisces_ctrl.o \
 		src/wakeup_secondary.o \
 		src/domain_xcall.o \
 		src/buddy.o \

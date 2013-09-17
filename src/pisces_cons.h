@@ -7,6 +7,7 @@
 #define __PISCES_CONS_H__
 
 #include <linux/types.h>
+#include <linux/fs.h>
 #include "pisces_lock.h"
 
 struct pisces_enclave;
@@ -24,9 +25,7 @@ struct pisces_cons_ringbuf {
 
 
 struct pisces_cons {
-    
     struct pisces_cons_ringbuf * cons_ringbuf;
-
 } __attribute__((packed));
 
 

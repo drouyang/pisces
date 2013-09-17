@@ -11,6 +11,7 @@
 #include <linux/cpumask.h>
 
 #include "pisces_cons.h"
+#include "pisces_ctrl.h"
 
 
 struct pisces_enclave {
@@ -29,13 +30,13 @@ struct pisces_enclave {
     cpumask_t assigned_cpus;
 
     struct pisces_cons cons;
+    struct pisces_ctrl ctrl;
 
     uintptr_t bootmem_addr_pa;
     u64 bootmem_size;
 
-    
     // This is what we will want eventually.....
-    struct list_head memdesc_list;    
+    struct list_head memdesc_list;
     u32 memdesc_num;
 
 };
