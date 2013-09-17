@@ -7,7 +7,7 @@
 #include <asm/uaccess.h>
 #include <asm/realmode.h>
 
-#include "boot_params.h"
+#include "pisces_boot_params.h"
 #include "enclave.h"
 #include "file_io.h"
 #include "pisces_ctrl.h"

@@ -23,7 +23,7 @@
 #include "mm.h"
 #include "enclave.h"
 #include "boot.h"
-#include "boot_params.h"
+#include "pisces_boot_params.h"
 
 struct cdev c_dev;  
 static dev_t dev_num; // <major , minor> 

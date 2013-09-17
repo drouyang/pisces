@@ -1,5 +1,5 @@
-#ifndef _PISCES_DEV_H_
-#define _PISCES_DEV_H_
+#ifndef _PISCES_H_
+#define _PISCES_H_
 
 /* 
  * The name of the device file 
