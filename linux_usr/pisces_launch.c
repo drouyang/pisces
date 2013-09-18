@@ -12,12 +12,17 @@ int main(int argc, char ** argv) {
  
     int pisces_fd = 0;
 
+    char * enclave_path = argv[1];
 
+    if (argc <= 1) {
+	printf("Usage: %s <enclave_dev_path>\n", argv[0]);
+	return -1;
+    }
 
-    pisces_fd = open("/dev/" DEVICE_NAME, O_RDONLY);
+    pisces_fd = open(enclave_path, O_RDONLY);
 
     if (pisces_fd == -1) {
-        printf("Error opening fastmem control device\n");
+        printf("Error opening Enclave device\n");
         return -1;
     }
 

@@ -14,7 +14,7 @@
 
 int console_read(struct file *file, char __user *buffer,
 		 size_t length, loff_t *offset) {
-    extern struct pisces_enclave * enclave;
+    struct pisces_enclave * enclave = (struct pisces_enclave *)file->private_data;
     struct pisces_cons_ringbuf * ringbuf = enclave->cons.cons_ringbuf;
     size_t left_to_read = 0;
     u64 read_len = 0;

@@ -1,6 +1,8 @@
-TARGET := pisces_ioctl mem_reserve pisces_load
+TARGET := pisces_ioctl mem_reserve pisces_load pisces_launch
 
 all: $(TARGET)
+
+pisces_launch: pisces_launch.c ../src/pisces.h
 
 pisces_ioctl: pisces_ioctl.c ../src/pisces.h
 

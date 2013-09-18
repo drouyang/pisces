@@ -31,13 +31,7 @@ static struct cdev pisces_cdev;
 
 struct proc_dir_entry * pisces_proc_dir = NULL;
 
-
-
-
-// TEMPORARY PLACE HOLDER FOR ENCLAVE
-// THIS SHOULD GO IN THE PRIVATE DATA STRUCTURE OF THE FILP ASSOCIATED WITH A DYNAMICALLY CREATED DEVICE FILE
-struct pisces_enclave * enclave = NULL;
-
+struct pisces_enclave * enclave_map[MAX_ENCLAVES] = {[0 ... MAX_ENCLAVES - 1] = 0};
 
 static int device_open(struct inode *inode, struct file *file)
 {
@@ -102,6 +96,7 @@ static long device_ioctl(struct file * file, unsigned int ioctl,
 
 	case P_IOCTL_LOAD_IMAGE: {
 	    struct pisces_image * img = kmalloc(sizeof(struct pisces_image), GFP_KERNEL);
+	    int enclave_idx = -1;
 
 	    if (IS_ERR(img)) {
 		printk(KERN_ERR "Could not allocate space for pisces image\n");
@@ -115,37 +110,16 @@ static long device_ioctl(struct file * file, unsigned int ioctl,
 
 	    printk("Creating Enclave\n");
 
-	    enclave = pisces_create_enclave(img);
+	    enclave_idx = pisces_create_enclave(img);
 
-	    if (enclave == NULL) {
+	    if (enclave_idx == -1) {
 		printk(KERN_ERR "Error creating Pisces Enclave\n");
 		return -EFAULT;
 	    }
-
+	    
+	    return enclave_idx;
 	    break;
 	}
-	case P_IOCTL_LAUNCH_ENCLAVE: {
-
-            printk(KERN_DEBUG "Launch Pisces Enclave\n");
-	    pisces_launch_enclave(enclave);
-
-            break;
-	}
-
-        case P_IOCTL_PRINT_IMAGE:
-            {
-                long  *p = (long *)__va(enclave->bootmem_addr_pa);
-                //long *p = (long *)0x8000000;
-                int t = 10;
-                printk(KERN_INFO "PISCES: physical  address 0x%lx\n", enclave->bootmem_addr_pa);
-                while (t > 0) {
-                    printk(KERN_INFO "%p\t", (void *)*p);
-                    p++;
-                    t--;
-                }
-
-                break;
-            }
 
         case P_IOCTL_TEST:
             {
@@ -175,11 +149,9 @@ static struct file_operations fops = {
 
 
 
-
 static int 
 dbg_mem_show(struct seq_file * s, void * v) {
-
-    struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->bootmem_addr_pa);
+    struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave_map[0]->bootmem_addr_pa);
   
     seq_printf(s, "%s: %p", boot_params->init_dbg_buf, (void *)*(((u64*)(boot_params->init_dbg_buf)) + 1));
     
@@ -263,7 +235,7 @@ int pisces_init(void) {
 	dbg_entry = create_proc_entry("pisces-dbg", 0444, NULL);
 	if (dbg_entry) {
 	    dbg_entry->proc_fops = &dbg_proc_ops;
-	    dbg_entry->data = &enclave;
+	    dbg_entry->data = enclave_map[0];
 	} else {
 	    printk(KERN_ERR "Error creating memoryproc file\n");
 	}

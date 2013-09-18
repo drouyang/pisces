@@ -48,7 +48,7 @@ struct pisces_enclave {
 
 
 
-struct pisces_enclave *  pisces_create_enclave(struct pisces_image * img);
+int pisces_create_enclave(struct pisces_image * img);
 
 int pisces_launch_enclave(struct pisces_enclave * enclave);
 
