@@ -31,7 +31,9 @@ static struct cdev pisces_cdev;
 
 struct proc_dir_entry * pisces_proc_dir = NULL;
 
-struct pisces_enclave * enclave_map[MAX_ENCLAVES] = {[0 ... MAX_ENCLAVES - 1] = 0};
+extern struct pisces_enclave * enclave_map[MAX_ENCLAVES];
+
+
 
 static int device_open(struct inode *inode, struct file *file)
 {

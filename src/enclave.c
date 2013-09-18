@@ -25,8 +25,7 @@
 
 extern struct class * pisces_class;
 extern int pisces_major_num;
-extern struct pisces_enclave * enclave_map[MAX_ENCLAVES];
-
+struct pisces_enclave * enclave_map[MAX_ENCLAVES] = {[0 ... MAX_ENCLAVES - 1] = 0};
 
 static int alloc_enclave_index(struct pisces_enclave * enclave) {
     int i = 0;
