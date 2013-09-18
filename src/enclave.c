@@ -6,18 +6,62 @@
 
 #include <linux/slab.h>
 #include <linux/kernel.h>
+#include <linux/device.h>
+#include <linux/cdev.h>
+#include <linux/errno.h>
+#include <linux/anon_inodes.h>
 
 #include "pisces.h"
 #include "enclave.h"
 #include "mm.h"
+#include "pisces_cons.h"
 #include "boot.h"
 
 
 #include "pgtables.h"
 
 
+static struct pisces_enclave * enclave_map[MAX_ENCLAVES] = {[0 ... MAX_ENCLAVES - 1] = 0};
+extern struct class * pisces_class;
+extern int pisces_major_num;
+
+static int enclave_open(struct inode * inode, struct file * filp) {
+    struct pisces_enclave * enclave = container_of(inode->i_cdev, struct pisces_enclave, cdev);
+    filp->private_data = enclave;
+    return 0;
+}
+
+static ssize_t enclave_read(struct file *file, char __user *buffer,
+			   size_t length, loff_t *offset) {
+
+    return console_read(file, buffer, length, offset);
+}
 
 
+static ssize_t enclave_write(struct file *file, const char __user *buffer,
+			    size_t length, loff_t *offset) {
+    printk(KERN_INFO "Write\n");
+    return -EINVAL;
+}
+
+
+
+static long enclave_ioctl(struct file * filp,
+			unsigned int ioctl, unsigned long arg) {
+
+
+    return 0;
+}
+
+
+static struct file_operations enclave_fops = {
+    .owner = THIS_MODULE,
+    .unlocked_ioctl = enclave_ioctl,
+    .compat_ioctl = enclave_ioctl,
+    .open = enclave_open,
+    .read = enclave_read, 
+    .write = enclave_write,
+};
 
 struct pisces_enclave *  pisces_create_enclave(struct pisces_image * img) {
 
@@ -45,8 +89,28 @@ struct pisces_enclave *  pisces_create_enclave(struct pisces_image * img) {
     memset(__va(enclave->bootmem_addr_pa), 0, 128 * 1024 * 1024);
 
 
+    enclave->dev = MKDEV(pisces_major_num, 1);
 
-    /* Setup control device in /dev */
+    cdev_init(&(enclave->cdev), &enclave_fops);
+
+    enclave->cdev.owner = THIS_MODULE;
+    enclave->cdev.ops = &enclave_fops;
+
+
+    if (cdev_add(&(enclave->cdev), enclave->dev, 1)) {
+	printk(KERN_ERR "Fails to add cdev\n");
+	kfree(enclave);
+	return NULL;
+    }
+
+    if (device_create(pisces_class, NULL, enclave->dev, enclave, "pisces-enclave%d", MINOR(enclave->dev)) == NULL){
+	printk(KERN_ERR "Fails to create device\n");
+	cdev_del(&(enclave->cdev));
+	kfree(enclave);
+	return NULL;
+    }
+
+    printk("Enclave created at /dev/pisces-enclave%d\n", MINOR(enclave->dev));
 
     return enclave;
 }

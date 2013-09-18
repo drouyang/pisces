@@ -7,6 +7,8 @@
 #define DEVICE_NAME "pisces"
 #define PISCES_PROC_DIR "pisces"
 
+#define MAX_ENCLAVES 128
+
 /* Pisces global ioctls */
 
 #define P_IOCTL_MIN    1000

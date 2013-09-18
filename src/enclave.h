@@ -9,6 +9,7 @@
 
 #include <linux/types.h>
 #include <linux/cpumask.h>
+#include <linux/cdev.h>
 
 #include "pisces_cons.h"
 #include "pisces_ctrl.h"
@@ -24,6 +25,9 @@ struct pisces_enclave {
     char * initrd_path;
     char * kern_cmdline;
 
+    dev_t dev; 
+    struct cdev cdev;
+
     u32 boot_cpu;
 
     u32 num_cpus;
@@ -38,6 +42,7 @@ struct pisces_enclave {
     // This is what we will want eventually.....
     struct list_head memdesc_list;
     u32 memdesc_num;
+
 
 };
 

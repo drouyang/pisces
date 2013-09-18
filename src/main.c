@@ -25,11 +25,13 @@
 #include "boot.h"
 #include "pisces_boot_params.h"
 
-struct cdev c_dev;  
-static dev_t dev_num; // <major , minor> 
-static struct class *cl; // <major , minor> 
+int pisces_major_num = 0;
+struct class * pisces_class = NULL;
+static struct cdev pisces_cdev;  
 
 struct proc_dir_entry * pisces_proc_dir = NULL;
+
+
 
 
 // TEMPORARY PLACE HOLDER FOR ENCLAVE
@@ -52,13 +54,10 @@ static int device_release(struct inode *inode, struct file *file)
     return 0;
 }
 
-
-// For now just forward reads to the console, and we'll just access the global enclave
-#include "pisces_cons.h"
 static ssize_t device_read(struct file *file, char __user *buffer,
-			   size_t length, loff_t *offset) {
-
-    return console_read(file, buffer, length, offset);
+			    size_t length, loff_t *offset) {
+    printk(KERN_INFO "Read\n");
+    return -EINVAL;
 }
 
 
@@ -67,6 +66,9 @@ static ssize_t device_write(struct file *file, const char __user *buffer,
     printk(KERN_INFO "Write\n");
     return -EINVAL;
 }
+
+
+
 
 
 static long device_ioctl(struct file * file, unsigned int ioctl,
@@ -107,11 +109,11 @@ static long device_ioctl(struct file * file, unsigned int ioctl,
 	    }
 
 	    if (copy_from_user(img, argp, sizeof(struct pisces_image))) {
-		printk(KERN_ERR "Error copying pisces from user space\n");
+		printk(KERN_ERR "Error copying pisces image from user space\n");
 		return -EFAULT;
 	    }
 
-	    printk("Creating Pisces Image\n");
+	    printk("Creating Enclave\n");
 
 	    enclave = pisces_create_enclave(img);
 
@@ -205,6 +207,7 @@ static struct file_operations dbg_proc_ops = {
 
 // return device major number, -1 if failed
 int pisces_init(void) {
+    dev_t dev_num = MKDEV(0, 0); // <major , minor> 
     
     pisces_proc_dir = proc_mkdir(PISCES_PROC_DIR, NULL);
 
@@ -216,36 +219,39 @@ int pisces_init(void) {
 	return -1;
     }
 
-    if (alloc_chrdev_region(&dev_num, 0, 1, "pisces") < 0) {
+    if (alloc_chrdev_region(&dev_num, 0, MAX_ENCLAVES + 1, "pisces") < 0) {
 	printk(KERN_ERR "Error allocating Pisces Char device region\n");
 	return -1;
     }
 
+    pisces_major_num = MAJOR(dev_num);
+    dev_num = MKDEV(pisces_major_num, MAX_ENCLAVES + 1);
+
     //printk(KERN_INFO "<Major, Minor>: <%d, %d>\n", MAJOR(dev_num), MINOR(dev_num));
 
-    if ((cl = class_create(THIS_MODULE, "pisces")) == NULL) {
+    if ((pisces_class = class_create(THIS_MODULE, "pisces")) == NULL) {
 	printk(KERN_ERR "Error creating Pisces Device Class\n");
 
         unregister_chrdev_region(dev_num, 1);
         return -1;
     }
     
-    if (device_create(cl, NULL, dev_num, NULL, "pisces") == NULL) {
+    if (device_create(pisces_class, NULL, dev_num, NULL, "pisces") == NULL) {
 	printk(KERN_ERR "Error creating Pisces Device\n");
 
-        class_destroy(cl);
-        unregister_chrdev_region(dev_num, 1);
+        class_destroy(pisces_class);
+        unregister_chrdev_region(dev_num, MAX_ENCLAVES + 1);
         return -1;
     }
 
-    cdev_init(&c_dev, &fops);
+    cdev_init(&pisces_cdev, &fops);
 
-    if (cdev_add(&c_dev, dev_num, 1) == -1) {
+    if (cdev_add(&pisces_cdev, dev_num, 1) == -1) {
 	printk(KERN_ERR "Error Adding Pisces CDEV\n");
 
-        device_destroy(cl, dev_num);
-        class_destroy(cl);
-        unregister_chrdev_region(dev_num, 1);
+        device_destroy(pisces_class, dev_num);
+        class_destroy(pisces_class);
+        unregister_chrdev_region(dev_num, MAX_ENCLAVES + 1);
         return -1;
     }
 
@@ -275,10 +281,13 @@ int pisces_init(void) {
 }
 
 void pisces_exit(void) {
-    cdev_del(&c_dev);
-    device_destroy(cl, dev_num);
-    class_destroy(cl);
-    unregister_chrdev_region(dev_num, 1);
+    dev_t dev_num = MKDEV(pisces_major_num, MAX_ENCLAVES + 1);
+
+    unregister_chrdev_region(MKDEV(pisces_major_num, 0), MAX_ENCLAVES + 1);
+
+    cdev_del(&pisces_cdev);
+    device_destroy(pisces_class, dev_num);
+    class_destroy(pisces_class);
 
     remove_proc_entry(PISCES_PROC_DIR, NULL);
     
