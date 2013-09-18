@@ -301,7 +301,7 @@ int setup_boot_params(struct pisces_enclave * enclave) {
     }
 
 
-    printk(KERN_INFO "PISCES: loader memroy map:\n");
+    printk(KERN_INFO "Pisces loader memroy map:\n");
     printk(KERN_INFO "  kernel:        [%p, %p), size %llu\n",
 	   (void *)boot_params->kernel_addr,
 	   (void *)(boot_params->kernel_addr + boot_params->kernel_size),
@@ -395,9 +395,9 @@ static inline void setup_linux_trampoline_target(u64 target_addr)
  */
 static inline void reset_cpu(int apicid)
 {
-    printk(KERN_INFO "PISCES: apic%d reset apic%d\n", 
-            apic->cpu_present_to_apicid(smp_processor_id()), 
-            apicid);
+    printk(KERN_INFO "Reset CPU %d from CPU %d\n", 
+            apicid,
+            apic->cpu_present_to_apicid(smp_processor_id()));
     wakeup_secondary_cpu_via_init(apicid, linux_trampoline_startip);
 }
 /*

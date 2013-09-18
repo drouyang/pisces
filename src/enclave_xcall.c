@@ -14,7 +14,7 @@ void (**linux_x86_platform_ipi_callback)(void) = NULL;
 
 static void enclave_xcall_handler(void)
 {
-    printk(KERN_INFO "PISCES: domain xcall received\n");
+    printk(KERN_INFO "PISCES: enclave xcall received\n");
 }
 
 int enclave_xcall_init(void)
