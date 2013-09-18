@@ -8,7 +8,7 @@ pisces-objs :=  src/main.o \
 		src/pisces_cons.o \
 		src/pisces_ctrl.o \
 		src/wakeup_secondary.o \
-		src/domain_xcall.o \
+		src/enclave_xcall.o \
 		src/buddy.o \
 		src/enclave.o \
 		src/pisces_lock.o \

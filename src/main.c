@@ -18,8 +18,8 @@
 #include <linux/seq_file.h>
 
 #include "pisces.h"      /* device file ioctls*/
-#include "pisces_mod.h"      
-#include "domain_xcall.h"      
+#include "pisces_mod.h"
+#include "enclave_xcall.h"
 #include "mm.h"
 #include "enclave.h"
 #include "boot.h"
@@ -143,13 +143,7 @@ static long device_ioctl(struct file * file, unsigned int ioctl,
                 }
 
                 break;
-            
             }
-        case P_IOCTL_EXIT:
-            domain_xcall_exit();
-            break;
-
-
 	default:
 	    printk(KERN_ERR "Invalid Pisces IOCTL: %d\n", ioctl);
 	    return -EINVAL;
@@ -207,7 +201,7 @@ int pisces_init(void) {
     pisces_proc_dir = proc_mkdir(PISCES_PROC_DIR, NULL);
 
 
-    pisces_trampoline_init();
+    pisces_linux_symbol_init();
 
     if (pisces_mem_init() == -1) {
 	printk(KERN_ERR "Error initializing Pisces Memory Management\n");
@@ -264,8 +258,8 @@ int pisces_init(void) {
 
 
 
-    if (domain_xcall_init() < 0) {
-        printk(KERN_INFO "PISCES: domain_xcall_init failed\n");
+    if (enclave_xcall_init() < 0) {
+        printk(KERN_INFO "PISCES: enclave_xcall_init failed\n");
         return -1;
     }
 

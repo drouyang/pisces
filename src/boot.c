@@ -9,6 +9,7 @@
 
 #include "pisces_boot_params.h"
 #include "enclave.h"
+#include "enclave_xcall.h"
 #include "file_io.h"
 #include "pisces_ctrl.h"
 #include "pisces_ringbuf.h"
@@ -355,27 +356,30 @@ static u64 *linux_trampoline_target;
 static struct mutex *linux_trampoline_lock;
 static pml4e64_t *linux_trampoline_pgd;
 static u64 linux_trampoline_startip;
+extern void (**linux_x86_platform_ipi_callback)(void);
 /*
  * Init Linux symbols to interact with Linux trampoline
  */
-void pisces_trampoline_init(void)
+void pisces_linux_symbol_init(void)
 {
-    u64 header_addr = kallsyms_lookup_name("real_mode_header");
-    u64 cpu_maps_update_lock_addr =  kallsyms_lookup_name("cpu_add_remove_lock");
-    struct real_mode_header * real_mode_header = *(struct real_mode_header **)header_addr;
-    struct trampoline_header * trampoline_header = (struct trampoline_header *) __va(real_mode_header->trampoline_header);
+    struct real_mode_header * real_mode_header = NULL;
+    struct trampoline_header * trampoline_header = NULL;
 
     /* u64 *linux_trampoline_target_ptr */
+    real_mode_header = *(struct real_mode_header **) kallsyms_lookup_name("real_mode_header");
+    trampoline_header = (struct trampoline_header *) __va(real_mode_header->trampoline_header);
     linux_trampoline_target = &trampoline_header->start;
 
     /* struct mutex *linux_trampoline_lock */
-    linux_trampoline_lock = (struct mutex *)cpu_maps_update_lock_addr;
+    linux_trampoline_lock = (struct mutex *) kallsyms_lookup_name("cpu_add_remove_lock");
 
     /* pml4e64_t *linux_trampoline_pgd */
     linux_trampoline_pgd = (pml4e64_t *) __va(real_mode_header->trampoline_pgd);
 
     /* u64 *linux_trampoline_startip */
     linux_trampoline_startip = real_mode_header->trampoline_start;
+
+    linux_x86_platform_ipi_callback = (void (**)(void)) kallsyms_lookup_name("x86_platform_ipi_callback");
 
 }
 
