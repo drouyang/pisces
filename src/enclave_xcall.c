@@ -8,7 +8,9 @@
 #include<linux/pci.h>
 #include<linux/export.h>
 #include<asm/desc.h>
+#include<asm/ipi.h>
 #include"enclave_xcall.h"
+#include"pisces_ctrl.h"
 
 void (**linux_x86_platform_ipi_callback)(void) = NULL;
 
@@ -25,6 +27,16 @@ int enclave_xcall_init(void)
         *linux_x86_platform_ipi_callback = enclave_xcall_handler;
         return 0;
     }
+}
+
+/*
+ * Hack: use phycial dest to send IPI to Kitten
+ * Linux by default uses logical mode
+ */
+void send_enclave_xcall(int apicid)
+{
+    //apic->send_IPI_mask(cpumask_of(1), PISCES_ENCLAVE_XCALL_VECTOR);
+    __default_send_IPI_dest_field(apicid, PISCES_ENCLAVE_XCALL_VECTOR, APIC_DEST_PHYSICAL);
 }
 
 

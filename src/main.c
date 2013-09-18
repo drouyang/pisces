@@ -144,6 +144,14 @@ static long device_ioctl(struct file * file, unsigned int ioctl,
 
                 break;
             }
+
+        case P_IOCTL_TEST:
+            {
+                printk(KERN_INFO "Send enclave xcall to cpu %d\n", 1);
+                send_enclave_xcall(1);
+                break;
+            }
+
 	default:
 	    printk(KERN_ERR "Invalid Pisces IOCTL: %d\n", ioctl);
 	    return -EINVAL;

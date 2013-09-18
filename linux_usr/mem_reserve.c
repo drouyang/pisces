@@ -27,7 +27,7 @@
 
 int numa_node = -1;
 
-#include "../src/pisces_dev.h"
+#include "../src/pisces.h"
 
 
 

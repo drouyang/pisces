@@ -26,9 +26,11 @@
 
 #define P_IOCTL_EXIT 1005
 
-#define P_IOCTL_MAX    1005
 
 #define P_IOCTL_ADD_MEM 1006
+#define P_IOCTL_TEST    1007
+
+#define P_IOCTL_MAX    1007
 
 struct memory_range {
     unsigned long long base_addr;

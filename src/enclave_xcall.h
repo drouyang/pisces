@@ -5,5 +5,6 @@
 #define PISCES_ENCLAVE_XCALL_VECTOR 247
 
 int enclave_xcall_init(void);
+void send_enclave_xcall(int apicid);
 
 #endif

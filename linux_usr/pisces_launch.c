@@ -6,7 +6,7 @@
 #include <fcntl.h>
 #include <sys/ioctl.h> 
 
-#include "../src/pisces_dev.h"
+#include "../src/pisces.h"
 
 int main(int argc, char ** argv) {
  

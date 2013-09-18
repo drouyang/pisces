@@ -1,4 +1,4 @@
-#include"../src/pisces_dev.h"
+#include"../src/pisces.h"
 
 #include <stdio.h>
 #include <stdlib.h>
