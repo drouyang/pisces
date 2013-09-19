@@ -19,9 +19,9 @@
 
 #include "pisces.h"      /* device file ioctls*/
 #include "pisces_mod.h"
-#include "enclave_xcall.h"
 #include "mm.h"
 #include "enclave.h"
+#include "enclave_xcall.h"
 #include "boot.h"
 #include "pisces_boot_params.h"
 
@@ -123,12 +123,6 @@ static long device_ioctl(struct file * file, unsigned int ioctl,
 	    break;
 	}
 
-        case P_IOCTL_TEST:
-            {
-                printk(KERN_INFO "Send enclave xcall to cpu %d\n", 1);
-                send_enclave_xcall(1);
-                break;
-            }
 
 	default:
 	    printk(KERN_ERR "Invalid Pisces IOCTL: %d\n", ioctl);

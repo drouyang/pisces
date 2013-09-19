@@ -30,7 +30,7 @@
 
 
 #define P_IOCTL_ADD_MEM 1006
-#define P_IOCTL_TEST    1007
+#define P_IOCTL_ADD_CPU    1007
 
 #define P_IOCTL_MAX    1007
 

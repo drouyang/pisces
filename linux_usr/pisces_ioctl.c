@@ -28,9 +28,9 @@ int main(int argc, char *argv[])
             exit(-1);
         }
 
-        file_desc = open("/dev/" DEVICE_NAME, 0);
+        file_desc = open("/dev/pisces-enclave0", 0);
         if (file_desc < 0) {
-                printf("Can't open device file: %s\n", "/dev/"DEVICE_NAME);
+                printf("Can't open device file: %s\n", "/dev/pisces-enclave0");
                 exit(-1);
         }
 

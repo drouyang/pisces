@@ -6,7 +6,8 @@
 struct pisces_enclave;
 
 #define PISCES_CTRL_ADD_CPU  1
-#define PISCES_CTRL_ADD_MEM  2
+#define PISCES_CTRL_BOOT_CPU  1
+#define PISCES_CTRL_ADD_MEM  3
 
 struct pisces_ctrl {
     struct pisces_early_ringbuf * ctrl_ringbuf;
@@ -21,9 +22,7 @@ struct pisces_ctrl_cmd {
 
 int pisces_ctrl_init(struct pisces_enclave * enclave, 
         struct pisces_early_ringbuf * ctrl_ringbuf);
-int ctrl_send(struct pisces_early_ringbuf * ctrl_ringbuf, 
-              struct pisces_ctrl_cmd * cmd);
-int ctrl_recv(struct pisces_early_ringbuf * ctrl_ringbuf, 
-              struct pisces_ctrl_cmd * cmd); 
+
+void pisces_ctrl_add_cpu(struct pisces_enclave * enclave, int apicid);
 
 #endif

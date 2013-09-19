@@ -6,4 +6,7 @@
 *.mod
 *.ko
 *.o
+linux_usr/mem_reserve
+linux_usr/pisces_load
+linux_usr/pisces_ioctl
 tags

@@ -16,6 +16,7 @@
 #include "enclave.h"
 #include "mm.h"
 #include "pisces_cons.h"
+#include "pisces_ctrl.h"
 #include "boot.h"
 
 
@@ -80,6 +81,13 @@ static long enclave_ioctl(struct file * filp,
 
             break;
 	}
+
+        case P_IOCTL_ADD_CPU:
+            {
+                printk(KERN_INFO "Send enclave xcall to cpu %d\n", 1);
+                pisces_ctrl_add_cpu(enclave_map[0], 1);
+                break;
+            }
 
     }
 
