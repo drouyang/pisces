@@ -14,8 +14,14 @@
 
 void (**linux_x86_platform_ipi_callback)(void) = NULL;
 
+/*
+ * Pisces controll command notification handler
+ * TODO: find out source enclave
+ */
 static void enclave_xcall_handler(void)
 {
+    struct pisces_ctrl_cmd;
+
     printk(KERN_INFO "PISCES: enclave xcall received\n");
 }
 
