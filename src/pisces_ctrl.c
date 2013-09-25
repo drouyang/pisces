@@ -1,3 +1,4 @@
+#include "pisces.h"
 #include "pisces_ctrl.h"
 #include "enclave.h"
 #include "enclave_xcall.h"
@@ -51,7 +52,7 @@ void pisces_ctrl_add_cpu(struct pisces_enclave * enclave, int apicid)
     struct pisces_ctrl_cmd cmd;
 
     memset(&cmd, 0, sizeof(struct pisces_ctrl_cmd));
-    cmd.cmd = PISCES_CTRL_ADD_CPU;
+    cmd.cmd = PISCES_ENCLAVE_ADD_CPU;
     cmd.arg1 = apicid;
 
     if (ctrl_send(enclave, &cmd) ==  0) {

@@ -1,44 +1,30 @@
 #ifndef _PISCES_H_
 #define _PISCES_H_
 
-/* 
- * The name of the device file 
+/*
+ * Name of the device file
  */
 #define DEVICE_NAME "pisces"
 #define PISCES_PROC_DIR "pisces"
 
 #define MAX_ENCLAVES 128
 
-/* Pisces global ioctls */
+/* Pisces global cmds */
+#define PISCES_ADD_MEM              1000
+#define PISCES_LOAD_IMAGE           1001
 
-#define P_IOCTL_MIN    1000
-#define P_IOCTL_PING    1000
+/* Pisces enclave cmds */
+#define PISCES_ENCLAVE_LAUNCH       2000
+#define PISCES_ENCLAVE_ADD_CPU      2001
+#define PISCES_ENCLAVE_BOOT_CPU     2002
+#define PISCES_ENCLAVE_ADD_MEM      2003
+#define PISCES_ENCLAVE_GET_CONS     2004
 
-// Initialized mem_base and mem_size params before prepare secondary
-// This will setup physical memory and identity mapping for the secondary cpu
-#define P_IOCTL_PREPARE_SECONDARY    1001
-
-#define P_IOCTL_LOAD_IMAGE    1002
-#define P_IOCTL_LAUNCH_ENCLAVE    1100
-
-// Boot secondary cpu via INIT, secondary cpu will jump to hooker() in long mode
-#define P_IOCTL_START_SECONDARY    1003
-
-#define P_IOCTL_PRINT_IMAGE    1004
-
-#define P_IOCTL_EXIT 1005
-
-
-#define P_IOCTL_ADD_MEM 1006
-#define P_IOCTL_ADD_CPU    1007
-
-#define P_IOCTL_MAX    1007
 
 struct memory_range {
     unsigned long long base_addr;
     unsigned long long pages;
 } __attribute__((packed));
-
 
 
 struct pisces_image {

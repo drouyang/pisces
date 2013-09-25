@@ -73,61 +73,61 @@ static long device_ioctl(struct file * file, unsigned int ioctl,
 
 
     switch (ioctl) {
-        case P_IOCTL_ADD_MEM: {
+        case PISCES_ADD_MEM: {
             struct memory_range reg;
-            uintptr_t base_addr = 0;        
+            uintptr_t base_addr = 0;
             u64 num_pages = 0;
 
             if (copy_from_user(&reg, argp, sizeof(struct memory_range))) {
-		printk(KERN_ERR "Copying memory region from user space\n");
+                printk(KERN_ERR "Copying memory region from user space\n");
                 return -EFAULT;
             }
 
             base_addr = (uintptr_t)reg.base_addr;
             num_pages = reg.pages;
 
-	    if (pisces_add_mem(base_addr, num_pages) != 0) {
-		printk(KERN_ERR "Error adding memory to pisces (base_addr=%p, pages=%llu)\n", 
-		       (void *)base_addr, num_pages);
-		return -EFAULT;
-	    }
-
+            if (pisces_add_mem(base_addr, num_pages) != 0) {
+                printk(KERN_ERR "Error adding memory to pisces \
+                        (base_addr=%p, pages=%llu)\n", 
+                        (void *)base_addr, num_pages);
+                return -EFAULT;
+            }
 
             break;
         }
 
-	case P_IOCTL_LOAD_IMAGE: {
-	    struct pisces_image * img = kmalloc(sizeof(struct pisces_image), GFP_KERNEL);
-	    int enclave_idx = -1;
 
-	    if (IS_ERR(img)) {
-		printk(KERN_ERR "Could not allocate space for pisces image\n");
-		return -EFAULT;
-	    }
+        case PISCES_LOAD_IMAGE: {
+            struct pisces_image * img = kmalloc(sizeof(struct pisces_image), GFP_KERNEL);
+            int enclave_idx = -1;
 
-	    if (copy_from_user(img, argp, sizeof(struct pisces_image))) {
-		printk(KERN_ERR "Error copying pisces image from user space\n");
-		return -EFAULT;
-	    }
+            if (IS_ERR(img)) {
+                printk(KERN_ERR "Could not allocate space for pisces image\n");
+                return -EFAULT;
+            }
 
-	    printk("Creating Enclave\n");
+            if (copy_from_user(img, argp, sizeof(struct pisces_image))) {
+                printk(KERN_ERR "Error copying pisces image from user space\n");
+                return -EFAULT;
+            }
 
-	    enclave_idx = pisces_create_enclave(img);
+            printk("Creating Enclave\n");
 
-	    if (enclave_idx == -1) {
-		printk(KERN_ERR "Error creating Pisces Enclave\n");
-		return -EFAULT;
-	    }
-	    
-	    return enclave_idx;
-	    break;
-	}
+            enclave_idx = pisces_create_enclave(img);
+
+            if (enclave_idx == -1) {
+                printk(KERN_ERR "Error creating Pisces Enclave\n");
+                return -EFAULT;
+            }
+
+            return enclave_idx;
+            break;
+        }
 
 
-	default:
-	    printk(KERN_ERR "Invalid Pisces IOCTL: %d\n", ioctl);
-	    return -EINVAL;
-
+        default:
+            printk(KERN_ERR "Invalid Pisces IOCTL: %d\n", ioctl);
+            return -EINVAL;
     }
     return 0;
 }
@@ -148,10 +148,7 @@ static struct file_operations fops = {
 static int 
 dbg_mem_show(struct seq_file * s, void * v) {
     struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave_map[0]->bootmem_addr_pa);
-  
     seq_printf(s, "%s: %p", boot_params->init_dbg_buf, (void *)*(((u64*)(boot_params->init_dbg_buf)) + 1));
-    
-  
     return 0;
 }
 
@@ -176,20 +173,19 @@ static struct file_operations dbg_proc_ops = {
 // return device major number, -1 if failed
 int pisces_init(void) {
     dev_t dev_num = MKDEV(0, 0); // <major , minor> 
-    
-    pisces_proc_dir = proc_mkdir(PISCES_PROC_DIR, NULL);
 
+    pisces_proc_dir = proc_mkdir(PISCES_PROC_DIR, NULL);
 
     pisces_linux_symbol_init();
 
     if (pisces_mem_init() == -1) {
-	printk(KERN_ERR "Error initializing Pisces Memory Management\n");
-	return -1;
+        printk(KERN_ERR "Error initializing Pisces Memory Management\n");
+        return -1;
     }
 
     if (alloc_chrdev_region(&dev_num, 0, MAX_ENCLAVES + 1, "pisces") < 0) {
-	printk(KERN_ERR "Error allocating Pisces Char device region\n");
-	return -1;
+        printk(KERN_ERR "Error allocating Pisces Char device region\n");
+        return -1;
     }
 
     pisces_major_num = MAJOR(dev_num);
@@ -198,14 +194,14 @@ int pisces_init(void) {
     //printk(KERN_INFO "<Major, Minor>: <%d, %d>\n", MAJOR(dev_num), MINOR(dev_num));
 
     if ((pisces_class = class_create(THIS_MODULE, "pisces")) == NULL) {
-	printk(KERN_ERR "Error creating Pisces Device Class\n");
+        printk(KERN_ERR "Error creating Pisces Device Class\n");
 
         unregister_chrdev_region(dev_num, 1);
         return -1;
     }
-    
+
     if (device_create(pisces_class, NULL, dev_num, NULL, "pisces") == NULL) {
-	printk(KERN_ERR "Error creating Pisces Device\n");
+        printk(KERN_ERR "Error creating Pisces Device\n");
 
         class_destroy(pisces_class);
         unregister_chrdev_region(dev_num, MAX_ENCLAVES + 1);
@@ -215,7 +211,7 @@ int pisces_init(void) {
     cdev_init(&pisces_cdev, &fops);
 
     if (cdev_add(&pisces_cdev, dev_num, 1) == -1) {
-	printk(KERN_ERR "Error Adding Pisces CDEV\n");
+        printk(KERN_ERR "Error Adding Pisces CDEV\n");
 
         device_destroy(pisces_class, dev_num);
         class_destroy(pisces_class);
@@ -225,16 +221,16 @@ int pisces_init(void) {
 
 
     {
-	struct proc_dir_entry * dbg_entry = NULL;
+        struct proc_dir_entry * dbg_entry = NULL;
 
 
-	dbg_entry = create_proc_entry("pisces-dbg", 0444, NULL);
-	if (dbg_entry) {
-	    dbg_entry->proc_fops = &dbg_proc_ops;
-	    dbg_entry->data = enclave_map[0];
-	} else {
-	    printk(KERN_ERR "Error creating memoryproc file\n");
-	}
+        dbg_entry = create_proc_entry("pisces-dbg", 0444, NULL);
+        if (dbg_entry) {
+            dbg_entry->proc_fops = &dbg_proc_ops;
+            dbg_entry->data = enclave_map[0];
+        } else {
+            printk(KERN_ERR "Error creating memoryproc file\n");
+        }
 
     }
 
@@ -258,9 +254,7 @@ void pisces_exit(void) {
     class_destroy(pisces_class);
 
     remove_proc_entry(PISCES_PROC_DIR, NULL);
-    
 }
-
 
 
 

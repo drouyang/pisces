@@ -191,7 +191,7 @@ int add_palacios_memory(unsigned long long base_addr, unsigned long num_pages) {
         return -1;
     }
 
-    ioctl(fast_fd, P_IOCTL_ADD_MEM, &mem); 
+    ioctl(fast_fd, PISCES_ADD_MEM, &mem); 
     /* Close the file descriptor.  */ 
     close(fast_fd);
     return 0;

@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include <fcntl.h>
-#include <sys/ioctl.h> 
+#include <sys/ioctl.h>
 
 #include "../src/pisces.h"
 
@@ -25,8 +25,6 @@ int main(int argc, char ** argv) {
     strcpy(img->cmd_line, cmd_line);
 
 
-
-
     pisces_fd = open("/dev/" DEVICE_NAME, O_RDONLY);
 
     if (pisces_fd == -1) {
@@ -34,10 +32,7 @@ int main(int argc, char ** argv) {
         return -1;
     }
 
-    ioctl(pisces_fd, P_IOCTL_LOAD_IMAGE, img); 
-    /* Close the file descriptor.  */ 
+    ioctl(pisces_fd, PISCES_LOAD_IMAGE, img);
+    /* Close the file descriptor.  */
     close(pisces_fd);
-    
-
-
 }

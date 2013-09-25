@@ -23,10 +23,6 @@ int main(int argc, char *argv[])
         }
 
         ioctl_num = atoi(argv[1]);
-        if (ioctl_num < P_IOCTL_MIN || ioctl_num > P_IOCTL_MAX) {
-            printf("Error: ioctl number %d out of range.\n", ioctl_num);
-            exit(-1);
-        }
 
         file_desc = open("/dev/pisces-enclave0", 0);
         if (file_desc < 0) {

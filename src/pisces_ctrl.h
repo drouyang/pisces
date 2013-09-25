@@ -5,10 +5,6 @@
 
 struct pisces_enclave;
 
-#define PISCES_CTRL_ADD_CPU  1
-#define PISCES_CTRL_BOOT_CPU  1
-#define PISCES_CTRL_ADD_MEM  3
-
 struct pisces_ctrl {
     struct pisces_early_ringbuf * ctrl_ringbuf;
 } __attribute__((packed));
