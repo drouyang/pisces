@@ -15,7 +15,6 @@
 #include "pisces.h"
 #include "enclave.h"
 #include "mm.h"
-#include "pisces_cons.h"
 #include "pisces_ctrl.h"
 #include "boot.h"
 
@@ -54,7 +53,8 @@ static int enclave_open(struct inode * inode, struct file * filp) {
 static ssize_t enclave_read(struct file *file, char __user *buffer,
         size_t length, loff_t *offset) {
 
-    return console_read(file, buffer, length, offset);
+    //return console_read(file, buffer, length, offset);
+    return 0;
 }
 
 
@@ -70,28 +70,34 @@ static long enclave_ioctl(struct file * filp,
         unsigned int ioctl, unsigned long arg) {
     void __user * argp = (void __user *)arg;
     struct pisces_enclave * enclave = (struct pisces_enclave *)filp->private_data;
+    int ret = 0;
 
     switch (ioctl) {
 
 
-        case PISCES_ENCLAVE_LAUNCH: {
+        case PISCES_ENCLAVE_LAUNCH:
+            {
+                printk(KERN_DEBUG "Launch Pisces Enclave\n");
+                ret = pisces_enclave_launch(enclave);
 
-            printk(KERN_DEBUG "Launch Pisces Enclave\n");
-            pisces_launch_enclave(enclave);
+                break;
+            }
 
-            break;
-                                    }
+        case PISCES_ENCLAVE_GET_CONS:
+                printk(KERN_DEBUG "Open enclave console...\n");
+                ret = pisces_enclave_get_cons(enclave);
+                break;
 
         case PISCES_ENCLAVE_ADD_CPU:
             {
                 printk(KERN_INFO "Send enclave xcall to cpu %d\n", 1);
-                pisces_ctrl_add_cpu(enclave_map[0], 1);
+                ret = pisces_ctrl_add_cpu(enclave_map[0], 1);
                 break;
             }
 
     }
 
-    return 0;
+    return ret;
 }
 
 
@@ -104,7 +110,7 @@ static struct file_operations enclave_fops = {
     .write = enclave_write,
 };
 
-int pisces_create_enclave(struct pisces_image * img) {
+int pisces_enclave_create(struct pisces_image * img) {
 
     struct pisces_enclave * enclave = NULL;
     int enclave_idx = -1;
@@ -120,6 +126,7 @@ int pisces_create_enclave(struct pisces_image * img) {
 
     memset(enclave, 0, sizeof(struct pisces_enclave));
 
+    enclave->state = ENCLAVE_LOADED;
     enclave->tmp_image_ptr = img;
 
     enclave->kern_path = img->kern_path;
@@ -165,7 +172,7 @@ int pisces_create_enclave(struct pisces_image * img) {
 }
 
 
-int pisces_launch_enclave(struct pisces_enclave * enclave) {
+int pisces_enclave_launch(struct pisces_enclave * enclave) {
 
     enclave->boot_cpu = 1;
 
@@ -179,6 +186,7 @@ int pisces_launch_enclave(struct pisces_enclave * enclave) {
         printk(KERN_ERR "Error booting enclave\n");
         return -1;
     }
+    enclave->state = ENCLAVE_RUNNING;
 
     return 0;
 
@@ -186,7 +194,7 @@ int pisces_launch_enclave(struct pisces_enclave * enclave) {
 
 
 
-void pisces_free_enclave(struct pisces_enclave * enclave) {
+void pisces_enclave_free(struct pisces_enclave * enclave) {
 
     pisces_free_pages(enclave->bootmem_addr_pa, (128 * 1024 * 1024) / PAGE_SIZE_4KB);
     kfree(enclave);

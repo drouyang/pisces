@@ -47,7 +47,7 @@ pisces_ctrl_init(
     return 0;
 }
 
-void pisces_ctrl_add_cpu(struct pisces_enclave * enclave, int apicid)
+int pisces_ctrl_add_cpu(struct pisces_enclave * enclave, int apicid)
 {
     struct pisces_ctrl_cmd cmd;
 
@@ -59,4 +59,6 @@ void pisces_ctrl_add_cpu(struct pisces_enclave * enclave, int apicid)
         /* Notify enclave with IPI */
         send_enclave_xcall(apicid);
     }
+
+    return 0;
 }

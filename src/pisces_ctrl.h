@@ -19,6 +19,6 @@ struct pisces_ctrl_cmd {
 int pisces_ctrl_init(struct pisces_enclave * enclave, 
         struct pisces_early_ringbuf * ctrl_ringbuf);
 
-void pisces_ctrl_add_cpu(struct pisces_enclave * enclave, int apicid);
+int pisces_ctrl_add_cpu(struct pisces_enclave * enclave, int apicid);
 
 #endif

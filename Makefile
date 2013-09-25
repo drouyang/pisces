@@ -5,7 +5,7 @@ obj-m += pisces.o
 
 pisces-objs :=  src/main.o \
 		src/boot.o \
-		src/pisces_cons.o \
+		src/enclave_cons.o \
 		src/pisces_ctrl.o \
 		src/wakeup_secondary.o \
 		src/enclave_xcall.o \

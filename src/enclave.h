@@ -11,11 +11,15 @@
 #include <linux/cpumask.h>
 #include <linux/cdev.h>
 
-#include "pisces_cons.h"
+#include "enclave_cons.h"
 #include "pisces_ctrl.h"
 
+#define ENCLAVE_LOADED      1
+#define ENCLAVE_RUNNING     2
+#define ENCLAVE_ZOMBIE      3
 
 struct pisces_enclave {
+    int state;
 
     // We'll just hold on to the image for now,
     // We need to get rid of this soon though
@@ -48,9 +52,9 @@ struct pisces_enclave {
 
 
 
-int pisces_create_enclave(struct pisces_image * img);
+int pisces_enclave_create(struct pisces_image * img);
 
-int pisces_launch_enclave(struct pisces_enclave * enclave);
+int pisces_enclave_launch(struct pisces_enclave * enclave);
 
 
 #endif

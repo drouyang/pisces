@@ -113,7 +113,7 @@ static long device_ioctl(struct file * file, unsigned int ioctl,
 
             printk("Creating Enclave\n");
 
-            enclave_idx = pisces_create_enclave(img);
+            enclave_idx = pisces_enclave_create(img);
 
             if (enclave_idx == -1) {
                 printk(KERN_ERR "Error creating Pisces Enclave\n");
