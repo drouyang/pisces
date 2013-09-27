@@ -10,5 +10,6 @@ linux_usr/mem_reserve
 linux_usr/pisces_load
 linux_usr/pisces_launch
 linux_usr/pisces_ioctl
+linux_usr/pisces_ctrl
 linux_usr/pisces_cons
 tags

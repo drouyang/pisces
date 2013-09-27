@@ -37,7 +37,8 @@ int pisces_early_ringbuf_write(struct pisces_early_ringbuf * ringbuf,
 			       u8 * data, u64 size);
 int pisces_early_ringbuf_read(struct pisces_early_ringbuf * ringbuf, 
 			      u8 * data, u64 size);
-
+int pisces_early_ringbuf_is_full(struct pisces_early_ringbuf * ring);
+int pisces_early_ringbuf_is_empty(struct pisces_early_ringbuf * ring);
 
 
 #endif

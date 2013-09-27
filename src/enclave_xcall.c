@@ -6,23 +6,38 @@
 #include<linux/interrupt.h>
 #include<linux/irq.h>
 #include<linux/pci.h>
+#include<linux/sched.h>
+#include<linux/wait.h>
 #include<linux/export.h>
 #include<asm/desc.h>
 #include<asm/ipi.h>
+#include"pisces.h"
+#include"enclave.h"
 #include"enclave_xcall.h"
 #include"pisces_ctrl.h"
+
+extern struct pisces_enclave * enclave_map[MAX_ENCLAVES];
 
 void (**linux_x86_platform_ipi_callback)(void) = NULL;
 
 /*
  * Pisces controll command notification handler
- * TODO: find out source enclave
+ * We do not know the source enclave, so we wakeup all
+ * processes waiting for a cmd
  */
 static void enclave_xcall_handler(void)
 {
     struct pisces_ctrl_cmd;
+    struct pisces_enclave * enclave = NULL;
+    int i;
 
-    printk(KERN_INFO "PISCES: enclave xcall received\n");
+    for(i = 0; i < MAX_ENCLAVES; i++) {
+        enclave = enclave_map[i];
+        if (enclave != NULL) {
+            wake_up_interruptible(&(enclave->ctrl_in.waitq));
+        }
+    }
+    printk(KERN_INFO "Wakeup ctrl_in waitq on receiving enclave xcall\n");
 }
 
 int enclave_xcall_init(void)

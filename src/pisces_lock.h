@@ -10,7 +10,7 @@
 #include <linux/types.h>
 
 struct pisces_spinlock {
-    u64 raw_lock; 
+    u64 raw_lock;
 } __attribute__((packed));
 
 

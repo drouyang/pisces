@@ -1,14 +1,19 @@
 = The PISCES Kernel Module =
-== first run ==
-irq // setup irq affinity
-ginit // offline memory and cpu
+== Run Pisces ==
+* load
 modins
-gg // print kitten output
+cpurm 1
+sudo $PISCES_PATH/pisces/linux_usr/mem_reserve 1
+sudo $PISCES_PATH/pisces/linux_usr/pisces_load $PISCES_PATH/kitten/vmlwk.bin $PISCES_PATH/kitten/user/pisces_daemon/pisces_daemon "console=pisces" 
 
-== rerun ==
-ginit
-modupdate
-gg
+* launch
+sudo $PISCES_PATH/pisces/linux_usr/pisces_launch /dev/pisces-enclave0
+
+* console output
+sudo $PISCES_PATH/pisces/linux_usr/pisces_cons /dev/pisces-enclave0
+
+* controll
+sudo $PISCES_PATH/pisces/linux_usr/pisces_ctrl /dev/pisces-enclave0
 
 == design ==
 * trampoline
@@ -36,21 +41,3 @@ area.
 available physical memory map
 address/size of kernel, initrd and shared_info
 SMP table in the future
-
-== utils ==
-* module 
-modins
-modrm
-modupdate (rm and insert)
-modls
-
-* memory hot remove
-memls <N>
-memrm <N>
-memadd <N>
-
-* cpu hot remove
-cpuls
-cpurm <N>
-cpuadd <N>
-

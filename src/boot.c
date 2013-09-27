@@ -11,8 +11,8 @@
 #include "enclave.h"
 #include "enclave_xcall.h"
 #include "file_io.h"
-#include "pisces_ctrl.h"
 #include "pisces_ringbuf.h"
+#include "pisces_ctrl.h"
 
 
 extern int wakeup_secondary_cpu_via_init(int, unsigned long);
@@ -223,42 +223,50 @@ int setup_boot_params(struct pisces_enclave * enclave) {
      * Initialize CMD/CTRL in buffer (4KB)
      */
     {
-        offset = ALIGN(offset, PAGE_SIZE_4KB);
+        struct pisces_early_ringbuf * ringbuf = NULL;
 
-        if (pisces_ctrl_init(enclave, (struct pisces_early_ringbuf *)(base_addr + offset)) == -1) {
+        offset = ALIGN(offset, PAGE_SIZE_4KB);
+        ringbuf = (struct pisces_early_ringbuf *)(base_addr + offset);
+        pisces_early_ringbuf_init(ringbuf);
+
+        if (pisces_ctrl_init(&enclave->ctrl_in, ringbuf) == -1) {
             printk(KERN_ERR "Error initializing control channel\n");
             return -1;
         }
 
-        boot_params->control_inbuf_addr = __pa(base_addr + offset);
-        boot_params->control_inbuf_size = sizeof(struct pisces_early_ringbuf);
+        boot_params->control_ring_inbuf_addr = __pa(base_addr + offset);
+        boot_params->control_ring_inbuf_size = sizeof(struct pisces_early_ringbuf);
 
         offset += sizeof(struct pisces_early_ringbuf);
         printk("Control inbuf initialized. Offset at %p (target_addr=%p, size=%llu)\n", 
                 (void *)(base_addr + offset),
-                (void *)boot_params->control_inbuf_addr, 
-                boot_params->control_inbuf_size);
+                (void *)boot_params->control_ring_inbuf_addr, 
+                boot_params->control_ring_inbuf_size);
     }
 
     /*
      * Initialize CMD/CTRL out buffer (4KB)
      */
     {
-        offset = ALIGN(offset, PAGE_SIZE_4KB);
+        struct pisces_early_ringbuf * ringbuf = NULL;
 
-        if (pisces_ctrl_init(enclave, (struct pisces_early_ringbuf *)(base_addr + offset)) == -1) {
+        offset = ALIGN(offset, PAGE_SIZE_4KB);
+        ringbuf = (struct pisces_early_ringbuf *)(base_addr + offset);
+        pisces_early_ringbuf_init(ringbuf);
+
+        if (pisces_ctrl_init(&enclave->ctrl_out, ringbuf) == -1) {
             printk(KERN_ERR "Error initializing control channel\n");
             return -1;
         }
 
-        boot_params->control_outbuf_addr = __pa(base_addr + offset);
-        boot_params->control_outbuf_size = sizeof(struct pisces_early_ringbuf);
+        boot_params->control_ring_outbuf_addr = __pa(base_addr + offset);
+        boot_params->control_ring_outbuf_size = sizeof(struct pisces_early_ringbuf);
 
         offset += sizeof(struct pisces_early_ringbuf);
         printk("Control channel initialized. Offset at %p (target_addr=%p, size=%llu)\n", 
                 (void *)(base_addr + offset),
-                (void *)boot_params->control_outbuf_addr, 
-                boot_params->control_outbuf_size);
+                (void *)boot_params->control_ring_outbuf_addr, 
+                boot_params->control_ring_outbuf_size);
     }
     /* 
      * 	Identity mapped page tables

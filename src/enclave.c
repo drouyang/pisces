@@ -10,6 +10,7 @@
 #include <linux/cdev.h>
 #include <linux/errno.h>
 #include <linux/anon_inodes.h>
+#include <linux/uaccess.h>
 #include <linux/fs.h>    /* device file */
 
 #include "pisces.h"
@@ -50,18 +51,40 @@ static int enclave_open(struct inode * inode, struct file * filp) {
     return 0;
 }
 
-static ssize_t enclave_read(struct file *file, char __user *buffer,
+static ssize_t enclave_read(struct file *filp, char __user *buffer,
         size_t length, loff_t *offset) {
 
-    //return console_read(file, buffer, length, offset);
+    struct pisces_enclave * enclave = 
+        (struct pisces_enclave *)filp->private_data;
+    struct pisces_ctrl_cmd cmd;
+
+    pisces_ctrl_recv(enclave, &cmd);
+
+    if ( copy_to_user(buffer, (void *) &cmd,
+                sizeof(struct pisces_ctrl_cmd)) ) {
+        return -EFAULT;
+    }
+
     return 0;
 }
 
 
-static ssize_t enclave_write(struct file *file, const char __user *buffer,
+static ssize_t enclave_write(struct file *filp, const char __user *buffer,
         size_t length, loff_t *offset) {
-    printk(KERN_INFO "Write\n");
-    return -EINVAL;
+
+    struct pisces_enclave * enclave = 
+        (struct pisces_enclave *)filp->private_data;
+    struct pisces_ctrl_cmd cmd;
+
+
+    if ( copy_from_user((void *) &cmd, buffer,
+                sizeof(struct pisces_ctrl_cmd)) ) {
+        return -EFAULT;
+    }
+
+    pisces_ctrl_send(enclave, &cmd);
+
+    return 0;
 }
 
 
@@ -94,7 +117,6 @@ static long enclave_ioctl(struct file * filp,
                 ret = pisces_ctrl_add_cpu(enclave_map[0], 1);
                 break;
             }
-
     }
 
     return ret;

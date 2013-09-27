@@ -20,6 +20,12 @@
 #define PISCES_ENCLAVE_ADD_MEM      2003
 #define PISCES_ENCLAVE_GET_CONS     2004
 
+struct pisces_ctrl_cmd {
+    unsigned long long cmd;
+    unsigned long long arg1;
+    unsigned long long arg2;
+    unsigned long long arg3;
+} __attribute__((packed));
 
 struct memory_range {
     unsigned long long base_addr;

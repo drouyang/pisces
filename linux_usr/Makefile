@@ -1,4 +1,4 @@
-TARGET := pisces_ioctl mem_reserve pisces_load pisces_launch pisces_cons
+TARGET := pisces_ioctl mem_reserve pisces_load pisces_launch pisces_cons pisces_ctrl
 
 all: $(TARGET)
 
@@ -11,6 +11,8 @@ mem_reserve: mem_reserve.c ../src/pisces.h
 pisces_load: pisces_load.c ../src/pisces.h
 
 pisces_cons: pisces_cons.c ../src/pisces.h
+
+pisces_ctrl: pisces_ctrl.c ../src/pisces.h
 
 clean:
 	rm $(TARGET)

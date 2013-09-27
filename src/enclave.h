@@ -32,13 +32,15 @@ struct pisces_enclave {
     dev_t dev; 
     struct cdev cdev;
 
+    /* APIC ID of boot cpu*/
     u32 boot_cpu;
 
     u32 num_cpus;
     cpumask_t assigned_cpus;
 
     struct pisces_cons cons;
-    struct pisces_ctrl ctrl;
+    struct pisces_ctrl ctrl_in;
+    struct pisces_ctrl ctrl_out;
 
     uintptr_t bootmem_addr_pa;
     u64 bootmem_size;

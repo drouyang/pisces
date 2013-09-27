@@ -124,3 +124,14 @@ int pisces_early_ringbuf_read(struct pisces_early_ringbuf * ring,
 
     return 0;
 }
+
+
+int pisces_early_ringbuf_is_full(struct pisces_early_ringbuf * ring) {
+
+    return ring->cur_len != 0;
+}
+
+
+int pisces_early_ringbuf_is_empty(struct pisces_early_ringbuf * ring) {
+    return ring->cur_len == 0;
+}

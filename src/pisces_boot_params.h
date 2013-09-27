@@ -76,10 +76,10 @@ struct pisces_boot_params {
     u64 console_ring_size;
 
     // Address and size of a command/control channel (ringbuffer)
-    u64 control_inbuf_addr;
-    u64 control_inbuf_size;
-    u64 control_outbuf_addr;
-    u64 control_outbuf_size;
+    u64 control_ring_inbuf_addr;
+    u64 control_ring_inbuf_size;
+    u64 control_ring_outbuf_addr;
+    u64 control_ring_outbuf_size;
 
     // 1G ident mapping for guest kernel
     u64 level3_ident_pgt;
