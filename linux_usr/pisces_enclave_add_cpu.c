@@ -9,7 +9,7 @@
 #include <sys/ioctl.h>          /* ioctl */
 
 
-uint64_t ioctl_num = 0;
+uint64_t apicid = 0;
 
 int main(int argc, char *argv[])
 {
@@ -22,9 +22,9 @@ int main(int argc, char *argv[])
         }
 
         strcpy(dev, argv[1]);
-        ioctl_num = atoi(argv[2]);
+        apicid = atoi(argv[2]);
 
-        //printf("<%s, %d>\n", dev, ioctl_num);
+        //printf("<%s, %d>\n", dev, apicid);
 
         file_desc = open(dev, O_RDONLY);
         if (file_desc < 0) {
@@ -32,10 +32,10 @@ int main(int argc, char *argv[])
                 exit(-1);
         }
 
-        ret_val = ioctl(file_desc, PISCES_ENCLAVE_ADD_CPU, &ioctl_num);
+        ret_val = ioctl(file_desc, PISCES_ENCLAVE_ADD_CPU, &apicid);
 
         if (ret_val < 0) {
-                printf("ioctl %d failed on error %d\n", ioctl_num, ret_val);
+                printf("ioctl %d failed on error %d\n", apicid, ret_val);
                 exit(-1);
         }
 

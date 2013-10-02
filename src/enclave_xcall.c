@@ -37,7 +37,7 @@ static void enclave_xcall_handler(void)
             wake_up_interruptible(&(enclave->ctrl_in.waitq));
         }
     }
-    printk(KERN_INFO "Wakeup ctrl_in waitq on receiving enclave xcall\n");
+    printk(KERN_INFO "Enclave xcall received.\n");
 }
 
 int enclave_xcall_init(void)
