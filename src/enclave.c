@@ -113,8 +113,14 @@ static long enclave_ioctl(struct file * filp,
 
         case PISCES_ENCLAVE_ADD_CPU:
             {
-                printk(KERN_INFO "Send enclave xcall to cpu %d\n", 1);
-                ret = pisces_ctrl_add_cpu(enclave_map[0], 1);
+                u64 apicid = 0;
+
+                if (copy_from_user(&apicid, argp, sizeof(u64))) {
+                    printk(KERN_ERR "Copying from userspace in enclave_add_cpu ioctl\n");
+                    return -EFAULT;
+                }
+                printk(KERN_INFO "Send enclave xcall to cpu %d\n", apicid);
+                //ret = pisces_ctrl_add_cpu(enclave_map[0], 1);
                 break;
             }
     }

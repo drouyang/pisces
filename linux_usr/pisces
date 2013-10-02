@@ -1,0 +1,97 @@
+#!/bin/python
+
+"""
+Pisces Management Utility
+Usage:
+pisces.py status
+pisces.py add_cpu
+pisces.py add_mem
+pisces.py enclave create
+pisces.py enclave load
+pisces.py enclave launch
+pisces.py enclave add_cpu
+pisces.py enclave add_mem
+pisces.py enclave destroy
+"""
+
+import argparse
+import sys
+
+def pisces_status():
+    print "Pisces Status"
+
+def subparser_enclave_init():
+    parser = argparse.ArgumentParser(prog='pisces enclave')
+    sub_parsers = parser.add_subparsers(title="subcommands")
+
+    parser_create = sub_parsers.add_parser("create", help="Create an enclave")
+    parser_create.set_defaults(subcmd='create')
+
+    parser_add_cpu = sub_parsers.add_parser("add_cpu", help="Add CPU to an enclave")
+    parser_add_cpu.set_defaults(subcmd='add_cpu')
+    parser_add_cpu.add_argument("enclave_dev", help="Enclave device path")
+    parser_add_cpu.add_argument("apicid", help="CPU APIC ID", type=int)
+
+    return parser
+
+def parser_init():
+    parser = argparse.ArgumentParser(prog='pisces')
+    #parser.add_argument("subcmd", help="status | add_cpu | add_mem | enclave")
+    #parser.add_argument("status", help="")
+    sub_parsers = parser.add_subparsers(title="subcommands")
+
+    parser_status = sub_parsers.add_parser("help", help="Display usage")
+    parser_status.set_defaults(subcmd='help')
+
+    parser_status = sub_parsers.add_parser("status", help="Show pisces module and enclaves status")
+    parser_status.set_defaults(subcmd='status')
+
+    parser_add_cpu = sub_parsers.add_parser("add_cpu", help="Add cpu to pisces")
+    parser_add_cpu.set_defaults(subcmd='add_cpu')
+
+    parser_add_mem = sub_parsers.add_parser("add_mem", help="Add memory to pisces")
+    parser_add_mem.set_defaults(subcmd='add_mem')
+
+    parser_enclave = sub_parsers.add_parser("enclave", help="Enclave management commands")
+    parser_enclave.set_defaults(subcmd='enclave')
+
+    return parser
+
+def enclave_add_cpu(enclave_dev, apicid):
+    print "add CPU %d to %s" % (apicid, enclave_dev)
+
+def main():
+
+    parser = parser_init()
+
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(0)
+
+    cmdline = sys.argv[1:]
+    args = parser.parse_args(cmdline[:1])
+    cmdline = cmdline[1:]
+
+    if args.subcmd == 'status':
+        pisces_status()
+    elif args.subcmd == 'add_cpu':
+        pass
+    elif args.subcmd == 'add_mem':
+        pass
+    elif args.subcmd == 'enclave':
+        parser_enclave = subparser_enclave_init()
+        if len(cmdline) == 0:
+            parser_enclave.print_help()
+            sys.exit(0)
+        args = parser_enclave.parse_args(cmdline)
+        if args.subcmd == 'create':
+            pass
+        elif args.subcmd == 'add_cpu':
+            enclave_add_cpu(args.enclave_dev, args.apicid)
+    else:
+        parser.print_help()
+
+
+if __name__ == "__main__":
+    main()
+
