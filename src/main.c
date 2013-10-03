@@ -21,7 +21,7 @@
 #include "pisces_mod.h"
 #include "mm.h"
 #include "enclave.h"
-#include "enclave_xcall.h"
+#include "xcall.h"
 #include "boot.h"
 #include "pisces_boot_params.h"
 
@@ -236,10 +236,6 @@ int pisces_init(void) {
 
 
 
-    if (enclave_xcall_init() < 0) {
-        printk(KERN_INFO "PISCES: enclave_xcall_init failed\n");
-        return -1;
-    }
 
     return 0;
 }

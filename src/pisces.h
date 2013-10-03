@@ -15,17 +15,10 @@
 
 /* Pisces enclave cmds */
 #define PISCES_ENCLAVE_LAUNCH       2000
-#define PISCES_ENCLAVE_ADD_CPU      2001
-#define PISCES_ENCLAVE_BOOT_CPU     2002
-#define PISCES_ENCLAVE_ADD_MEM      2003
-#define PISCES_ENCLAVE_GET_CONS     2004
+#define PISCES_ENCLAVE_CONS_CONNECT     2004
+#define PISCES_ENCLAVE_CTRL_CONNECT     2005
 
-struct pisces_ctrl_cmd {
-    unsigned long long cmd;
-    unsigned long long arg1;
-    unsigned long long arg2;
-    unsigned long long arg3;
-} __attribute__((packed));
+
 
 struct memory_range {
     unsigned long long base_addr;

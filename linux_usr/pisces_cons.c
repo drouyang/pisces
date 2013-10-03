@@ -31,7 +31,7 @@ int main(int argc, char* argv[]) {
       return -1;
     }
 
-    cons_fd = ioctl(enclave_fd, PISCES_ENCLAVE_GET_CONS, NULL); 
+    cons_fd = ioctl(enclave_fd, PISCES_ENCLAVE_CONS_CONNECT, NULL); 
 
     close(enclave_fd);
 
