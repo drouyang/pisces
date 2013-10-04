@@ -7,6 +7,12 @@
 
 struct pisces_enclave;
 
+struct ctrl_ioctl_mem_add {
+	u64 start_addr;
+	u64 size;
+};
+
+
 struct pisces_ctrl {
     int connected;
     wait_queue_head_t waitq;

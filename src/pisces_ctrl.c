@@ -118,9 +118,21 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 	case ENCLAVE_CMD_ADD_MEM: 
 	    {
 		struct cmd_mem_add cmd;
-		
+		struct memory_range reg;
+
+		memset(&cmd, 0, sizeof(struct cmd_mem_add));
+		memset(&reg, 0, sizeof(struct memory_range));
+
 		cmd.hdr.cmd = ENCLAVE_CMD_ADD_MEM;
 		cmd.hdr.data_len = (sizeof(struct cmd_mem_add) - sizeof(struct ctrl_cmd));
+
+		if (copy_from_user(&reg, argp, sizeof(struct memory_range))) {
+		    printk(KERN_ERR "Could not copy memory region from user space\n");
+		    return -EFAULT;
+		}
+
+		cmd.phys_addr = reg.base_addr;
+		cmd.size = reg.pages * PAGE_SIZE_4KB;
 
 		ret = send_cmd(enclave, (struct ctrl_cmd *)&cmd);
 

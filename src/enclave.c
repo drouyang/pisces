@@ -70,7 +70,7 @@ static ssize_t enclave_write(struct file *filp, const char __user *buffer,
 
 static long enclave_ioctl(struct file * filp,
         unsigned int ioctl, unsigned long arg) {
-    void __user * argp = (void __user *)arg;
+//    void __user * argp = (void __user *)arg;
     struct pisces_enclave * enclave = (struct pisces_enclave *)filp->private_data;
     int ret = 0;
 
