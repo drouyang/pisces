@@ -27,6 +27,8 @@
 
 int numa_node = -1;
 
+char * dev_filename = NULL;
+
 #include "../src/pisces.h"
 
 
@@ -175,7 +177,6 @@ unsigned long long get_block_size() {
 
 
 int add_palacios_memory(unsigned long long base_addr, unsigned long num_pages) {
-    int fast_fd = 0;
     struct memory_range mem;
 
     printf("Giving Palacios %lluMB of memory at (%p) \n", 
@@ -184,16 +185,42 @@ int add_palacios_memory(unsigned long long base_addr, unsigned long num_pages) {
     mem.base_addr = base_addr;
     mem.pages = num_pages;
 
-    fast_fd = open("/dev/" DEVICE_NAME, O_RDONLY);
+    if (dev_filename == NULL) {
+	int fast_fd = 0;
+	fast_fd = open("/dev/" DEVICE_NAME, O_RDONLY);
 
-    if (fast_fd == -1) {
-        printf("Error opening fastmem control device\n");
-        return -1;
+	if (fast_fd == -1) {
+	    printf("Error opening fastmem control device\n");
+	    return -1;
+	}
+	
+	ioctl(fast_fd, PISCES_ADD_MEM, &mem); 
+	/* Close the file descriptor.  */ 
+	close(fast_fd);
+    } else {
+	int enclave_fd = 0;
+	int ctrl_fd = 0;;
+
+	enclave_fd = open(dev_filename, O_RDONLY);
+
+	if (enclave_fd < 0) {
+	    printf("Error opening Enclave fd\n");
+	    return -1;
+	}
+
+	ctrl_fd = ioctl(enclave_fd, PISCES_ENCLAVE_CTRL_CONNECT, NULL);
+	close(enclave_fd);
+
+	if (ctrl_fd < 0) {
+	    printf("Error opening control fd\n");
+	    return -1;
+	}
+
+	ioctl(ctrl_fd, 101, &mem);
+
+	close(ctrl_fd);
     }
 
-    ioctl(fast_fd, PISCES_ADD_MEM, &mem); 
-    /* Close the file descriptor.  */ 
-    close(fast_fd);
     return 0;
 }
 
@@ -213,7 +240,7 @@ int main(int argc, char * argv[]) {
 
     opterr = 0;
 
-    while ((c = getopt(argc, argv, "n:i:")) != -1) {
+    while ((c = getopt(argc, argv, "n:i:d:")) != -1) {
         switch (c) {
             case 'n':
                 numa_node = atoi(optarg);
@@ -223,14 +250,17 @@ int main(int argc, char * argv[]) {
                 explicit = 1;
                 block_list_str = optarg;
                 break;
-        }
+	    case 'd':
+		dev_filename = optarg;
+		break;
+         }
     }
 
 
     if ((!explicit) && (argc - optind + 1 < 2)) {
         printf("usage: \n");
-        printf("%s [-n node] <num_blocks>\n", *argv);
-        printf("%s -i <block_list>\n", *argv);
+        printf("%s [-d dev_file] [-n node] <num_blocks>\n", *argv);
+        printf("%s [-d dev_file] -i <block_list>\n", *argv);
         return -1;
     }
 

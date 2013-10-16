@@ -116,7 +116,7 @@ static struct file_operations cons_fops = {
 
 
 
-int pisces_enclave_get_cons(struct pisces_enclave * enclave)
+int pisces_cons_connect(struct pisces_enclave * enclave)
 {
     struct pisces_cons * cons = &enclave->cons;
     int cons_fd = 0;

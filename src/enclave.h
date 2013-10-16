@@ -16,7 +16,6 @@
 
 #define ENCLAVE_LOADED      1
 #define ENCLAVE_RUNNING     2
-#define ENCLAVE_ZOMBIE      3
 
 struct pisces_enclave {
     int state;
@@ -39,8 +38,7 @@ struct pisces_enclave {
     cpumask_t assigned_cpus;
 
     struct pisces_cons cons;
-    struct pisces_ctrl ctrl_in;
-    struct pisces_ctrl ctrl_out;
+    struct pisces_ctrl ctrl;
 
     uintptr_t bootmem_addr_pa;
     u64 bootmem_size;

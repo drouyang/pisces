@@ -23,8 +23,6 @@
 #include "pgtables.h"
 
 
-extern int wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip);
-
 extern struct class * pisces_class;
 extern int pisces_major_num;
 struct pisces_enclave * enclave_map[MAX_ENCLAVES] = {[0 ... MAX_ENCLAVES - 1] = 0};
@@ -52,19 +50,10 @@ static int enclave_open(struct inode * inode, struct file * filp) {
     return 0;
 }
 
+
 static ssize_t enclave_read(struct file *filp, char __user *buffer,
         size_t length, loff_t *offset) {
 
-    struct pisces_enclave * enclave = 
-        (struct pisces_enclave *)filp->private_data;
-    struct pisces_ctrl_cmd cmd;
-
-    pisces_ctrl_recv(enclave, &cmd);
-
-    if ( copy_to_user(buffer, (void *) &cmd,
-                sizeof(struct pisces_ctrl_cmd)) ) {
-        return -EFAULT;
-    }
 
     return 0;
 }
@@ -73,17 +62,6 @@ static ssize_t enclave_read(struct file *filp, char __user *buffer,
 static ssize_t enclave_write(struct file *filp, const char __user *buffer,
         size_t length, loff_t *offset) {
 
-    struct pisces_enclave * enclave = 
-        (struct pisces_enclave *)filp->private_data;
-    struct pisces_ctrl_cmd cmd;
-
-
-    if ( copy_from_user((void *) &cmd, buffer,
-                sizeof(struct pisces_ctrl_cmd)) ) {
-        return -EFAULT;
-    }
-
-    pisces_ctrl_send(enclave, &cmd);
 
     return 0;
 }
@@ -92,7 +70,7 @@ static ssize_t enclave_write(struct file *filp, const char __user *buffer,
 
 static long enclave_ioctl(struct file * filp,
         unsigned int ioctl, unsigned long arg) {
-    void __user * argp = (void __user *)arg;
+//    void __user * argp = (void __user *)arg;
     struct pisces_enclave * enclave = (struct pisces_enclave *)filp->private_data;
     int ret = 0;
 
@@ -107,52 +85,22 @@ static long enclave_ioctl(struct file * filp,
                 break;
             }
 
-        case PISCES_ENCLAVE_GET_CONS:
+        case PISCES_ENCLAVE_CONS_CONNECT:
             {
                 printk(KERN_DEBUG "Open enclave console...\n");
-                ret = pisces_enclave_get_cons(enclave);
+                ret = pisces_cons_connect(enclave);
                 break;
             }
 
-        case PISCES_ENCLAVE_ADD_CPU:
+        case PISCES_ENCLAVE_CTRL_CONNECT:
             {
-                u64 apicid = 0;
-
-                if (copy_from_user(&apicid, argp, sizeof(u64))) {
-                    printk(KERN_ERR "Error copy_from_user in enclave_add_cpu ioctl\n");
-                    return -EFAULT;
-                }
-
-                /* TODO: check if target CPU is reserved for Pisces first */
-                printk(KERN_INFO "Send enclave xcall to cpu %llu\n", apicid);
-                ret = pisces_ctrl_add_cpu(enclave_map[0], apicid);
+                printk("Connecting Ctrl Channel\n");
+                ret = pisces_ctrl_connect(enclave);
                 break;
+
             }
 
 
-        case PISCES_ENCLAVE_BOOT_CPU:
-            {
-                struct pisces_ctrl_cmd cmd;
-                u64 apicid = 0;
-                u32 target_addr = 0;
-
-                if (copy_from_user(&cmd, argp, sizeof(struct pisces_ctrl_cmd))) {
-                    printk(KERN_ERR "Error copy_from_user in enclave_boot_cpu ioctl\n");
-                    return -EFAULT;
-                }
-
-                apicid = (u64) cmd.arg1;
-                target_addr = (u32) cmd.arg2;
-
-                /* target_addr is the physical address of start_secondary_cpu
-                 * 1. set enclave trampoline target to target_addr
-                 * 2. use enclave trampoline address as start_ip of target cpu
-                 */
-                set_enclave_trampoline(enclave, target_addr, 0);
-                cpu_hot_add_reset(enclave, apicid);
-
-                break;
-            }
     }
 
     return ret;

@@ -13,4 +13,5 @@ linux_usr/pisces_ioctl
 linux_usr/pisces_ctrl
 linux_usr/pisces_cons
 linux_usr/pisces_mgr
+linux_usr/pisces_enclave_add_cpu
 tags

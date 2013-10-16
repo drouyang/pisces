@@ -8,6 +8,7 @@
 #include <linux/types.h>
 #include "../src/pisces.h"
 
+#if 0
 void dump_cmd(struct pisces_ctrl_cmd * cmd)
 {
     printf("cmd: (%llu, (%llu, %llu, %llu))\n", 
@@ -16,12 +17,14 @@ void dump_cmd(struct pisces_ctrl_cmd * cmd)
             (unsigned long long) cmd->arg2, 
             (unsigned long long) cmd->arg3);
 }
+#endif
 
 char device_name[100] = "pisces-enclave0";
 
 int
 main(int argc, char *argv[], char *envp[])
 {
+#if 0
     int pisces_fd = 0;
     struct pisces_ctrl_cmd cmd;
 
@@ -31,8 +34,8 @@ main(int argc, char *argv[], char *envp[])
         return -1;
     }
 
-#if 0
     /* send a command */
+    /*
     cmd.cmd = 5;
     cmd.arg1 = 6;
     cmd.arg2 = 7;
@@ -41,7 +44,7 @@ main(int argc, char *argv[], char *envp[])
         printf("Error writing /dev/pisces-enclave0\n");
         return -1;
     }
-#endif
+    */
 
     while(1) {
         /* receive a command */
@@ -68,6 +71,7 @@ main(int argc, char *argv[], char *envp[])
     }
 
     close(pisces_fd);
+#endif
     return 0;
 }
 

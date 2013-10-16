@@ -35,7 +35,7 @@ struct pisces_cons {
 int pisces_cons_init(struct pisces_enclave * enclave, 
                      struct pisces_cons_ringbuf * ringbuf);
 
-int pisces_enclave_get_cons(struct pisces_enclave * enclave);
+int pisces_cons_connect(struct pisces_enclave * enclave);
 
 
 
