@@ -12,4 +12,5 @@ linux_usr/pisces_launch
 linux_usr/pisces_ioctl
 linux_usr/pisces_ctrl
 linux_usr/pisces_cons
+linux_usr/pisces_mgr
 tags

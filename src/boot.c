@@ -348,8 +348,8 @@ int setup_boot_params(struct pisces_enclave * enclave) {
 /*
  * Update Pisces trampoline data
  */
-static void
-setup_pisces_trampoline(
+void
+set_enclave_trampoline(
         struct pisces_enclave *enclave, 
         u64 target_addr, 
         u64 esi)
@@ -365,7 +365,7 @@ setup_pisces_trampoline(
     struct pisces_boot_params * boot_params = 
         (struct pisces_boot_params *)__va(enclave->bootmem_addr_pa);
 
-    printk("Setup Pisces trampoline\n");
+    printk("Setup Enclave trampoline\n");
 
     target_addr_ptr =  (u64 *)((u8 *)&boot_params->launch_code 
             + ((u8 *)&launch_code_target_addr - (u8 *)&launch_code_start));
@@ -447,13 +447,9 @@ static void setup_linux_trampoline_pgd(u64 target_addr)
     // printk(KERN_DEBUG "Setup trampoline ident page table\n");
 }
 
-void cpu_hot_add(struct pisces_enclave * enclave, int apicid)
+void cpu_hot_add_reset(struct pisces_enclave * enclave, int apicid)
 {
-    struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->bootmem_addr_pa);
-
-    setup_pisces_trampoline(enclave,
-            boot_params->kernel_addr /**/,
-            0);
+    //struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->bootmem_addr_pa);
 
     mutex_lock(linux_trampoline_lock);
     setup_linux_trampoline_pgd(enclave->bootmem_addr_pa);
@@ -472,7 +468,7 @@ int boot_enclave(struct pisces_enclave * enclave)
 
     printk(KERN_DEBUG "Boot Enclave...\n");
 
-    setup_pisces_trampoline(enclave,
+    set_enclave_trampoline(enclave,
             boot_params->kernel_addr,
             enclave->bootmem_addr_pa >> PAGE_SHIFT);
     /*

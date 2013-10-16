@@ -144,8 +144,12 @@ static long enclave_ioctl(struct file * filp,
                 apicid = (u64) cmd.arg1;
                 target_addr = (u32) cmd.arg2;
 
-                printk("Reset CPU %llu with start_eip 0x%x", apicid, target_addr);
-                //wakeup_secondary_cpu_via_init(apicid, target_addr);
+                /* target_addr is the physical address of start_secondary_cpu
+                 * 1. set enclave trampoline target to target_addr
+                 * 2. use enclave trampoline address as start_ip of target cpu
+                 */
+                set_enclave_trampoline(enclave, target_addr, 0);
+                cpu_hot_add_reset(enclave, apicid);
 
                 break;
             }
