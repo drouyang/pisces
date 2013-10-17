@@ -9,8 +9,6 @@
 #include "xcall.h"
 #include "enclave.h"
 #include "boot.h"
-
-
 #include "pisces_cmds.h"
 
 
@@ -92,7 +90,6 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
             {
                 struct cmd_cpu_add  cmd;
                 u64 apicid = 0;
-                u32 target_addr = 0;
 
                 if (copy_from_user(&apicid, argp, sizeof(u64))) {
                     printk(KERN_ERR "Error copy_from_user in enclave_add_cpu ioctl\n");
@@ -105,24 +102,13 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 
                 /* TODO: check if target CPU is reserved for Pisces first */
                 printk(KERN_INFO "Send enclave xcall to cpu %llu\n", apicid);
+
+                /* Setup Linux trampoline to jump to enclave trampoline */
+                trampoline_lock();
+                setup_linux_trampoline_pgd(enclave->bootmem_addr_pa);
+                setup_linux_trampoline_target(enclave->bootmem_addr_pa);
                 ret = send_cmd(enclave, (struct ctrl_cmd *)&cmd);
-
-
-                //apicid = (u64) cmd.arg1;
-                //target_addr = (u32) cmd.arg2;
-
-                /* target_addr is the physical address of start_secondary_cpu
-                 * 1. set enclave trampoline target to target_addr
-                 * 2. use enclave trampoline address as start_ip of target cpu
-                 */
-                set_enclave_trampoline(enclave, target_addr, 0);
-                cpu_hot_add_reset(enclave, apicid);
-
-                break;
-                printk("Reset CPU %llu with start_eip 0x%x", apicid, target_addr);
-                //wakeup_secondary_cpu_via_init(apicid, target_addr);
-
-                // read potential resp data    
+                trampoline_unlock();
 
                 break;
             }

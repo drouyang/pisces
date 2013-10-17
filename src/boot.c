@@ -15,8 +15,12 @@
 #include "pisces_ctrl.h"
 
 
+static u64 *linux_trampoline_target;
+static struct mutex *linux_trampoline_lock;
+static pml4e64_t *linux_trampoline_pgd;
+static u64 linux_trampoline_startip;
+extern void (**linux_x86_platform_ipi_callback)(void);
 extern int wakeup_secondary_cpu_via_init(int, unsigned long);
-
 
 
 static inline u32 sizeof_boot_params(struct pisces_enclave * enclave) {
@@ -165,17 +169,13 @@ int setup_boot_params(struct pisces_enclave * enclave) {
      *   copy in loading ASM
      */
     {
-	extern u8 launch_code_start;
-	extern u8 launch_code_end;
+        extern u8 launch_code_start;
 
+        memcpy(boot_params->launch_code, &launch_code_start, LAUNCH_CODE_SIZE);
 
-	memcpy(boot_params->launch_code, &launch_code_start, (u64)&launch_code_end - (u64)&launch_code_start);
-
-	printk("Launch code is at 0x%p, size %lu bytes\n",
-                (void *)__pa(&boot_params->launch_code), 
-                ((u8 *)&launch_code_end - (u8 *)&launch_code_start));
-
-    }    
+        printk("Launch code is at 0x%p\n",
+                (void *)__pa(&boot_params->launch_code));
+    }
 
 
     /*
@@ -189,6 +189,9 @@ int setup_boot_params(struct pisces_enclave * enclave) {
 	boot_params->cpu_id = enclave->boot_cpu;
 	// Record pre-calculated cpu speed
 	boot_params->cpu_khz = cpu_khz;
+
+        // Linux trampoline address
+	boot_params->trampoline_code_pa = linux_trampoline_startip;
 
 	boot_params->base_mem_paddr = enclave->bootmem_addr_pa;
 	boot_params->base_mem_size = enclave->bootmem_size;
@@ -322,14 +325,13 @@ int setup_boot_params(struct pisces_enclave * enclave) {
 /*
  * Update Pisces trampoline data
  */
-void
+static void
 set_enclave_trampoline(
         struct pisces_enclave *enclave, 
         u64 target_addr, 
         u64 esi)
 {
     extern u8 launch_code_start;
-    extern u8 launch_code_end;
 
     extern u64 launch_code_target_addr;
     extern u64 launch_code_esi;
@@ -355,11 +357,6 @@ set_enclave_trampoline(
             (void *) __pa(esi_ptr), (void *) *esi_ptr);
 }
 
-static u64 *linux_trampoline_target;
-static struct mutex *linux_trampoline_lock;
-static pml4e64_t *linux_trampoline_pgd;
-static u64 linux_trampoline_startip;
-extern void (**linux_x86_platform_ipi_callback)(void);
 /*
  * Init Linux symbols to interact with Linux trampoline
  */
@@ -386,7 +383,7 @@ void pisces_linux_symbol_init(void)
 
 }
 
-static inline void setup_linux_trampoline_target(u64 target_addr)
+inline void setup_linux_trampoline_target(u64 target_addr)
 {
     *linux_trampoline_target = target_addr;
     printk(KERN_DEBUG "Setup linux trampoline target address 0x%p\n", 
@@ -410,7 +407,7 @@ static inline void reset_cpu(int apicid)
  *
  * TODO: restore modification afterwards
  */
-static void setup_linux_trampoline_pgd(u64 target_addr)
+void setup_linux_trampoline_pgd(u64 target_addr)
 {
 
     // use the level3_ident_pgt setup in create_enclave()
@@ -421,16 +418,11 @@ static void setup_linux_trampoline_pgd(u64 target_addr)
     // printk(KERN_DEBUG "Setup trampoline ident page table\n");
 }
 
-void cpu_hot_add_reset(struct pisces_enclave * enclave, int apicid)
-{
-    //struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->bootmem_addr_pa);
-
+void trampoline_lock(void) {
     mutex_lock(linux_trampoline_lock);
-    setup_linux_trampoline_pgd(enclave->bootmem_addr_pa);
-    setup_linux_trampoline_target(enclave->bootmem_addr_pa /*TODO*/);
-    reset_cpu(apicid);
-    /* Delay for target CPU to use Linux trampoline*/
-    udelay(500);
+}
+
+void trampoline_unlock(void) {
     mutex_unlock(linux_trampoline_lock);
 }
 

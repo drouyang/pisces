@@ -5,8 +5,6 @@
 
 #define ENCLAVE_CMD_ADD_CPU      100
 #define ENCLAVE_CMD_ADD_MEM      101
-#define ENCLAVE_CMD_BOOT_CPU      102
-
 
 
 struct ctrl_cmd {

@@ -36,13 +36,15 @@ struct pisces_ident_pgt {
 };
 
 
-
-
+#define LAUNCH_CODE_SIZE      64
+#define LAUNCH_CODE_DATA_RSP  5
+#define LAUNCH_CODE_DATA_RSI  6
+#define LAUNCH_CODE_DATA_RIP  7
 /* All addresses in this structure are physical addresses */
 struct pisces_boot_params {
 
     // Embedded asm to load esi and jump to kernel
-    u8 launch_code[64]; 
+    u64 launch_code[8];
 
     u8 init_dbg_buf[16];
 
@@ -52,7 +54,8 @@ struct pisces_boot_params {
 
     u64 cpu_id;
     u64 cpu_khz;
-    
+    u64 trampoline_code_pa;
+
     // coordinator domain cpu apic id
     u64 domain_xcall_master_apicid;
 
@@ -65,11 +68,11 @@ struct pisces_boot_params {
     // kernel
     u64 kernel_addr;
     u64 kernel_size;
-    
+
     // initrd
     u64 initrd_addr;
     u64 initrd_size;
-    
+
 
     // The address of the ring buffer used for the early console
     u64 console_ring_addr;
