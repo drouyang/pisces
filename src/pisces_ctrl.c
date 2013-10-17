@@ -180,7 +180,7 @@ int pisces_ctrl_connect(struct pisces_enclave * enclave) {
     int ctrl_fd = 0;
 
     if (cmd_buf->ready == 0) {
-        printk(KERN_ERR "Cannot connect to unitialized control channel\n");
+        printk(KERN_ERR "Cannot connect to uninitialized control channel\n");
         return -1;
     }
 

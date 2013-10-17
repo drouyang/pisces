@@ -37,7 +37,6 @@ struct pisces_ident_pgt {
 
 
 #define LAUNCH_CODE_SIZE      64
-#define LAUNCH_CODE_DATA_RSP  5
 #define LAUNCH_CODE_DATA_RSI  6
 #define LAUNCH_CODE_DATA_RIP  7
 /* All addresses in this structure are physical addresses */
