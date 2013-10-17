@@ -108,6 +108,8 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
                 setup_linux_trampoline_pgd(enclave->bootmem_addr_pa);
                 setup_linux_trampoline_target(enclave->bootmem_addr_pa);
                 ret = send_cmd(enclave, (struct ctrl_cmd *)&cmd);
+                udelay(1000);
+                reset_cpu(2);
                 trampoline_unlock();
 
                 break;

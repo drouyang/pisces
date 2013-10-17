@@ -192,6 +192,7 @@ int setup_boot_params(struct pisces_enclave * enclave) {
 
         // Linux trampoline address
 	boot_params->trampoline_code_pa = linux_trampoline_startip;
+	printk("Linux trampoline at %p\n", (void *)linux_trampoline_startip);
 
 	boot_params->base_mem_paddr = enclave->bootmem_addr_pa;
 	boot_params->base_mem_size = enclave->bootmem_size;
@@ -393,7 +394,7 @@ inline void setup_linux_trampoline_target(u64 target_addr)
 /*
  * Reset CPU with INIT/INIT/SINIT IPIs
  */
-static inline void reset_cpu(int apicid)
+inline void reset_cpu(int apicid)
 {
     printk(KERN_INFO "Reset CPU %d from CPU %d\n", 
             apicid,
