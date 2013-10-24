@@ -1,0 +1,3 @@
+[submodule "petlib"]
+	path = petlib
+	url = ssh://petos@essex.cs.pitt.edu//home/petos/petlib
