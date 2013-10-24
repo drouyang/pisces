@@ -156,6 +156,8 @@ int setup_boot_params(struct pisces_enclave * enclave) {
     base_addr = (uintptr_t)__va(enclave->bootmem_addr_pa);
     boot_params = (struct pisces_boot_params *)base_addr;
 
+    memset((void *)base_addr, 0, enclave->bootmem_size);
+
     if (!boot_params) {
 	printk(KERN_ERR "Invalid address for boot parameters (%p)\n", boot_params);
 	return -1;

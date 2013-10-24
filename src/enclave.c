@@ -15,7 +15,6 @@
 
 #include "pisces.h"
 #include "enclave.h"
-#include "mm.h"
 #include "pisces_ctrl.h"
 #include "boot.h"
 
@@ -42,6 +41,13 @@ static int alloc_enclave_index(struct pisces_enclave * enclave) {
 static void free_enclave_index(int idx) {
     enclave_map[idx] = NULL;
 }
+
+
+
+static int pisces_enclave_launch(struct pisces_enclave * enclave);
+static void pisces_enclave_free(struct pisces_enclave * enclave);
+
+
 
 
 static int enclave_open(struct inode * inode, struct file * filp) {
@@ -79,6 +85,20 @@ static long enclave_ioctl(struct file * filp,
 
         case PISCES_ENCLAVE_LAUNCH:
             {
+		struct enclave_boot_env boot_env;
+		
+		memset(&boot_env, 0, sizeof(struct enclave_boot_env));
+
+		if (copy_from_user(&boot_env, &boot_env, sizeof(struct enclave_boot_env))) {
+		    printk(KERN_ERR "Error copying pisces image from user space\n");
+		    return -EFAULT;
+		}
+
+		/* We need to check that these values are legit */
+		enclave->bootmem_addr_pa = boot_env.base_addr;
+		enclave->bootmem_size = (boot_env.pages * PAGE_SIZE);
+		enclave->boot_cpu = boot_env.cpu_id;
+
                 printk(KERN_DEBUG "Launch Pisces Enclave\n");
                 ret = pisces_enclave_launch(enclave);
 
@@ -139,12 +159,8 @@ int pisces_enclave_create(struct pisces_image * img) {
     enclave->initrd_path = img->initrd_path;
     enclave->kern_cmdline = img->cmd_line;
 
-    enclave->bootmem_size = 128 * 1024 * 1024;
-    enclave->bootmem_addr_pa = pisces_alloc_pages((128 * 1024 * 1024) / PAGE_SIZE_4KB);
-    memset(__va(enclave->bootmem_addr_pa), 0, 128 * 1024 * 1024);
 
-
-    enclave_idx = alloc_enclave_index(enclave);
+   enclave_idx = alloc_enclave_index(enclave);
     if (enclave_idx == -1) {
         printk(KERN_ERR "Too many enclaves already created. Cannot create a new one\n");
         kfree(enclave);
@@ -178,9 +194,7 @@ int pisces_enclave_create(struct pisces_image * img) {
 }
 
 
-int pisces_enclave_launch(struct pisces_enclave * enclave) {
-
-    enclave->boot_cpu = 1;
+static int pisces_enclave_launch(struct pisces_enclave * enclave) {
 
     if (setup_boot_params(enclave) == -1) {
         printk(KERN_ERR "Error setting up boot environment\n");
@@ -200,9 +214,8 @@ int pisces_enclave_launch(struct pisces_enclave * enclave) {
 
 
 
-void pisces_enclave_free(struct pisces_enclave * enclave) {
+static void pisces_enclave_free(struct pisces_enclave * enclave) {
 
-    pisces_free_pages(enclave->bootmem_addr_pa, (128 * 1024 * 1024) / PAGE_SIZE_4KB);
     kfree(enclave);
 
     return;

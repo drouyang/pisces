@@ -19,7 +19,6 @@
 
 #include "pisces.h"      /* device file ioctls*/
 #include "pisces_mod.h"
-#include "mm.h"
 #include "enclave.h"
 #include "xcall.h"
 #include "boot.h"
@@ -73,29 +72,6 @@ static long device_ioctl(struct file * file, unsigned int ioctl,
 
 
     switch (ioctl) {
-        case PISCES_ADD_MEM: {
-            struct memory_range reg;
-            uintptr_t base_addr = 0;
-            u64 num_pages = 0;
-
-            if (copy_from_user(&reg, argp, sizeof(struct memory_range))) {
-                printk(KERN_ERR "Copying memory region from user space\n");
-                return -EFAULT;
-            }
-
-            base_addr = (uintptr_t)reg.base_addr;
-            num_pages = reg.pages;
-
-            if (pisces_add_mem(base_addr, num_pages) != 0) {
-                printk(KERN_ERR "Error adding memory to pisces \
-                        (base_addr=%p, pages=%llu)\n", 
-                        (void *)base_addr, num_pages);
-                return -EFAULT;
-            }
-
-            break;
-        }
-
 
         case PISCES_LOAD_IMAGE: {
             struct pisces_image * img = kmalloc(sizeof(struct pisces_image), GFP_KERNEL);
@@ -178,10 +154,6 @@ int pisces_init(void) {
 
     pisces_linux_symbol_init();
 
-    if (pisces_mem_init() == -1) {
-        printk(KERN_ERR "Error initializing Pisces Memory Management\n");
-        return -1;
-    }
 
     if (alloc_chrdev_region(&dev_num, 0, MAX_ENCLAVES + 1, "pisces") < 0) {
         printk(KERN_ERR "Error allocating Pisces Char device region\n");

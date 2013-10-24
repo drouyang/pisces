@@ -9,12 +9,9 @@ pisces-objs :=  src/main.o \
 		src/pisces_ctrl.o \
 		src/wakeup_secondary.o \
 		src/xcall.o \
-		src/buddy.o \
 		src/enclave.o \
 		src/pisces_lock.o \
 		src/pisces_ringbuf.o \
-		src/numa.o \
-		src/mm.o \
 		src/file_io.o \
 		src/launch_code.o
 

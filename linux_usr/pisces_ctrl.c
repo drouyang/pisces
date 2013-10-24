@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
       return -1;
     }
 
-    ctrl_fd = ioctl(enclave_fd, PISCES_ENCLAVE_CTRL_CONNECT, NULL); 
+    ctrl_fd = ioctl(enclave_fd, PISCES_ENCLAVE_CTRL_CONNECT, NULL);
 
     close(enclave_fd);
 
@@ -47,5 +47,3 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
-
-

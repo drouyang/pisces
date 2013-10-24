@@ -10,7 +10,6 @@
 #define MAX_ENCLAVES 128
 
 /* Pisces global cmds */
-#define PISCES_ADD_MEM              1000
 #define PISCES_LOAD_IMAGE           1001
 
 /* Pisces enclave cmds */
@@ -20,9 +19,10 @@
 
 
 
-struct memory_range {
+struct enclave_boot_env {
     unsigned long long base_addr;
     unsigned long long pages;
+    unsigned int cpu_id;
 } __attribute__((packed));
 
 
@@ -30,9 +30,6 @@ struct pisces_image {
     char kern_path[1024];
     char initrd_path[1024];
     char cmd_line[1024];
-
-    unsigned long long memsize_in_bytes;
-    unsigned long long num_cpus;
 } __attribute__((packed));
 
 

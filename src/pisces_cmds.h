@@ -1,6 +1,20 @@
 #ifndef __PISCES_CMDS_H__
 #define __PISCES_CMDS_H__
 
+
+
+/* Linux user space ioctl structures */
+#define ENCLAVE_IOCTL_ADD_CPU 100
+#define ENCLAVE_IOCTL_ADD_MEM 101
+
+struct memory_range {
+    u64 base_addr;
+    u64 pages;
+} __attribute__((packed));
+
+
+
+/* Linux <-> Pisces Command Structures */
 #define PISCES_CTRL_IPI_VECTOR 220
 
 #define ENCLAVE_CMD_ADD_CPU      100

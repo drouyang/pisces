@@ -1,27 +1,41 @@
-TARGET := \
-    pisces_ioctl \
-    mem_reserve \
-    pisces_load \
-    pisces_launch \
-    pisces_cons \
-    pisces_mgr \
-    pisces_enclave_add_cpu
 
-all: $(TARGET)
+CFLAGS = 
 
-pisces_launch: pisces_launch.c ../src/pisces.h
+CC = gcc
+AR = ar
 
-pisces_ioctl: pisces_ioctl.c ../src/pisces.h
+libs := 
+execs := 	pisces_load \
+		pisces_launch \
+		pisces_ctrl \
+		pisces_cons
 
-mem_reserve: mem_reserve.c ../src/pisces.h
+build = \
+	@if [ -z "$V" ]; then \
+		echo '   [$1]     $@'; \
+		$2; \
+	else \
+		echo '$2'; \
+		$2; \
+	fi
 
-pisces_load: pisces_load.c ../src/pisces.h
 
-pisces_cons: pisces_cons.c ../src/pisces.h
+all: $(libs) $(execs)
 
-pisces_mgr: pisces_mgr.c ../src/pisces.h
 
-pisces_enclave_add_cpu: pisces_enclave_add_cpu.c ../src/pisces.h
+% : %.c
+	$(call build,CC,$(CC) $(CFLAGS) $< -o $@)
+
+%.o : %.c
+	$(call build,CC,$(CC) $(CFLAGS) -c $<  -o $@)
+
+%.a : %.o
+	$(call build,AR,$(AR) rcs $@ $^)
+
+
+
+
+
 
 clean:
-	rm $(TARGET)
+	rm -f $(wildcard  $(execs) $(libs))
