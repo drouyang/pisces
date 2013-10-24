@@ -26,7 +26,7 @@ build = \
 all: $(execs) $(libs)
 
 
-% : %.c
+% : %.c $(libs)
 	$(call build,CC,$(CC) $(CFLAGS)  $<  $(libs) -o $@)
 
 %.o : %.c

@@ -17,11 +17,14 @@ pisces-objs :=  src/main.o \
 
 all:
 	make -C $(KERN_PATH) M=$(PWD) modules
+	make -C petlib/
 	make -C linux_usr/
 
 clean:
 	make -C $(KERN_PATH) M=$(PWD) clean
+	make -C petlib/ clean
 	make -C linux_usr/ clean
+
 
 .PHONY: tags
 tags:

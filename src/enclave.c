@@ -76,7 +76,7 @@ static ssize_t enclave_write(struct file *filp, const char __user *buffer,
 
 static long enclave_ioctl(struct file * filp,
         unsigned int ioctl, unsigned long arg) {
-//    void __user * argp = (void __user *)arg;
+    void __user * argp = (void __user *)arg;
     struct pisces_enclave * enclave = (struct pisces_enclave *)filp->private_data;
     int ret = 0;
 
@@ -89,7 +89,7 @@ static long enclave_ioctl(struct file * filp,
 		
 		memset(&boot_env, 0, sizeof(struct enclave_boot_env));
 
-		if (copy_from_user(&boot_env, &boot_env, sizeof(struct enclave_boot_env))) {
+		if (copy_from_user(&boot_env, argp, sizeof(struct enclave_boot_env))) {
 		    printk(KERN_ERR "Error copying pisces image from user space\n");
 		    return -EFAULT;
 		}
@@ -99,7 +99,9 @@ static long enclave_ioctl(struct file * filp,
 		enclave->bootmem_size = (boot_env.pages * PAGE_SIZE);
 		enclave->boot_cpu = boot_env.cpu_id;
 
-                printk(KERN_DEBUG "Launch Pisces Enclave\n");
+                printk(KERN_DEBUG "Launch Pisces Enclave (cpu=%d) (bootmem=%p)\n", 
+		       enclave->boot_cpu, (void *)enclave->bootmem_addr_pa);
+
                 ret = pisces_enclave_launch(enclave);
 
                 break;
