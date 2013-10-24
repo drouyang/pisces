@@ -1,10 +1,13 @@
+PETLIB := ../petlib
 
-CFLAGS = 
+
+CFLAGS = -I$(PETLIB) -L$(PETLIB)
 
 CC = gcc
 AR = ar
 
-libs := 
+libs := 	$(PETLIB)/petlib.a
+
 execs := 	pisces_load \
 		pisces_launch \
 		pisces_ctrl \
@@ -20,11 +23,11 @@ build = \
 	fi
 
 
-all: $(libs) $(execs)
+all: $(execs) $(libs)
 
 
 % : %.c
-	$(call build,CC,$(CC) $(CFLAGS) $< -o $@)
+	$(call build,CC,$(CC) $(CFLAGS)  $<  $(libs) -o $@)
 
 %.o : %.c
 	$(call build,CC,$(CC) $(CFLAGS) -c $<  -o $@)
@@ -38,4 +41,4 @@ all: $(libs) $(execs)
 
 
 clean:
-	rm -f $(wildcard  $(execs) $(libs))
+	rm -f $(wildcard  $(execs))

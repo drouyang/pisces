@@ -1,6 +1,9 @@
 #ifndef __PISCES_CMDS_H__
 #define __PISCES_CMDS_H__
 
+#ifndef __KERNEL__
+#include "../linux_usr/pisces_types.h"
+#endif
 
 
 /* Linux user space ioctl structures */
