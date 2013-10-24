@@ -12,7 +12,8 @@
 
 static void usage() {
     printf("Usage: pisces_launch <enclave_dev_path> "	\
-	   " [-c, --cpu=cpuid] "			\
+	   " [-b, --block=block_id] "			\
+	   " [-c, --cpu=cpu_id] "			\
 	   " [-n, --numa=numa_zone]\n");
     exit(-1);
 }
@@ -40,7 +41,7 @@ int main(int argc, char ** argv) {
 	    {0, 0, 0, 0}
 	};
 
-	while ((c = getopt_long(argc, argv, "n:c:", long_options, &opt_index)) != -1) {
+	while ((c = getopt_long(argc, argv, "b:n:c:", long_options, &opt_index)) != -1) {
 	    switch (c) {
 		case 'n':
 		    numa_zone = atoi(optarg);
@@ -57,13 +58,12 @@ int main(int argc, char ** argv) {
 	    }
 	}
 
-
-	if (opt_index + 1 != argc) {
+	if (optind + 1 != argc) {
 	    usage();
 	    return -1;
 	} 
 
-	enclave_path = argv[opt_index];
+	enclave_path = argv[optind];
     }
 
 
