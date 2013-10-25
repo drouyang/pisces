@@ -20,7 +20,12 @@ static ssize_t console_read(struct file *file, char __user *buffer,
     size_t left_to_read = 0;
     u64 read_len = 0;
 
+    printk("reading console length = %lu, offset = %llu\n", length, *offset);
+
     pisces_spin_lock(&(ringbuf->lock));
+
+    printk("console len=%llu, read_idx=%llu, write_idx=%llu\n", 
+	   ringbuf->cur_len, ringbuf->read_idx, ringbuf->write_idx);
 
     if (length > ringbuf->cur_len) {
         length = ringbuf->cur_len;
@@ -38,7 +43,7 @@ static ssize_t console_read(struct file *file, char __user *buffer,
                 read_len = left_to_read;
             }
 
-            if (copy_to_user(buffer + *offset, ringbuf->buf + ringbuf->read_idx, read_len)) {
+            if (copy_to_user(buffer, ringbuf->buf + ringbuf->read_idx, read_len)) {
                 printk(KERN_ERR "Error copying console data to user space\n");
                 pisces_spin_unlock(&(ringbuf->lock));
                 return -EFAULT;
@@ -61,7 +66,7 @@ static ssize_t console_read(struct file *file, char __user *buffer,
         }
 
         // read from read_idx to write_idx
-        if (copy_to_user(buffer + *offset, ringbuf->buf + ringbuf->read_idx, read_len)) {
+        if (copy_to_user(buffer, ringbuf->buf + ringbuf->read_idx, read_len)) {
             printk(KERN_ERR "Error copying console data to user space\n");
             pisces_spin_unlock(&(ringbuf->lock));
             return -EFAULT;
@@ -76,6 +81,8 @@ static ssize_t console_read(struct file *file, char __user *buffer,
     }
 
     pisces_spin_unlock(&(ringbuf->lock));
+
+    printk("Read %lu bytes\n", length);
 
     return length;
 }

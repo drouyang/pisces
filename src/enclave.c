@@ -375,6 +375,10 @@ int pisces_enclave_add_mem(struct pisces_enclave * enclave, u64 base_addr, u32 p
 	list_for_each_entry(iter, &(enclave->memdesc_list), node) {
 	    if (iter->base_addr > memdesc->base_addr) {
 		list_add_tail(&(memdesc->node), &(iter->node));
+		break;
+	    } else if (list_is_last(&(iter->node), &(enclave->memdesc_list))) {
+		list_add(&(memdesc->node), &(iter->node));
+		break;
 	    }
 	}
     }
