@@ -139,6 +139,9 @@ int main(int argc, char* argv[]) {
 		mem_range.base_addr = block_arr[i].base_addr;
 		mem_range.pages     = block_arr[i].pages;
 
+		printf("Adding memory range (%p) to enclave %s\n", 
+		       (void *)mem_range.base_addr, enclave_path);
+
 		if (pet_ioctl_fd(ctrl_fd, ENCLAVE_IOCTL_ADD_MEM, &mem_range) != 0) {
 		    printf("Error: Could not add memory block %d to enclave\n", block_arr[i].base_addr / pet_block_size());
 		    continue;
@@ -151,7 +154,7 @@ int main(int argc, char* argv[]) {
 
 
     if (cpu_str) {
-	uint64_t phys_cpu_id;
+	uint64_t phys_cpu_id = 0;
 
 	if (explicit) {
 	    char * iter_str = NULL;	    
@@ -172,14 +175,14 @@ int main(int argc, char* argv[]) {
 
 	} else {
 	    struct pet_cpu * cpu_arr = NULL;
-	    int cnt = atoi(mem_str);
+	    int cnt = atoi(cpu_str);
 	    int i = 0;
 	    int ret = 0;
 
 	    cpu_arr = malloc(sizeof(struct pet_cpu) * cnt);
 	    memset(cpu_arr, 0, sizeof(struct pet_cpu) * cnt);
 
-	    ret = pet_offline_cpus(cnt, numa_zone,cpu_arr);
+	    ret = pet_offline_cpus(cnt, numa_zone, cpu_arr);
 
 	    if (ret != cnt) {
 		printf("Error: Could not allocate %d CPUs\n", cnt);
@@ -192,6 +195,9 @@ int main(int argc, char* argv[]) {
 	    
 	    for (i = 0; i < cnt; i++) {
 		phys_cpu_id = cpu_arr[i].cpu_id;
+
+		printf("Adding CPU %d to enclave %s\n", 
+		       (void *)phys_cpu_id, enclave_path);
 
 		if (pet_ioctl_fd(ctrl_fd, ENCLAVE_IOCTL_ADD_CPU, (void *)phys_cpu_id) != 0) {
 		    printf("Error: Could not add CPU %d to enclave\n", phys_cpu_id);

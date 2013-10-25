@@ -60,7 +60,7 @@ struct ctrl_cmd_buf {
 
 struct cmd_cpu_add {
     struct ctrl_cmd hdr;
-    u64 apic_id;
+    u64 phys_cpu_id;
 } __attribute__((packed));
 
 

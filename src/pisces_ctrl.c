@@ -89,27 +89,19 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
         case ENCLAVE_CMD_ADD_CPU:
             {
                 struct cmd_cpu_add  cmd;
-                u64 apicid = 0;
+                u64 phys_cpu_id = (u64)arg;
 
-                if (copy_from_user(&apicid, argp, sizeof(u64))) {
-                    printk(KERN_ERR "Error copy_from_user in enclave_add_cpu ioctl\n");
-                    return -EFAULT;
-                }
+		memset(&cmd, 0, sizeof(struct cmd_cpu_add));
 
                 cmd.hdr.cmd = ENCLAVE_CMD_ADD_CPU;
                 cmd.hdr.data_len = (sizeof(struct cmd_cpu_add) - sizeof(struct ctrl_cmd));
-                cmd.apic_id = apicid;
-
-                /* TODO: check if target CPU is reserved for Pisces first */
-                printk(KERN_INFO "Send enclave xcall to cpu %llu\n", apicid);
+                cmd.phys_cpu_id = phys_cpu_id;
 
                 /* Setup Linux trampoline to jump to enclave trampoline */
                 trampoline_lock();
                 setup_linux_trampoline_pgd(enclave->bootmem_addr_pa);
                 setup_linux_trampoline_target(enclave->bootmem_addr_pa);
                 ret = send_cmd(enclave, (struct ctrl_cmd *)&cmd);
-                udelay(1000);
-                reset_cpu(2);
                 trampoline_unlock();
 
                 break;
