@@ -124,7 +124,7 @@ static struct file_operations fops = {
 static int 
 dbg_mem_show(struct seq_file * s, void * v) {
     struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave_map[0]->bootmem_addr_pa);
-    seq_printf(s, "%s: %p", boot_params->init_dbg_buf, (void *)*(((u64*)(boot_params->init_dbg_buf)) + 1));
+    seq_printf(s, "%s: %p\n", boot_params->init_dbg_buf, (void *)*(((u64*)(boot_params->init_dbg_buf)) + 1));
     return 0;
 }
 
@@ -196,7 +196,7 @@ int pisces_init(void) {
         struct proc_dir_entry * dbg_entry = NULL;
 
 
-        dbg_entry = create_proc_entry("pisces-dbg", 0444, NULL);
+        dbg_entry = create_proc_entry("pisces-dbg", 0444, pisces_proc_dir);
         if (dbg_entry) {
             dbg_entry->proc_fops = &dbg_proc_ops;
             dbg_entry->data = enclave_map[0];

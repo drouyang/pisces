@@ -17,12 +17,16 @@
 #define ENCLAVE_LOADED      1
 #define ENCLAVE_RUNNING     2
 
+struct enclave_mem_block {
+    u64 base_addr;
+    u32 pages;
+    struct list_head node;
+};
+
+
 struct pisces_enclave {
     int state;
-
-    // We'll just hold on to the image for now,
-    // We need to get rid of this soon though
-    struct pisces_image * tmp_image_ptr;
+    int id; 
 
     char * kern_path;
     char * initrd_path;
@@ -30,6 +34,7 @@ struct pisces_enclave {
 
     dev_t dev; 
     struct cdev cdev;
+    struct proc_dir_entry * proc_dir;
 
     /* APIC ID of boot cpu*/
     u32 boot_cpu;
@@ -53,5 +58,8 @@ struct pisces_enclave {
 
 
 int pisces_enclave_create(struct pisces_image * img);
+
+int pisces_enclave_add_mem(struct pisces_enclave * enclave, u64 base_addr, u32 pages);
+int pisces_enclave_add_cpu(struct pisces_enclave * enclave, u32 cpu_id);
 
 #endif

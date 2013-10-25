@@ -89,13 +89,18 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
         case ENCLAVE_CMD_ADD_CPU:
             {
                 struct cmd_cpu_add  cmd;
-                u64 phys_cpu_id = (u64)arg;
+                u64 cpu_id = (u64)arg;
 
 		memset(&cmd, 0, sizeof(struct cmd_cpu_add));
 
+		if (pisces_enclave_add_cpu(enclave, cpu_id) != 0) {
+		    printk(KERN_ERR "Error adding CPU to enclave %d\n", enclave->id);
+		    return -1;
+		}
+
                 cmd.hdr.cmd = ENCLAVE_CMD_ADD_CPU;
                 cmd.hdr.data_len = (sizeof(struct cmd_cpu_add) - sizeof(struct ctrl_cmd));
-                cmd.phys_cpu_id = phys_cpu_id;
+                cmd.phys_cpu_id = cpu_id;
 
                 /* Setup Linux trampoline to jump to enclave trampoline */
                 trampoline_lock();
@@ -103,6 +108,11 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
                 setup_linux_trampoline_target(enclave->bootmem_addr_pa);
                 ret = send_cmd(enclave, (struct ctrl_cmd *)&cmd);
                 trampoline_unlock();
+
+		if (ret != 0) {
+		    // remove CPU from enclave
+		    return -1;
+		}
 
                 break;
             }
@@ -123,10 +133,22 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
                     return -EFAULT;
                 }
 
+		if (pisces_enclave_add_mem(enclave, reg.base_addr, reg.pages) != 0) {
+		    printk(KERN_ERR "Error adding memory descriptor to enclave %d\n", enclave->id);
+		    return -1;
+		}
+
                 cmd.phys_addr = reg.base_addr;
                 cmd.size = reg.pages * PAGE_SIZE_4KB;
 
                 ret = send_cmd(enclave, (struct ctrl_cmd *)&cmd);
+
+		if (ret != 0) {
+		    printk(KERN_ERR "Error adding memory to enclave %d\n", enclave->id);
+		    // remove memory from enclave
+		    return -1;
+		}
+
 
                 break;
             }
