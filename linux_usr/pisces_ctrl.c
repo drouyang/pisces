@@ -47,8 +47,8 @@ int main(int argc, char* argv[]) {
 	int opt_index = 0;
 
 	static struct option long_options[] = {
-	    {"mem", optional_argument, 0, 'm'},
-	    {"cpu", optional_argument, 0, 'c'},
+	    {"mem", required_argument, 0, 'm'},
+	    {"cpu", required_argument, 0, 'c'},
 	    {"numa", required_argument, 0, 'n'},
 	    {"explicit", no_argument, 0, 'e'},
 	     {0, 0, 0, 0}
