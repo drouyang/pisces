@@ -74,7 +74,7 @@ int main(int argc, char ** argv) {
 	    struct mem_block block;
 	    memset(&block, 0, sizeof(struct mem_block));
 
-	    if (pet_offline_blocks(1, numa_zone, &block) == -1) {
+	    if (pet_offline_blocks(1, numa_zone, &block) != 1) {
 		printf("Error: Could not offline memory block for enclave\n");
 		return -1;
 	    }
@@ -100,7 +100,7 @@ int main(int argc, char ** argv) {
 	    struct pet_cpu cpu;
 	    memset(&cpu, 0, sizeof(struct pet_cpu));
 
-	    if (pet_offline_cpus(1, numa_zone, &cpu) == -1) {
+	    if (pet_offline_cpus(1, numa_zone, &cpu) != 1) {
 		printf("Error: Could not offline boot CPU for enclave\n");
 		return -1;
 	    }
