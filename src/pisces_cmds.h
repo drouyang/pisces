@@ -30,9 +30,10 @@ struct pisces_cmd_buf {
 	u64 flags;
 	struct {
 	    u8 ready          : 1;   // Flag set by server OS, after channel is init'd
-	    u8 active         : 1;   // Set by client OS when a command is in progress
+	    u8 active         : 1;   // Set when a command has been activated (initiated)
+	    u8 in_progress    : 1;   // Set when a command has been received, and is in progress
 	    u8 completed      : 1;   // Set by server OS when command has been handled
-	    u32 rsvd          : 29;
+	    u32 rsvd          : 28;
 	} __attribute__((packed));
     } __attribute__((packed));
     

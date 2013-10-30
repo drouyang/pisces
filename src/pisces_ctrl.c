@@ -28,6 +28,8 @@ static int send_cmd(struct pisces_enclave * enclave, struct pisces_cmd * cmd) {
 
     // signal that the command is active
     cmd_buf->active = 1;
+    cmd_buf->completed = 0;
+    cmd_buf->in_progress = 0;
 
     pisces_send_ipi(enclave, cmd_buf->enclave_cpu, cmd_buf->enclave_vector);
 
@@ -61,6 +63,7 @@ ctrl_read(struct file * filp, char __user * buffer, size_t length, loff_t * offs
     // read potential resp data
 
     cmd_buf->completed = 0;
+    cmd_buf->in_progress = 0;
     cmd_buf->active = 0;
 
     spin_unlock_irqrestore(&ctrl->lock, flags);
@@ -172,6 +175,7 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 
 
     cmd_buf->completed = 0;
+    cmd_buf->in_progress = 0;
     cmd_buf->active = 0;
 
 
