@@ -7,12 +7,14 @@ pisces-objs :=  src/main.o \
 		src/boot.o \
 		src/enclave_cons.o \
 		src/pisces_ctrl.o \
+		src/pisces_lcall.o \
 		src/wakeup_secondary.o \
-		src/xcall.o \
+		src/ipi.o \
 		src/enclave.o \
 		src/pisces_lock.o \
 		src/pisces_ringbuf.o \
 		src/file_io.o \
+		src/linux_syms.o \
 		src/launch_code.o
 
 all:

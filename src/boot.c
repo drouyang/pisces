@@ -1,7 +1,7 @@
 #include <linux/fs.h>
 #include <linux/mutex.h>
 #include <linux/percpu.h>
-#include <linux/kallsyms.h>
+
 #include <asm/desc.h>
 #include <asm/segment.h>
 #include <asm/uaccess.h>
@@ -9,19 +9,13 @@
 
 #include "pisces_boot_params.h"
 #include "enclave.h"
-#include "xcall.h"
 #include "file_io.h"
 #include "pisces_ringbuf.h"
 #include "pisces_ctrl.h"
 
+#include "linux_syms.h"
 
-static u64 *linux_trampoline_target;
-static struct mutex *linux_trampoline_lock;
-static pml4e64_t *linux_trampoline_pgd;
-static u64 linux_trampoline_startip;
-extern void (**linux_x86_platform_ipi_callback)(void);
 extern int wakeup_secondary_cpu_via_init(int, unsigned long);
-
 
 static inline u32 sizeof_boot_params(struct pisces_enclave * enclave) {
     return sizeof(struct pisces_boot_params);
@@ -248,6 +242,30 @@ int setup_boot_params(struct pisces_enclave * enclave) {
     }
 
 
+
+    /*
+     * Initialize LongCall buffer (4KB)
+     */
+    {
+        offset = ALIGN(offset, PAGE_SIZE_4KB);
+
+        boot_params->longcall_buf_addr = __pa(base_addr + offset);
+        boot_params->longcall_buf_size = PAGE_SIZE_4KB;
+
+        if (pisces_lcall_init(enclave) == -1) {
+            printk(KERN_ERR "Error initializing Longcall channel\n");
+            return -1;
+        }
+
+        offset += PAGE_SIZE_4KB;
+
+        printk("Longcall buffer initialized. Offset at %p (target_addr=%p, size=%llu)\n", 
+                (void *)(base_addr + offset),
+                (void *)boot_params->longcall_buf_addr, 
+                boot_params->longcall_buf_size);
+    }
+
+
     /* 
      * 	Identity mapped page tables
      */
@@ -360,31 +378,6 @@ set_enclave_trampoline(
             (void *) __pa(esi_ptr), (void *) *esi_ptr);
 }
 
-/*
- * Init Linux symbols to interact with Linux trampoline
- */
-void pisces_linux_symbol_init(void)
-{
-    struct real_mode_header * real_mode_header = NULL;
-    struct trampoline_header * trampoline_header = NULL;
-
-    /* u64 *linux_trampoline_target_ptr */
-    real_mode_header = *(struct real_mode_header **) kallsyms_lookup_name("real_mode_header");
-    trampoline_header = (struct trampoline_header *) __va(real_mode_header->trampoline_header);
-    linux_trampoline_target = &trampoline_header->start;
-
-    /* struct mutex *linux_trampoline_lock */
-    linux_trampoline_lock = (struct mutex *) kallsyms_lookup_name("cpu_add_remove_lock");
-
-    /* pml4e64_t *linux_trampoline_pgd */
-    linux_trampoline_pgd = (pml4e64_t *) __va(real_mode_header->trampoline_pgd);
-
-    /* u64 *linux_trampoline_startip */
-    linux_trampoline_startip = real_mode_header->trampoline_start;
-
-    linux_x86_platform_ipi_callback = (void (**)(void)) kallsyms_lookup_name("x86_platform_ipi_callback");
-
-}
 
 inline void setup_linux_trampoline_target(u64 target_addr)
 {

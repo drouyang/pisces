@@ -13,6 +13,7 @@
 
 #include "enclave_cons.h"
 #include "pisces_ctrl.h"
+#include "pisces_lcall.h"
 
 #define ENCLAVE_LOADED      1
 #define ENCLAVE_RUNNING     2
@@ -44,6 +45,7 @@ struct pisces_enclave {
 
     struct pisces_cons cons;
     struct pisces_ctrl ctrl;
+    struct pisces_lcall lcall;
 
     uintptr_t bootmem_addr_pa;
     u64 bootmem_size;
@@ -51,8 +53,6 @@ struct pisces_enclave {
     // This is what we will want eventually.....
     struct list_head memdesc_list;
     u32 memdesc_num;
-
-
 };
 
 

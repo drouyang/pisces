@@ -19,7 +19,8 @@ struct pisces_enclave;
  * 1. boot parameters // 4KB aligned
  *     ->  Trampoline code sits at the start of this structure 
  * 2. Console ring buffer (64KB) // 4KB aligned
- * 3. CMD+CTRL ring buffer // (4KB)
+ * 3. To enclave CMD buffer  // (4KB)
+ * 4. From enclave CMD buffer // (4KB)
  * 4. Identity mapped page tables // 4KB aligned (5 Pages)
  * 5. kernel image // 2M aligned
  * 6. initrd // 2M aligned
@@ -77,9 +78,13 @@ struct pisces_boot_params {
     u64 console_ring_addr;
     u64 console_ring_size;
 
-    // Address and size of a command/control channel
+    // Address and size of the linux->enclave command/control channel
     u64 control_buf_addr;
     u64 control_buf_size;
+
+    // Address and size of the enclave->linux command/control channel
+    u64 longcall_buf_addr;
+    u64 longcall_buf_size;
 
     // 1G ident mapping for guest kernel
     u64 level3_ident_pgt;

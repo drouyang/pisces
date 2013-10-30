@@ -18,6 +18,7 @@
 #include "pisces.h"
 #include "enclave.h"
 #include "pisces_ctrl.h"
+#include "pisces_lcall.h"
 #include "boot.h"
 
 
@@ -126,6 +127,13 @@ static long enclave_ioctl(struct file * filp,
             {
                 printk("Connecting Ctrl Channel\n");
                 ret = pisces_ctrl_connect(enclave);
+                break;
+
+            }
+        case PISCES_ENCLAVE_LCALL_CONNECT:
+            {
+                printk("Connecting LongCall Channel\n");
+                ret = pisces_lcall_connect(enclave);
                 break;
 
             }

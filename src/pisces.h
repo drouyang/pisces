@@ -10,12 +10,13 @@
 #define MAX_ENCLAVES 128
 
 /* Pisces global cmds */
-#define PISCES_LOAD_IMAGE           1001
+#define PISCES_LOAD_IMAGE               1001
 
 /* Pisces enclave cmds */
-#define PISCES_ENCLAVE_LAUNCH       2000
+#define PISCES_ENCLAVE_LAUNCH           2000
 #define PISCES_ENCLAVE_CONS_CONNECT     2004
 #define PISCES_ENCLAVE_CTRL_CONNECT     2005
+#define PISCES_ENCLAVE_LCALL_CONNECT    2006
 
 
 

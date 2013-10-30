@@ -11,7 +11,8 @@ libs := 	$(PETLIB)/petlib.a
 execs := 	pisces_load \
 		pisces_launch \
 		pisces_ctrl \
-		pisces_cons
+		pisces_cons \
+		pisces_lcall_test
 
 build = \
 	@if [ -z "$V" ]; then \

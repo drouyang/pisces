@@ -18,9 +18,10 @@
 #include <linux/seq_file.h>
 
 #include "pisces.h"      /* device file ioctls*/
+#include "linux_syms.h"
 #include "pisces_mod.h"
 #include "enclave.h"
-#include "xcall.h"
+#include "ipi.h"
 #include "boot.h"
 #include "pisces_boot_params.h"
 
@@ -153,6 +154,11 @@ int pisces_init(void) {
     pisces_proc_dir = proc_mkdir(PISCES_PROC_DIR, NULL);
 
     pisces_linux_symbol_init();
+
+    if (pisces_ipi_init() != 0) {
+	printk(KERN_ERR "Could not initialize Pisces IPI handler\n");
+	return -1;
+    }
 
 
     if (alloc_chrdev_region(&dev_num, 0, MAX_ENCLAVES + 1, "pisces") < 0) {
