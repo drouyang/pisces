@@ -10,8 +10,24 @@
 #include <linux/types.h>
 #include "pisces.h"
 
+#define CRIT_LCALL_START 0
+#define KERN_LCALL_START 10000
+#define USER_LCALL_START 20000
 
-struct lcall;
+/* CRITICAL/ATOMIC LCALLS (0 - 9999) */
+
+
+/* KERNEL LCALLS (10000 - 19999) */
+#define PISCES_LCALL_VFS_READ      (KERN_LCALL_START + 0)
+#define PISCES_LCALL_VFS_WRITE     (KERN_LCALL_START + 1)
+#define PISCES_LCALL_VFS_OPEN      (KERN_LCALL_START + 2)
+#define PISCES_LCALL_VFS_CLOSE     (KERN_LCALL_START + 3)
+#define PISCES_LCALL_VFS_SIZE      (KERN_LCALL_START + 4)
+#define PISCES_LCALL_VFS_MKDIR     (KERN_LCALL_START + 5)
+#define PISCES_LCALL_VFS_READDIR   (KERN_LCALL_START + 6)
+
+/* USER LCALLS (20000 - 29999) */
+
 
 struct pisces_lcall {
     int connected;
@@ -30,11 +46,5 @@ struct pisces_enclave;
 int pisces_lcall_init(struct pisces_enclave * enclave);
 int pisces_lcall_connect(struct pisces_enclave * enclave);
 
-
-int pisces_register_lcall_handler(u32 lcall_id, u8 type, 
-				  int (*handler)(u32 lcall_id, 
-						 void * priv_data, 
-						 struct pisces_cmd_buf * cmd_buf), 
-				  void * priv_data);
 
 #endif
