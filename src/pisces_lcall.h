@@ -27,6 +27,7 @@
 #define PISCES_LCALL_VFS_READDIR   (KERN_LCALL_START + 6)
 
 /* USER LCALLS (20000 - 29999) */
+#define PISCES_LCALL_PORTALS_CMD   (USER_LCALL_START + 0)
 
 
 struct pisces_lcall {

@@ -7,6 +7,7 @@ pisces-objs :=  src/main.o \
 		src/boot.o \
 		src/enclave_cons.o \
 		src/pisces_ctrl.o \
+		src/pisces_portals.o \
 		src/pisces_lcall.o \
 		src/enclave_fs.o \
 		src/wakeup_secondary.o \

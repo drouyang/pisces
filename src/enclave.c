@@ -19,6 +19,7 @@
 #include "enclave.h"
 #include "pisces_ctrl.h"
 #include "pisces_lcall.h"
+#include "pisces_portals.h"
 #include "boot.h"
 
 
@@ -137,6 +138,12 @@ static long enclave_ioctl(struct file * filp,
                 break;
 
             }
+        case PISCES_ENCLAVE_PORTALS_CONNECT:
+        {
+            printk("Connecting Portals Channel\n");
+            ret = pisces_portals_connect(enclave);
+            break;
+        }
 
 
     }

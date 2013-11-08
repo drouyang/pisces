@@ -64,12 +64,16 @@ struct pisces_cmd_buf {
 #define ENCLAVE_IOCTL_ADD_MEM 101
 #define ENCLAVE_IOCTL_TEST_LCALL 102
 
-
 struct memory_range {
     u64 base_addr;
     u64 pages;
 } __attribute__((packed));
 
+#define PORTALS_SEND_PPE_CMD 200
+struct portals_ppe_msg {
+    u64 msg_length;
+    void *msg;
+} __attribute__((packed));
 
 /* Kernel Space command Structures */
 #ifdef __KERNEL__
@@ -89,6 +93,7 @@ struct cmd_mem_add {
     u64 phys_addr;
     u64 size;
 } __attribute__((packed));
+
 
 #endif
 

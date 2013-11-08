@@ -13,6 +13,7 @@
 
 #include "enclave_cons.h"
 #include "pisces_ctrl.h"
+#include "pisces_portals.h"
 #include "pisces_lcall.h"
 #include "enclave_fs.h"
 
@@ -46,6 +47,7 @@ struct pisces_enclave {
 
     struct pisces_cons cons;
     struct pisces_ctrl ctrl;
+    struct pisces_portals portals;
     struct pisces_lcall lcall;
 
     struct enclave_fs fs_state;
