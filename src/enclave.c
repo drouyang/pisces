@@ -14,6 +14,7 @@
 #include <linux/fs.h>    /* device file */
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/version.h>
 
 #include "pisces.h"
 #include "enclave.h"
@@ -177,8 +178,13 @@ proc_mem_show(struct seq_file * s, void * v) {
 
 static int 
 proc_mem_open(struct inode * inode, struct file * filp) {
-    struct proc_dir_entry * proc_entry = PDE(inode);
-    return single_open(filp, proc_mem_show, proc_entry->data);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
+    void * data = PDE(inode)->data;
+#else 
+    void * data = inode->i_private;
+#endif
+
+    return single_open(filp, proc_mem_show, data);
 }
 
 static int 
@@ -202,8 +208,13 @@ proc_cpu_show(struct seq_file * s, void * v) {
 
 static int 
 proc_cpu_open(struct inode * inode, struct file * filp) {
-    struct proc_dir_entry * proc_entry = PDE(inode);
-    return single_open(filp, proc_cpu_show, proc_entry->data);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
+    void * data = PDE(inode)->data;
+#else 
+    void * data = inode->i_private;
+#endif
+
+    return single_open(filp, proc_cpu_show, data);
 }
 
 
@@ -311,19 +322,25 @@ int pisces_enclave_create(struct pisces_image * img) {
 	
 	enclave->proc_dir = proc_mkdir(name, pisces_proc_dir);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
 	mem_entry = create_proc_entry("memory", 0444, enclave->proc_dir);
-
 	if (mem_entry) {
 	    mem_entry->proc_fops = &proc_mem_fops;
 	    mem_entry->data = enclave;
 	}
 	
 	cpu_entry = create_proc_entry("cpus", 0444, enclave->proc_dir);
-	
 	if (cpu_entry) {
 	    cpu_entry->proc_fops = &proc_cpu_fops;
 	    cpu_entry->data = enclave;
 	}
+#else
+	mem_entry = proc_create_data("memory", 0444, enclave->proc_dir, &proc_mem_fops, enclave);
+	cpu_entry = proc_create_data("cpus", 0444, enclave->proc_dir, &proc_cpu_fops, enclave);
+
+#endif
+
+
     }
 
     printk("Enclave created at /dev/pisces-enclave%d\n", MINOR(enclave->dev));

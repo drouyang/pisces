@@ -2,10 +2,12 @@
 
 #include "linux_syms.h"
 
-u64 *linux_trampoline_target;
-struct mutex *linux_trampoline_lock;
-pml4e64_t *linux_trampoline_pgd;
+u64 * linux_trampoline_target;
+struct mutex * linux_trampoline_lock;
+pml4e64_t * linux_trampoline_pgd;
 u64 linux_trampoline_startip;
+u64 linux_start_secondary_addr;
+
 void (**linux_x86_platform_ipi_callback)(void);
 
 /*
@@ -38,5 +40,8 @@ void pisces_linux_symbol_init(void)
 
     linux_x86_platform_ipi_callback = (void (**)(void)) 
 	kallsyms_lookup_name("x86_platform_ipi_callback");
+
+    linux_start_secondary_addr = 
+	kallsyms_lookup_name("start_secondary");
 
 }

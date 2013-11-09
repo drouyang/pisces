@@ -10,6 +10,8 @@ extern pml4e64_t *linux_trampoline_pgd;
 extern u64 linux_trampoline_startip;
 
 extern void (**linux_x86_platform_ipi_callback)(void);
+extern u64 linux_start_secondary_addr;
+
 /* ** */
 
 void pisces_linux_symbol_init(void);

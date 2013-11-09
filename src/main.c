@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/version.h>
 
 #include "pisces.h"      /* device file ioctls*/
 #include "linux_syms.h"
@@ -131,8 +132,13 @@ dbg_mem_show(struct seq_file * s, void * v) {
 
 
 static int dbg_proc_open(struct inode * inode, struct file * filp) {
-    struct proc_dir_entry * proc_entry = PDE(inode);
-    return single_open(filp, dbg_mem_show, proc_entry->data);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
+    void * data = PDE(inode)->data;
+#else 
+    void * data = inode->i_private;
+#endif
+
+    return single_open(filp, dbg_mem_show, data);
 }
 
 
@@ -202,6 +208,7 @@ int pisces_init(void) {
         struct proc_dir_entry * dbg_entry = NULL;
 
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
         dbg_entry = create_proc_entry("pisces-dbg", 0444, pisces_proc_dir);
         if (dbg_entry) {
             dbg_entry->proc_fops = &dbg_proc_ops;
@@ -209,6 +216,14 @@ int pisces_init(void) {
         } else {
             printk(KERN_ERR "Error creating memoryproc file\n");
         }
+#else
+	dbg_entry = proc_create_data("pisces-dbg", 0444, pisces_proc_dir, &dbg_proc_ops, enclave_map[0]);
+
+	if (!dbg_entry) {
+	    printk(KERN_ERR "Error creating memory proc file\n");
+	}
+#endif
+
 
     }
 

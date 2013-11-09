@@ -2,6 +2,7 @@
 #include <linux/mutex.h>
 #include <linux/percpu.h>
 
+#include <asm/delay.h>
 #include <asm/desc.h>
 #include <asm/segment.h>
 #include <asm/uaccess.h>
@@ -441,8 +442,12 @@ int boot_enclave(struct pisces_enclave * enclave)
     setup_linux_trampoline_pgd(enclave->bootmem_addr_pa);
     setup_linux_trampoline_target(enclave->bootmem_addr_pa);
     reset_cpu(apicid);
+
+
     /* Delay for target CPU to use Linux trampoline*/
     udelay(500);
+
+
     mutex_unlock(linux_trampoline_lock);
 
     return ret;

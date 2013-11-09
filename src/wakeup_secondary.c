@@ -36,6 +36,8 @@
 
 #include <asm/realmode.h>
 
+#include "linux_syms.h"
+
 int lapic_get_maxlvt(void)
 {
     unsigned int v;
@@ -103,7 +105,7 @@ int wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
          * Paravirt / VMI wants a startup IPI hook here to set up the
          * target processor state.
          */
-        startup_ipi_hook(phys_apicid, (unsigned long) start_secondary,
+        startup_ipi_hook(phys_apicid, (unsigned long) linux_start_secondary_addr,
                          stack_start);
 
         /*
