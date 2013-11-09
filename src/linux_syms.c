@@ -8,6 +8,8 @@ pml4e64_t * linux_trampoline_pgd;
 u64 linux_trampoline_startip;
 u64 linux_start_secondary_addr;
 
+unsigned long stack_start;
+
 void (**linux_x86_platform_ipi_callback)(void);
 
 /*
@@ -43,5 +45,8 @@ void pisces_linux_symbol_init(void)
 
     linux_start_secondary_addr = 
 	kallsyms_lookup_name("start_secondary");
+
+    stack_start = *(unsigned long *)
+	kallsyms_lookup_name("stack_start");
 
 }

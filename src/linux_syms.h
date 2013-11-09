@@ -12,6 +12,8 @@ extern u64 linux_trampoline_startip;
 extern void (**linux_x86_platform_ipi_callback)(void);
 extern u64 linux_start_secondary_addr;
 
+
+extern unsigned long stack_start; 
 /* ** */
 
 void pisces_linux_symbol_init(void);
