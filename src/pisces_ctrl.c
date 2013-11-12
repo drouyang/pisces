@@ -107,9 +107,9 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 
                 /* Setup Linux trampoline to jump to enclave trampoline */
                 trampoline_lock();
-                setup_linux_trampoline_pgd(enclave->bootmem_addr_pa);
-                setup_linux_trampoline_target(enclave->bootmem_addr_pa);
+                set_linux_trampoline(enclave);
                 ret = send_cmd(enclave, (struct pisces_cmd *)&cmd);
+                restore_linux_trampoline(enclave);
                 trampoline_unlock();
 
 		if (ret != 0) {

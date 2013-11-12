@@ -40,6 +40,7 @@ struct pisces_ident_pgt {
 #define LAUNCH_CODE_SIZE      64
 #define LAUNCH_CODE_DATA_RSI  6
 #define LAUNCH_CODE_DATA_RIP  7
+
 /* All addresses in this structure are physical addresses */
 struct pisces_boot_params {
 
@@ -86,8 +87,8 @@ struct pisces_boot_params {
     u64 longcall_buf_addr;
     u64 longcall_buf_size;
 
-    // 1G ident mapping for guest kernel
-    u64 level3_ident_pgt;
+    // 1G ident mapping pml entry
+    pml4e64_t ident_pml4e64;
 
     u64 base_mem_paddr;
     u64 base_mem_size;
@@ -95,18 +96,4 @@ struct pisces_boot_params {
 
 } __attribute__((packed));
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif 
+#endif

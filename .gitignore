@@ -14,4 +14,5 @@ linux_usr/pisces_ctrl
 linux_usr/pisces_cons
 linux_usr/pisces_mgr
 linux_usr/pisces_enclave_add_cpu
+linux_usr/pisces_lcall_test
 tags

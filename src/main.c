@@ -159,11 +159,14 @@ int pisces_init(void) {
 
     pisces_proc_dir = proc_mkdir(PISCES_PROC_DIR, NULL);
 
-    pisces_linux_symbol_init();
+    if (pisces_linux_symbol_init() != 0) {
+        printk(KERN_ERR "Could not initialize Pisces Linux symbol\n");
+        return -1;
+    }
 
     if (pisces_ipi_init() != 0) {
-	printk(KERN_ERR "Could not initialize Pisces IPI handler\n");
-	return -1;
+        printk(KERN_ERR "Could not initialize Pisces IPI handler\n");
+        return -1;
     }
 
 

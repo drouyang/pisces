@@ -16,6 +16,6 @@ extern u64 linux_start_secondary_addr;
 extern unsigned long stack_start; 
 /* ** */
 
-void pisces_linux_symbol_init(void);
+int pisces_linux_symbol_init(void);
 
 #endif
