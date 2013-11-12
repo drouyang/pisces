@@ -188,7 +188,7 @@ int setup_boot_params(struct pisces_enclave * enclave) {
 
         memcpy(boot_params->launch_code, &launch_code_start, LAUNCH_CODE_SIZE);
 
-        printk("Launch code is at 0x%p\n",
+        printk("Launch code is at %p\n",
                 (void *)__pa(&boot_params->launch_code));
     }
 
@@ -391,9 +391,9 @@ set_enclave_trampoline(
     *target_addr_ptr = target_addr;
     *esi_ptr = esi;
 
-    printk(KERN_DEBUG "  set target address at 0x%p to 0x%p\n", 
+    printk(KERN_DEBUG "  set target address at %p to %p\n", 
             (void *) __pa(target_addr_ptr), (void *) *target_addr_ptr);
-    printk(KERN_DEBUG "  set esi value at 0x%p to 0x%p\n", 
+    printk(KERN_DEBUG "  set esi value at %p to %p\n", 
             (void *) __pa(esi_ptr), (void *) *esi_ptr);
 }
 
@@ -532,6 +532,7 @@ int boot_enclave(struct pisces_enclave * enclave)
     mutex_lock(linux_trampoline_lock);
     set_linux_trampoline(enclave);
 
+    /*
     {
         // debug
         u64 * addr = (u64 *) enclave->bootmem_addr_pa;
@@ -542,6 +543,7 @@ int boot_enclave(struct pisces_enclave * enclave)
         dump_pgtables((uintptr_t) linux_trampoline_pgd, (uintptr_t) __START_KERNEL_map);
         dump_pgtables((uintptr_t) linux_trampoline_pgd, (uintptr_t) PAGE_OFFSET);
     }
+    */
 
 
     reset_cpu(apicid);
