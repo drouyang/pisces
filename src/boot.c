@@ -521,18 +521,16 @@ int boot_enclave(struct pisces_enclave * enclave)
     mutex_lock(linux_trampoline_lock);
     set_linux_trampoline(enclave);
 
-    /*
+#if 0
     {
         // debug
         u64 * addr = (u64 *) enclave->bootmem_addr_pa;
         //u64 index = PML4E64_INDEX(addr);
-        dump_pgtables((uintptr_t) linux_trampoline_pgd, (uintptr_t) addr);
         dump_pgtables((uintptr_t) linux_trampoline_pgd, (uintptr_t) 0);
         dump_pgtables((uintptr_t) linux_trampoline_pgd, (uintptr_t) PAGE_SIZE_2MB);
-        dump_pgtables((uintptr_t) linux_trampoline_pgd, (uintptr_t) __START_KERNEL_map);
-        dump_pgtables((uintptr_t) linux_trampoline_pgd, (uintptr_t) PAGE_OFFSET);
+        dump_pgtables((uintptr_t) linux_trampoline_pgd, (uintptr_t) addr);
     }
-    */
+#endif
 
     reset_cpu(apicid);
 
