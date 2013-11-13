@@ -80,7 +80,7 @@ int pisces_send_ipi(struct pisces_enclave * enclave, int cpu_id, unsigned int ve
 	return -1;
     }
 
-    __default_send_IPI_dest_field(enclave->boot_cpu, vector, APIC_DEST_PHYSICAL);
+    __default_send_IPI_dest_field(apic->cpu_present_to_apicid(enclave->boot_cpu), vector, APIC_DEST_PHYSICAL);
 
     return 0;
 }

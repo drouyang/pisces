@@ -12,7 +12,9 @@ execs := 	pisces_load \
 		pisces_launch \
 		pisces_ctrl \
 		pisces_cons \
-		pisces_lcall_test
+		pisces_lcall_test \
+		v3_create \
+		v3_launch
 
 build = \
 	@if [ -z "$V" ]; then \

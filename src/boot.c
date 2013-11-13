@@ -403,9 +403,10 @@ set_enclave_trampoline(
  */
 inline void reset_cpu(int apicid)
 {
-    printk(KERN_INFO "Reset CPU %d from CPU %d\n", 
-            apicid,
-            apic->cpu_present_to_apicid(smp_processor_id()));
+    printk(KERN_INFO "Reset APIC %d from APIC %d (CPU=%d)\n", 
+	   apicid,
+	   apic->cpu_present_to_apicid(smp_processor_id()), smp_processor_id());
+
     wakeup_secondary_cpu_via_init(apicid, linux_trampoline_startip);
 }
 /*
@@ -429,14 +430,17 @@ static inline void _set_linux_trampoline_pgd(u64 target_addr)
     // printk(KERN_DEBUG "Setup trampoline ident page table\n");
     
     u64 index = PML4E64_INDEX(target_addr);
+
     memcpy(&linux_trampoline_pgd_buf, &linux_trampoline_pgd[index],
             sizeof(pml4e64_t));
     memcpy(&linux_trampoline_pgd[index], &boot_params->ident_pml4e64,
             sizeof(pml4e64_t));
+
     //u64 * p = (u64 *) &linux_trampoline_pgd[0];
     //linux_trampoline_pgd_buf = *p;
     //*p = __pa(linux_level3_ident_pgt_pa) + _KERNPG_TABLE;
     //*p = 0;
+
     printk("Set trampoline_pgd[%d]: %p -> %p\n", index, 
             (void *) linux_trampoline_pgd_buf, 
             (void *) *(u64 *) &linux_trampoline_pgd[index]);
@@ -446,10 +450,13 @@ static inline void _set_linux_trampoline_pgd(u64 target_addr)
 
 static inline void _restore_linux_trampoline_pgd(u64 target_addr) {
     u64 index = PML4E64_INDEX(target_addr);
+
     memcpy(linux_trampoline_pgd[index], &linux_trampoline_pgd_buf
             sizeof(pml4e64_t));
+
     //u64 * p = (u64 *) &linux_trampoline_pgd[0];
     //*p = linux_trampoline_pgd_buf;
+
     printk("Restore trampoline_pgd[%d]: %p\n", index, 
             (void *)linux_trampoline_pgd_buf);
 
@@ -459,6 +466,7 @@ static inline void _set_linux_trampoline_target(u64 target_addr)
 {
     linux_trampoline_target_buf = *linux_trampoline_target;
     *linux_trampoline_target = target_addr;
+
     printk(KERN_DEBUG "Set linux trampoline target: %p -> %p\n", 
             (void *) linux_trampoline_target_buf, (void *)target_addr);
 }
@@ -466,6 +474,7 @@ static inline void _set_linux_trampoline_target(u64 target_addr)
 static inline void _restore_linux_trampoline_target(void)
 {
     *linux_trampoline_target = linux_trampoline_target_buf;
+
     printk("Restore linux trampoline target: %p\n", (void *) linux_trampoline_target_buf);
 
 }
@@ -482,12 +491,14 @@ void set_linux_trampoline(struct pisces_enclave * enclave)
             sizeof(pml4e64_t));
     memcpy(&linux_trampoline_pgd[index], &boot_params->ident_pml4e64,
             sizeof(pml4e64_t));
+
     printk("Set trampoline_pgd[%d]: %p -> %p\n", index, 
             (void *) linux_trampoline_pgd_buf, 
             (void *) *(u64 *) &linux_trampoline_pgd[index]);
 
     linux_trampoline_target_buf = *linux_trampoline_target;
     *linux_trampoline_target = enclave->bootmem_addr_pa;
+
     printk(KERN_DEBUG "Set linux trampoline target: %p -> %p\n", 
             (void *) linux_trampoline_target_buf, (void *)enclave->bootmem_addr_pa);
 }
@@ -497,13 +508,17 @@ void restore_linux_trampoline(struct pisces_enclave * enclave)
     //u64 target_addr = enclave->bootmem_addr_pa;
     u64 target_addr = 0;
     int index = PML4E64_INDEX(target_addr);
+
     memcpy(&linux_trampoline_pgd[index], &linux_trampoline_pgd_buf,
             sizeof(pml4e64_t));
+
     printk("Restore trampoline_pgd[%d]: %p\n", index, 
             (void *)linux_trampoline_pgd_buf);
 
     *linux_trampoline_target = linux_trampoline_target_buf;
-    printk("Restore linux trampoline target: %p\n", (void *) linux_trampoline_target_buf);
+
+    printk("Restore linux trampoline target: %p\n", 
+	   (void *) linux_trampoline_target_buf);
 }
 
 void trampoline_lock(void) {
@@ -520,11 +535,12 @@ int boot_enclave(struct pisces_enclave * enclave)
     int apicid = apic->cpu_present_to_apicid(enclave->boot_cpu);
     struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->bootmem_addr_pa);
 
-    printk(KERN_DEBUG "Boot Enclave...\n");
+    printk(KERN_DEBUG "Boot Enclave on CPU %d (APIC=%d)...\n", 
+	   enclave->boot_cpu, apicid);
 
     set_enclave_trampoline(enclave,
-            boot_params->kernel_addr,
-            enclave->bootmem_addr_pa >> PAGE_SHIFT);
+			   boot_params->kernel_addr,
+			   enclave->bootmem_addr_pa >> PAGE_SHIFT);
     /*
      * hold this lock to serialize trampoline data access 
      * as cpu_maps_update_begin in linux

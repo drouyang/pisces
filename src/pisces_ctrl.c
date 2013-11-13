@@ -31,6 +31,8 @@ static int send_cmd(struct pisces_enclave * enclave, struct pisces_cmd * cmd) {
     cmd_buf->completed = 0;
     cmd_buf->in_progress = 0;
 
+    printk("Sending IPI to Enclave cpu %d\n", cmd_buf->enclave_cpu);
+
     pisces_send_ipi(enclave, cmd_buf->enclave_cpu, cmd_buf->enclave_vector);
 
     while (cmd_buf->completed == 0) {
@@ -104,13 +106,22 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
                 cmd.hdr.cmd = ENCLAVE_CMD_ADD_CPU;
                 cmd.hdr.data_len = (sizeof(struct cmd_cpu_add) - sizeof(struct pisces_cmd));
                 cmd.phys_cpu_id = cpu_id;
+		cmd.apic_id = apic->cpu_present_to_apicid(cpu_id);
+
+
+		printk("Adding CPU %llu\n", cpu_id);
 
                 /* Setup Linux trampoline to jump to enclave trampoline */
                 trampoline_lock();
                 set_linux_trampoline(enclave);
+
+		printk("Sending Command\n");
+
                 ret = send_cmd(enclave, (struct pisces_cmd *)&cmd);
                 restore_linux_trampoline(enclave);
                 trampoline_unlock();
+
+		printk("\tDone\n");
 
 		if (ret != 0) {
 		    // remove CPU from enclave
@@ -168,6 +179,35 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 		ret = send_cmd(enclave, &cmd);
 
 		printk("Sent LCALL test CMD\n");
+		break;
+	    }
+	case ENCLAVE_IOCTL_CREATE_VM:
+	    {
+		struct cmd_create_vm cmd;
+
+		memset(&cmd, 0, sizeof(struct cmd_create_vm));
+
+		cmd.hdr.cmd = ENCLAVE_CMD_CREATE_VM;
+		cmd.hdr.data_len = (sizeof(struct cmd_create_vm) - sizeof(struct pisces_cmd));
+
+
+		if (copy_from_user(&(cmd.path), argp, sizeof(struct vm_path))) {
+		    printk(KERN_ERR "Could not copy vm path from user space\n");
+		    return -EFAULT;
+		}
+
+		ret = send_cmd(enclave, (struct pisces_cmd *)&cmd);
+
+		if (ret != 0) {
+		    printk("Error creating VM %s (%s)\n", cmd.path.vm_name, cmd.path.file_name);
+		    return -1;
+		}
+
+		break;
+	    }
+	case ENCLAVE_IOCTL_LAUNCH_VM: 
+	    {
+
 		break;
 	    }
 

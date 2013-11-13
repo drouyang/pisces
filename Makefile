@@ -1,6 +1,6 @@
-KERN_PATH=../linux-3.11.7/
+#KERN_PATH=../linux-3.11.7/
 #KERN_PATH=../linux-3.7.1/
-#KERN_PATH=/home/jarusl/linux-3.11.7-200.fc19.x86_64
+KERN_PATH=/home/jarusl/linux-3.11.7-200.fc19.x86_64
 
 obj-m += pisces.o
 

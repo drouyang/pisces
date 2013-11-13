@@ -63,6 +63,8 @@ struct pisces_cmd_buf {
 #define ENCLAVE_IOCTL_ADD_CPU 100
 #define ENCLAVE_IOCTL_ADD_MEM 101
 #define ENCLAVE_IOCTL_TEST_LCALL 102
+#define ENCLAVE_IOCTL_CREATE_VM 120
+#define ENCLAVE_IOCTL_LAUNCH_VM 121
 
 struct memory_range {
     u64 base_addr;
@@ -75,16 +77,27 @@ struct portals_ppe_msg {
     void *msg;
 } __attribute__((packed));
 
+struct vm_path {
+    uint8_t file_name[256];
+    uint8_t vm_name[128];
+} __attribute__((packed));
+
+
+
+
 /* Kernel Space command Structures */
 #ifdef __KERNEL__
 
 #define ENCLAVE_CMD_ADD_CPU      100
 #define ENCLAVE_CMD_ADD_MEM      101
-#define ENCLAVE_CMD_TEST_LCALL     102
+#define ENCLAVE_CMD_TEST_LCALL   102
+#define ENCLAVE_CMD_CREATE_VM    120
+#define ENCLAVE_CMD_LAUNCH_VM    121
 
 struct cmd_cpu_add {
     struct pisces_cmd hdr;
     u64 phys_cpu_id;
+    u64 apic_id;
 } __attribute__((packed));
 
 
@@ -92,6 +105,12 @@ struct cmd_mem_add {
     struct pisces_cmd hdr;
     u64 phys_addr;
     u64 size;
+} __attribute__((packed));
+
+
+struct cmd_create_vm {
+    struct pisces_cmd hdr;
+    struct vm_path path;
 } __attribute__((packed));
 
 
