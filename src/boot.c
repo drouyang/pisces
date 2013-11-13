@@ -26,15 +26,14 @@ static inline u32 sizeof_boot_params(struct pisces_enclave * enclave) {
 
 
 // setup bootstrap page tables - pisces_ident_pgt
-// 1G identity mapping start from  enclave->bootmem_addr_pa
+// 1G identity mapping start from 0
+// and 1G mapping start from enclave->bootmem_addr_pa higher than 1G
+#define MEM_ADDR_1G 0x40000000
 static int setup_ident_pts(struct pisces_enclave * enclave,
         struct pisces_boot_params * boot_params, 
         uintptr_t target_addr) {
-    int i = 0;
-    int index = 0;
-    u64 addr = 0;
-    struct pisces_ident_pgt * ident_pgt = (struct pisces_ident_pgt *)target_addr;
-    //u64 start_pa = enclave->bootmem_addr_pa;
+    struct pisces_ident_pgt * ident_pgt 
+        = (struct pisces_ident_pgt *)target_addr;
     u64 start_pa = 0;
 
     memset(ident_pgt, 0, sizeof(struct pisces_ident_pgt));
@@ -48,30 +47,74 @@ static int setup_ident_pts(struct pisces_enclave * enclave,
     printk(KERN_INFO "  ident_pml4e64 entry: %p", 
             (void *) *(u64 *) &boot_params->ident_pml4e64);
 
-    index = PDPE64_INDEX(start_pa);
-    ident_pgt->pdp[index].pd_base_addr
-        =  PAGE_TO_BASE_ADDR(__pa(ident_pgt->pd));
-    ident_pgt->pdp[index].present   = 1;
-    ident_pgt->pdp[index].writable  = 1;
-    ident_pgt->pdp[index].accessed  = 1;
+    /* 1G ident mapping start from 0 for trampoline code
+     * and enclave boot memory lower than 1G
+     */
+    start_pa = 0;
+    {
+        u64 i = 0;
+        int index = 0;
+        u64 addr = 0;
 
-    printk(KERN_INFO "  pdp[%d]: %p", index, 
-           (void *) *(u64 *) &ident_pgt->pdp[index]);
+        index = PDPE64_INDEX(start_pa);
+        ident_pgt->pdp[index].pd_base_addr
+            =  PAGE_TO_BASE_ADDR(__pa(ident_pgt->pd0));
+        ident_pgt->pdp[index].present   = 1;
+        ident_pgt->pdp[index].writable  = 1;
+        ident_pgt->pdp[index].accessed  = 1;
 
-    // 512 * 2M = 1G
-    for (i = 0, addr = start_pa;
-            i < MAX_PDE64_ENTRIES;
-            i++, addr += PAGE_SIZE_2MB) {
+        printk(KERN_INFO "  pdp[%d]: %p\n", index, 
+                (void *) *(u64 *) &ident_pgt->pdp[index]);
 
-        index = PDE64_INDEX(addr);
+        for (i = 0, addr = start_pa;
+                i < MAX_PDE64_ENTRIES;
+                i++, addr += PAGE_SIZE_2MB) {
 
-        ident_pgt->pd[index].page_base_addr  = PAGE_TO_BASE_ADDR_2MB(addr);
-        ident_pgt->pd[index].large_page      = 1;
-        ident_pgt->pd[index].present         = 1;
-        ident_pgt->pd[index].writable        = 1;
-        ident_pgt->pd[index].dirty           = 1;
-        ident_pgt->pd[index].accessed        = 1;
-        ident_pgt->pd[index].global_page     = 1;
+            index = PDE64_INDEX(addr);
+
+            ident_pgt->pd0[index].page_base_addr  = PAGE_TO_BASE_ADDR_2MB(addr);
+            ident_pgt->pd0[index].large_page      = 1;
+            ident_pgt->pd0[index].present         = 1;
+            ident_pgt->pd0[index].writable        = 1;
+            ident_pgt->pd0[index].dirty           = 1;
+            ident_pgt->pd0[index].accessed        = 1;
+            ident_pgt->pd0[index].global_page     = 1;
+        }
+    }
+
+    /* 1G ident mapping start from bootmem_addr
+     * for enclave loaded higher than 1G
+     */
+    start_pa = enclave-> bootmem_addr_pa;
+    if (start_pa > MEM_ADDR_1G) {
+        u64 i = 0;
+        int index = 0;
+        u64 addr = 0;
+
+        index = PDPE64_INDEX(start_pa);
+        ident_pgt->pdp[index].pd_base_addr
+            =  PAGE_TO_BASE_ADDR(__pa(ident_pgt->pd1));
+        ident_pgt->pdp[index].present   = 1;
+        ident_pgt->pdp[index].writable  = 1;
+        ident_pgt->pdp[index].accessed  = 1;
+
+        printk(KERN_INFO "  pdp[%d]: %p\n", index, 
+                (void *) *(u64 *) &ident_pgt->pdp[index]);
+
+        for (i = 0, addr = start_pa;
+                i < MAX_PDE64_ENTRIES;
+                i++, addr += PAGE_SIZE_2MB) {
+
+            index = PDE64_INDEX(addr);
+
+            ident_pgt->pd1[index].page_base_addr  = PAGE_TO_BASE_ADDR_2MB(addr);
+            ident_pgt->pd1[index].large_page      = 1;
+            ident_pgt->pd1[index].present         = 1;
+            ident_pgt->pd1[index].writable        = 1;
+            ident_pgt->pd1[index].dirty           = 1;
+            ident_pgt->pd1[index].accessed        = 1;
+            ident_pgt->pd1[index].global_page     = 1;
+        }
     }
 
     return 0;
@@ -285,21 +328,21 @@ int setup_boot_params(struct pisces_enclave * enclave) {
     }
 
 
-    /* 
-     * 	Identity mapped page tables
+    /*
+     * Identity mapped page tables
      */
     {
 
-	offset = ALIGN(offset, PAGE_SIZE_4KB);
-	printk("Setting up ident page table (1G mapped) at %p\n", (void *)(base_addr + offset));
-	
-	if (setup_ident_pts(enclave, boot_params, base_addr + offset) == -1) {
-	    printk(KERN_ERR "Error configuring identity mapped page tables\n");
-	    return -1;
-	}
-	offset += sizeof(struct pisces_ident_pgt);
-	
-	printk("\t Ident PTS done.Offset at %p\n", (void *)(base_addr + offset));
+        offset = ALIGN(offset, PAGE_SIZE_4KB);
+        printk("Setting up ident page table (1G mapped) at %p\n", (void *)(base_addr + offset));
+
+        if (setup_ident_pts(enclave, boot_params, base_addr + offset) == -1) {
+            printk(KERN_ERR "Error configuring identity mapped page tables\n");
+            return -1;
+        }
+        offset += sizeof(struct pisces_ident_pgt);
+
+        printk("\t Ident PTS done. Offset at %p\n", (void *)(base_addr + offset));
     }
 
 
@@ -418,67 +461,6 @@ inline void reset_cpu(int apicid)
 static u64 linux_trampoline_pgd_buf;
 static u64 linux_trampoline_target_buf;
 
-#if 0
-static inline void _set_linux_trampoline_pgd(u64 target_addr)
-{
-
-    // use the level3_ident_pgt setup in create_enclave()
-    // pml[0].pdp_base_addr = PAGE_TO_BASE_ADDR_4KB((u64)__pa(boot_params->level3_ident_pgt));
-    // pml[0].present = 1;
-    // pml[0].writable = 1;
-    // pml[0].accessed = 1;
-    // printk(KERN_DEBUG "Setup trampoline ident page table\n");
-    
-    u64 index = PML4E64_INDEX(target_addr);
-
-    memcpy(&linux_trampoline_pgd_buf, &linux_trampoline_pgd[index],
-            sizeof(pml4e64_t));
-    memcpy(&linux_trampoline_pgd[index], &boot_params->ident_pml4e64,
-            sizeof(pml4e64_t));
-
-    //u64 * p = (u64 *) &linux_trampoline_pgd[0];
-    //linux_trampoline_pgd_buf = *p;
-    //*p = __pa(linux_level3_ident_pgt_pa) + _KERNPG_TABLE;
-    //*p = 0;
-
-    printk("Set trampoline_pgd[%d]: %p -> %p\n", index, 
-            (void *) linux_trampoline_pgd_buf, 
-            (void *) *(u64 *) &linux_trampoline_pgd[index]);
-    //u64 *p = (u64 *)linux_trampoline_pgd; 
-    //*p = 0;
-}
-
-static inline void _restore_linux_trampoline_pgd(u64 target_addr) {
-    u64 index = PML4E64_INDEX(target_addr);
-
-    memcpy(linux_trampoline_pgd[index], &linux_trampoline_pgd_buf
-            sizeof(pml4e64_t));
-
-    //u64 * p = (u64 *) &linux_trampoline_pgd[0];
-    //*p = linux_trampoline_pgd_buf;
-
-    printk("Restore trampoline_pgd[%d]: %p\n", index, 
-            (void *)linux_trampoline_pgd_buf);
-
-}
-
-static inline void _set_linux_trampoline_target(u64 target_addr)
-{
-    linux_trampoline_target_buf = *linux_trampoline_target;
-    *linux_trampoline_target = target_addr;
-
-    printk(KERN_DEBUG "Set linux trampoline target: %p -> %p\n", 
-            (void *) linux_trampoline_target_buf, (void *)target_addr);
-}
-
-static inline void _restore_linux_trampoline_target(void)
-{
-    *linux_trampoline_target = linux_trampoline_target_buf;
-
-    printk("Restore linux trampoline target: %p\n", (void *) linux_trampoline_target_buf);
-
-}
-#endif
 
 void set_linux_trampoline(struct pisces_enclave * enclave)
 {
@@ -548,19 +530,16 @@ int boot_enclave(struct pisces_enclave * enclave)
     mutex_lock(linux_trampoline_lock);
     set_linux_trampoline(enclave);
 
-    /*
+#if 0
     {
         // debug
         u64 * addr = (u64 *) enclave->bootmem_addr_pa;
         //u64 index = PML4E64_INDEX(addr);
-        dump_pgtables((uintptr_t) linux_trampoline_pgd, (uintptr_t) addr);
         dump_pgtables((uintptr_t) linux_trampoline_pgd, (uintptr_t) 0);
         dump_pgtables((uintptr_t) linux_trampoline_pgd, (uintptr_t) PAGE_SIZE_2MB);
-        dump_pgtables((uintptr_t) linux_trampoline_pgd, (uintptr_t) __START_KERNEL_map);
-        dump_pgtables((uintptr_t) linux_trampoline_pgd, (uintptr_t) PAGE_OFFSET);
+        dump_pgtables((uintptr_t) linux_trampoline_pgd, (uintptr_t) addr);
     }
-    */
-
+#endif
 
     reset_cpu(apicid);
 

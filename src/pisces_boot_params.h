@@ -28,12 +28,9 @@ struct pisces_enclave;
  */
 
 struct pisces_ident_pgt {
-    //pml4e64_t     pml[MAX_PML4E64_ENTRIES];
-    //pdpe64_t      pdp_phys[MAX_PDPE64_ENTRIES];
-    //pdpe64_t      pdp_virt[MAX_PDPE64_ENTRIES];
-    //pde64_2MB_t   pd[MAX_PDE64_ENTRIES]; // 512 * 2M = 1G
     pdpe64_t      pdp[MAX_PDPE64_ENTRIES];
-    pde64_2MB_t   pd[MAX_PDE64_ENTRIES]; // 512 * 2M = 1G
+    pde64_2MB_t   pd0[MAX_PDE64_ENTRIES]; // 1G mapping from 0
+    pde64_2MB_t   pd1[MAX_PDE64_ENTRIES]; // 1G mapping from bootmem_addr
 };
 
 
