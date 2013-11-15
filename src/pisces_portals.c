@@ -21,17 +21,34 @@
 static ssize_t
 portals_read(struct file * filp, char __user * buffer, size_t length, loff_t * offset ) {
     struct pisces_enclave * enclave = filp->private_data;
+    struct pisces_portals * portals = &(enclave->portals);
     struct pisces_lcall * lcall_state = &(enclave->lcall);
     struct pisces_cmd_buf * cmd_buf = lcall_state->cmd_buf;
     struct pisces_resp * resp = &(cmd_buf->resp);
 
-    struct portals_ppe_cmd * ppe_cmd = (struct portals_ppe_cmd *)&(cmd_buf->cmd);
+    //struct portals_ppe_cmd * ppe_cmd = (struct portals_ppe_cmd *)&(cmd_buf->cmd);
+    struct portals_ppe_cmd * ppe_cmd = NULL;
     ssize_t ret = 0, copy_len = 0;
 
+     
     /* Put the process to sleep unless data is already written by the enclave */
     wait_event_interruptible(lcall_state->user_waitq,
                 ((cmd_buf->active == 1) && 
                  (cmd_buf->in_progress == 0)));
+
+    __asm__ __volatile__ ("":::"memory");
+    ppe_cmd = (struct portals_ppe_cmd *)lcall_state->cmd;
+
+    if (!portals->connected) {
+        return 0;
+    }
+
+    if (!ppe_cmd) {
+        /* It could be because we are exiting via ctrl+C */
+        return -EFAULT;
+    }
+
+    cmd_buf->in_progress = 1;
 
     /* Set up the userspace structure */
     if (length > ppe_cmd->cmd.data_len) {
@@ -40,7 +57,7 @@ portals_read(struct file * filp, char __user * buffer, size_t length, loff_t * o
         copy_len = length;
     }
 
-    if (copy_to_user(buffer, ppe_cmd->msg, copy_len)) {
+    if (copy_to_user(buffer, ppe_cmd->data, copy_len)) {
         printk(KERN_ERR "Error copying Portals command to userspace\n");
         resp->status = -1;
         resp->data_len = 0;
@@ -50,32 +67,46 @@ portals_read(struct file * filp, char __user * buffer, size_t length, loff_t * o
         ret = copy_len;
     }
 
+    kfree(lcall_state->cmd);
+    lcall_state->cmd = NULL;
+
     return ret;
 }
 
 static ssize_t 
 portals_write(struct file * filp, const char __user * buffer, size_t length, loff_t * offset) {
     struct pisces_enclave * enclave = filp->private_data;
-    struct pisces_lcall * lcall_state = &(enclave->lcall);
-    struct pisces_cmd_buf * cmd_buf = lcall_state->cmd_buf;
-    struct pisces_resp * resp = &(cmd_buf->resp); 
+    struct pisces_portals * portals = &(enclave->portals);
+    struct portals_ppe_cmd * ppe_resp = NULL; 
 
     ssize_t ret;
 
+    if (!portals->connected) {
+        return 0;
+    }
+
+    ppe_resp = (struct portals_ppe_cmd *)kmalloc(sizeof(struct portals_ppe_cmd) + length, GFP_KERNEL);
+    if (!ppe_resp) {
+        printk(KERN_ERR "Unable to allocate buffer for PPE response\n");
+        return -ENOMEM;
+    }
+    
     /* Copy data to portals buffer */
-    if (copy_from_user(resp->data, buffer, length)) {
+    if (copy_from_user(ppe_resp->data, buffer, length)) {
         printk(KERN_ERR "Error copying Portals response from userspace\n");
-        resp->status = -1;
-        resp->data_len = 0;
+        ppe_resp->resp.status = -1;
+        ppe_resp->resp.data_len = 0;
         ret = -1;
     } else {
         /* Signal that the result is written */
-        resp->status = length;
-        resp->data_len = length;
+        ppe_resp->resp.status = length;
+        ppe_resp->resp.data_len = length;
         ret = length;
     }
 
-    cmd_buf->completed = 1;
+    pisces_lcall_send_resp(enclave, (struct pisces_resp *)ppe_resp);
+
+    kfree(ppe_resp);
     return ret;
 }
 
@@ -128,6 +159,7 @@ int pisces_portals_connect(struct pisces_enclave * enclave) {
         acquired = 1;
     }   
     spin_unlock_irqrestore(&portals->lock, flags);
+
 
     if (acquired == 0) {
         printk(KERN_ERR "Portals channel already connected\n");

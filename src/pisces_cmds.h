@@ -27,24 +27,26 @@ struct pisces_resp {
 #ifdef __KERNEL__
 struct pisces_cmd_buf {
     union {
-	u64 flags;
-	struct {
-	    u8 ready          : 1;   // Flag set by server OS, after channel is init'd
-	    u8 active         : 1;   // Set when a command has been activated (initiated)
-	    u8 in_progress    : 1;   // Set when a command has been received, and is in progress
-	    u8 completed      : 1;   // Set by server OS when command has been handled
-	    u32 rsvd          : 28;
-	} __attribute__((packed));
+        u64 flags;
+        struct {
+            u8 ready          : 1;   // Flag set by server OS, after channel is init'd
+            u8 active         : 1;   // Set when a command has been activated (initiated)
+            u8 in_progress    : 1;   // Set when a command has been received, and is in progress
+            u8 completed      : 1;   // Set by server OS when command has been handled
+            u8 staging        : 1;   // Set when partial data is sent
+            u32 rsvd          : 27;
+        } __attribute__((packed));
     } __attribute__((packed));
     
     u32 host_apic;
     u32 host_vector;
     u32 enclave_cpu;
     u32 enclave_vector;
+    u32 staging_len;
 
     union {
-	struct pisces_cmd cmd;
-	struct pisces_resp resp;
+        struct pisces_cmd cmd;
+        struct pisces_resp resp;
     } __attribute__((packed));
     
 } __attribute__((packed));
@@ -122,6 +124,20 @@ struct cmd_create_vm {
 /* 
  * Enclave -> Linux Command Structures
  */
+#define IOCTL_PPE_XPMEM_LOCAL_ADDR  201
+#define IOCTL_PPE_XPMEM_REMOTE_ADDR 202
+
+struct xpmem_address {
+    int64_t apid;
+    off_t offset;
+} __attribute__((packed));
+
+struct portals_xpmem_addr {
+    struct xpmem_address addr;
+    u64 vaddr;
+    size_t size;
+} __attribute__((packed));
+
 
 
 

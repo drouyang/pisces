@@ -9,6 +9,7 @@
 #include <linux/wait.h>
 #include <linux/types.h>
 #include "pisces.h"
+#include "pisces_cmds.h"
 
 #define CRIT_LCALL_START 0
 #define KERN_LCALL_START 10000
@@ -39,6 +40,7 @@ struct pisces_lcall {
     struct task_struct * kern_thread;
 
     struct pisces_cmd_buf * cmd_buf;
+    struct pisces_cmd * cmd;
 };
 
 
@@ -46,6 +48,7 @@ struct pisces_enclave;
 
 int pisces_lcall_init(struct pisces_enclave * enclave);
 int pisces_lcall_connect(struct pisces_enclave * enclave);
+int pisces_lcall_send_resp(struct pisces_enclave * enclave, struct pisces_resp * resp);
 
 
 #endif

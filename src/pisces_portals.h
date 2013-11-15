@@ -1,10 +1,12 @@
 #ifndef __PISCES_PORTALS__
 #define __PISCES_PORTALS__
 
-#define MAX_PPE_MSG_LEN 256
 struct portals_ppe_cmd {
-    struct pisces_cmd cmd;
-    char msg[MAX_PPE_MSG_LEN];
+    union {
+        struct pisces_cmd cmd;
+        struct pisces_resp resp;
+    } __attribute__ ((packed));
+    u8 data[0];
 } __attribute__((packed));
 
 struct pisces_portals {
