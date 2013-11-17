@@ -232,8 +232,6 @@ static int lcall_kern_thread(void * arg) {
         break;
     }
 
-    cmd_buf->completed = 1;
-
     }
 
     return 0;

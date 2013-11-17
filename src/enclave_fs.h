@@ -15,7 +15,10 @@ struct vfs_buf_desc {
 
 
 struct vfs_read_cmd {
-    struct pisces_cmd cmd;
+    union {
+        struct pisces_cmd cmd;
+        struct pisces_resp resp;
+    } __attribute__((packed));
     u64 file_handle;
     u64 offset;
     u64 length;
@@ -24,7 +27,10 @@ struct vfs_read_cmd {
 } __attribute__((packed));
 
 struct vfs_write_cmd {
-    struct pisces_cmd cmd;
+    union {
+        struct pisces_cmd cmd;
+        struct pisces_resp resp;
+    } __attribute__((packed));
     u64 file_handle;
     u64 offset;
     u64 length;
@@ -34,20 +40,29 @@ struct vfs_write_cmd {
 
 
 struct vfs_open_cmd {
-    struct pisces_cmd cmd;
+    union {
+        struct pisces_cmd cmd;
+        struct pisces_resp resp;
+    } __attribute__((packed));
     u32 mode;
     u8 path[0];
 } __attribute__((packed));
 
 struct vfs_close_cmd {
-    struct pisces_cmd cmd;
+    union {
+        struct pisces_cmd cmd;
+        struct pisces_resp resp;
+    } __attribute__((packed));
     u64 file_handle;
 } __attribute__((packed));
 
 
 
 struct vfs_size_cmd {
-    struct pisces_cmd cmd;
+    union {
+        struct pisces_cmd cmd;
+        struct pisces_resp resp;
+    } __attribute__((packed));
     u64 file_handle;
 } __attribute__((packed));
 

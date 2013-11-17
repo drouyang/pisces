@@ -18,7 +18,8 @@ int enclave_vfs_open_lcall(struct pisces_enclave * enclave,
 			   struct pisces_cmd_buf * cmd_buf) {
     struct enclave_fs * fs_state = &(enclave->fs_state);
     struct vfs_open_cmd * cmd = (struct vfs_open_cmd *)&(cmd_buf->cmd);
-    struct pisces_resp * resp = &(cmd_buf->resp);
+    //struct pisces_resp * resp = &(cmd_buf->resp);
+    struct vfs_open_cmd vfs_resp;
     struct file * file_ptr = NULL;
 
     printk("Opening file %s\n", cmd->path);
@@ -26,8 +27,8 @@ int enclave_vfs_open_lcall(struct pisces_enclave * enclave,
     file_ptr = file_open(cmd->path, cmd->mode);
 
     if (IS_ERR(file_ptr)) {
-	resp->status = 0;
-	resp->data_len = 0;
+	vfs_resp.resp.status = 0;
+	vfs_resp.resp.data_len = 0;
 	return 0;
     }
 
@@ -37,10 +38,11 @@ int enclave_vfs_open_lcall(struct pisces_enclave * enclave,
 
     fs_state->num_files++;
 
-    resp->status = (u64)file_ptr;
-    resp->data_len = 0;
+    vfs_resp.resp.status = (u64)file_ptr;
+    vfs_resp.resp.data_len = 0;
 
     printk("Returning from open (file_handle = %p)\n", (void *)file_ptr);
+    pisces_lcall_send_resp(enclave, (struct pisces_resp *)&vfs_resp);
 
     return 0;
 }
@@ -50,7 +52,8 @@ int enclave_vfs_close_lcall(struct pisces_enclave * enclave,
 			    struct pisces_cmd_buf * cmd_buf) {
     struct enclave_fs * fs_state = &(enclave->fs_state);
     struct vfs_close_cmd * cmd = (struct vfs_close_cmd *)&(cmd_buf->cmd);
-    struct pisces_resp * resp = &(cmd_buf->resp);
+    //struct pisces_resp * resp = &(cmd_buf->resp);
+    struct vfs_close_cmd vfs_resp;
     struct file * file_ptr = NULL;
 
     file_ptr = (struct file *)cmd->file_handle;
@@ -62,8 +65,8 @@ int enclave_vfs_close_lcall(struct pisces_enclave * enclave,
     if (!htable_search(fs_state->open_files, (uintptr_t)file_ptr)) {
 	printk("File %p does not exist\n", file_ptr);
 	// File does not exist
-	resp->status = -1;
-	resp->data_len = 0;
+	vfs_resp.resp.status = -1;
+	vfs_resp.resp.data_len = 0;
 	return 0;
     }
 
@@ -72,8 +75,10 @@ int enclave_vfs_close_lcall(struct pisces_enclave * enclave,
 
     file_close(file_ptr);
 
-    resp->status = 0;
-    resp->data_len = 0;
+    vfs_resp.resp.status = 0;
+    vfs_resp.resp.data_len = 0;
+
+    pisces_lcall_send_resp(enclave, (struct pisces_resp *)&vfs_resp);
 
     return 0;
 }
@@ -83,7 +88,8 @@ int enclave_vfs_size_lcall(struct pisces_enclave * enclave,
 			   struct pisces_cmd_buf * cmd_buf) {
     struct enclave_fs * fs_state = &(enclave->fs_state);
     struct vfs_size_cmd * cmd = (struct vfs_size_cmd *)&(cmd_buf->cmd);
-    struct pisces_resp * resp = &(cmd_buf->resp);
+    //struct pisces_resp * resp = &(cmd_buf->resp);
+    struct vfs_size_cmd vfs_resp;
     struct file * file_ptr = NULL;
 
     file_ptr = (struct file *)cmd->file_handle;
@@ -94,15 +100,16 @@ int enclave_vfs_size_lcall(struct pisces_enclave * enclave,
 	printk("File %p does not exist\n", file_ptr);
 
 	// File does not exist
-	resp->status = -1;
-	resp->data_len = 0;
+	vfs_resp.resp.status = -1;
+	vfs_resp.resp.data_len = 0;
 	return 0;
     }
 
-    resp->status = file_size(file_ptr);
+    vfs_resp.resp.status = file_size(file_ptr);
 
-    resp->data_len = 0;
+    vfs_resp.resp.data_len = 0;
 
+    pisces_lcall_send_resp(enclave, (struct pisces_resp *)&vfs_resp);
     return 0;
 
 }
@@ -113,7 +120,8 @@ int enclave_vfs_read_lcall(struct pisces_enclave * enclave,
 			   struct pisces_cmd_buf * cmd_buf) {
     struct enclave_fs * fs_state = &(enclave->fs_state);
     struct vfs_read_cmd * cmd = (struct vfs_read_cmd *)&(cmd_buf->cmd);
-    struct pisces_resp * resp = &(cmd_buf->resp);
+    //struct pisces_resp * resp = &(cmd_buf->resp);
+    struct vfs_read_cmd vfs_resp;
     struct file * file_ptr = NULL;
     u64 offset = cmd->offset;
     u64 read_len = cmd->length;
@@ -127,8 +135,8 @@ int enclave_vfs_read_lcall(struct pisces_enclave * enclave,
 	// File does not exist
 	printk("File %p does not exist\n", file_ptr);
 
-	resp->status = -1;
-	resp->data_len = 0;
+	vfs_resp.resp.status = -1;
+	vfs_resp.resp.data_len = 0;
 	return 0;
     }
 
@@ -165,9 +173,10 @@ int enclave_vfs_read_lcall(struct pisces_enclave * enclave,
     }
 
     
-    resp->status = total_bytes_read;
-    resp->data_len = 0;
+    vfs_resp.resp.status = total_bytes_read;
+    vfs_resp.resp.data_len = 0;
 
+    pisces_lcall_send_resp(enclave, (struct pisces_resp *)&vfs_resp);
     return 0;
 }
 
@@ -175,7 +184,8 @@ int enclave_vfs_write_lcall(struct pisces_enclave * enclave,
 			    struct pisces_cmd_buf * cmd_buf) {
     struct enclave_fs * fs_state = &(enclave->fs_state);
     struct vfs_write_cmd * cmd = (struct vfs_write_cmd *)&(cmd_buf->cmd);
-    struct pisces_resp * resp = &(cmd_buf->resp);
+    //struct pisces_resp * resp = &(cmd_buf->resp);
+    struct vfs_write_cmd vfs_resp;
     struct file * file_ptr = NULL;
     u64 offset = cmd->offset;
     u64 write_len = cmd->length;
@@ -189,8 +199,8 @@ int enclave_vfs_write_lcall(struct pisces_enclave * enclave,
 	// File does not exist
 	printk("File %p does not exist\n", file_ptr);
 
-	resp->status = -1;
-	resp->data_len = 0;
+	vfs_resp.resp.status = -1;
+	vfs_resp.resp.data_len = 0;
 	return 0;
     }
 
@@ -227,9 +237,10 @@ int enclave_vfs_write_lcall(struct pisces_enclave * enclave,
     }
 
     
-    resp->status = total_bytes_written;
-    resp->data_len = 0;
+    vfs_resp.resp.status = total_bytes_written;
+    vfs_resp.resp.data_len = 0;
 
+    pisces_lcall_send_resp(enclave, (struct pisces_resp *)&vfs_resp);
     return 0;
 }
 
