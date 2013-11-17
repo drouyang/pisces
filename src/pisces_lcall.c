@@ -333,7 +333,7 @@ int pisces_lcall_send_resp(struct pisces_enclave * enclave, struct pisces_resp *
             sizeof(struct pisces_cmd_buf);
 
 
-    memcpy(&(cmd_buf->resp), resp, staging_len);
+    memcpy(&(cmd_buf->resp), resp, sizeof(struct pisces_resp));
     cmd_buf->staging = 1;
 
     /* Enclave waits for completed flag */
