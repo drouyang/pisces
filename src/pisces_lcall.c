@@ -309,7 +309,7 @@ static int pisces_lcall_recv_cmd(struct pisces_enclave * enclave) {
 
         staging_len = cmd_buf->staging_len;
         memcpy(cmd->data + (uintptr_t)read,
-                cmd_buf->cmd.data + (uintptr_t)read,
+                cmd_buf->cmd.data,
                 staging_len);
     }
 
@@ -330,7 +330,6 @@ int pisces_lcall_send_resp(struct pisces_enclave * enclave, struct pisces_resp *
     u32 buf_size = boot_params->longcall_buf_size - 
             sizeof(struct pisces_cmd_buf);
 
-
     memcpy(&(cmd_buf->resp), resp, sizeof(struct pisces_resp));
     cmd_buf->staging = 1;
 
@@ -348,7 +347,7 @@ int pisces_lcall_send_resp(struct pisces_enclave * enclave, struct pisces_resp *
             staging_len = total - written;
         }
 
-        memcpy(cmd_buf->resp.data + (uintptr_t)written,
+        memcpy(cmd_buf->resp.data,
             resp->data + (uintptr_t)written,
             staging_len);
 
