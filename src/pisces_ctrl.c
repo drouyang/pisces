@@ -207,6 +207,22 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 	    }
 	case ENCLAVE_IOCTL_LAUNCH_VM: 
 	    {
+		struct cmd_launch_vm cmd;
+
+		memset(&cmd, 0, sizeof(struct cmd_launch_vm));
+
+		cmd.hdr.cmd = ENCLAVE_CMD_LAUNCH_VM;
+		cmd.hdr.data_len = (sizeof(struct cmd_launch_vm) - sizeof(struct pisces_cmd));
+
+		cmd.vm_id = arg;
+
+
+		ret = send_cmd(enclave, (struct pisces_cmd *)&cmd);
+
+		if (ret != 0) {
+		    printk("Error Launch VM %d\n", cmd.vm_id);
+		    return -1;
+		}
 
 		break;
 	    }

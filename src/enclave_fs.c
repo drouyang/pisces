@@ -129,7 +129,7 @@ int enclave_vfs_read_lcall(struct pisces_enclave * enclave,
     u32 i = 0;
 
     file_ptr = (struct file *)cmd->file_handle;
-    printk("reading file %p\n", file_ptr);
+    printk("FS: Reading file %p\n", file_ptr);
     
     if (!htable_search(fs_state->open_files, (uintptr_t)file_ptr)) {
 	// File does not exist

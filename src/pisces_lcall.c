@@ -196,41 +196,42 @@ static int lcall_kern_thread(void * arg) {
  
 
     while (1) {
-    //  printk("LCALL Kernel thread going to sleep on cmd buf\n");
 
-    wait_event_interruptible(lcall_state->kern_waitq, 
-                 ((cmd_buf->active == 1) && 
-                  (cmd_buf->in_progress == 0)));
+	//  printk("LCALL Kernel thread going to sleep on cmd buf\n");
+
+	wait_event_interruptible(lcall_state->kern_waitq, 
+				 ((cmd_buf->active == 1) && 
+				  (cmd_buf->in_progress == 0)));
     
     
-    printk("kernel thread is awake\n");
+	printk("kernel thread is awake\n");
 
-    cmd_buf->in_progress = 1;
+	cmd_buf->in_progress = 1;
     
-    switch (cmd->cmd) {
-        case PISCES_LCALL_VFS_READ:
-        enclave_vfs_read_lcall(enclave, cmd_buf);
-        break;
-        case PISCES_LCALL_VFS_WRITE:
-        enclave_vfs_write_lcall(enclave, cmd_buf);
-        break;
-        case PISCES_LCALL_VFS_OPEN: 
-        enclave_vfs_open_lcall(enclave, cmd_buf);
-        break;
-        case PISCES_LCALL_VFS_CLOSE:
-        enclave_vfs_close_lcall(enclave, cmd_buf);
-        break;
-        case PISCES_LCALL_VFS_SIZE:
-        enclave_vfs_size_lcall(enclave, cmd_buf);
-        break;
+	switch (cmd->cmd) {
+	    case PISCES_LCALL_VFS_READ:
+		enclave_vfs_read_lcall(enclave, cmd_buf);
+		break;
+	    case PISCES_LCALL_VFS_WRITE:
+		enclave_vfs_write_lcall(enclave, cmd_buf);
+		break;
+	    case PISCES_LCALL_VFS_OPEN: 
+		enclave_vfs_open_lcall(enclave, cmd_buf);
+		break;
+	    case PISCES_LCALL_VFS_CLOSE:
+		enclave_vfs_close_lcall(enclave, cmd_buf);
+		break;
+	    case PISCES_LCALL_VFS_SIZE:
+		enclave_vfs_size_lcall(enclave, cmd_buf);
+		break;
 
-        case PISCES_LCALL_VFS_READDIR:
-        default:
-        printk(KERN_ERR "Enclave requested unimplemented LCLAL %llu\n", cmd->cmd);
-        resp->status = -1;
-        resp->data_len = 0;
-        break;
-    }
+	    case PISCES_LCALL_VFS_READDIR:
+	    default:
+		printk(KERN_ERR "Enclave requested unimplemented LCLAL %llu\n", cmd->cmd);
+		resp->status = -1;
+		resp->data_len = 0;
+		break;
+	}
 
     }
 

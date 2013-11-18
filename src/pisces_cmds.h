@@ -116,6 +116,12 @@ struct cmd_create_vm {
 } __attribute__((packed));
 
 
+struct cmd_launch_vm {
+    struct pisces_cmd hdr;
+    u32 vm_id;
+} __attribute__((packed));
+
+
 #endif
 
 /* ** */
