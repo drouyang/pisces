@@ -11,6 +11,7 @@
 
 /* Pisces global cmds */
 #define PISCES_LOAD_IMAGE               1001
+#define PISCES_ASSIGN_DEVICE            1002
 
 /* Pisces enclave cmds */
 #define PISCES_ENCLAVE_LAUNCH           2000
@@ -32,6 +33,16 @@ struct pisces_image {
     char kern_path[1024];
     char initrd_path[1024];
     char cmd_line[1024];
+} __attribute__((packed));
+
+
+/* bdf: <bus, dev, func> */
+struct pisces_host_pci_bdf {
+    char name[128];
+    unsigned int domain;
+    unsigned int bus;
+    unsigned int dev;
+    unsigned int func;
 } __attribute__((packed));
 
 

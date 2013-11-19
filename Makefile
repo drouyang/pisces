@@ -1,6 +1,6 @@
-#KERN_PATH=../linux-3.11.7/
+KERN_PATH=../linux-3.11.7/
 #KERN_PATH=../linux-3.7.1/
-KERN_PATH=/home/jarusl/linux-3.11.7-200.fc19.x86_64
+#KERN_PATH=/home/jarusl/linux-3.11.7-200.fc19.x86_64
 
 obj-m += pisces.o
 
@@ -20,7 +20,8 @@ pisces-objs :=  src/main.o \
 		src/linux_syms.o \
 		src/launch_code.o \
 		src/pgtables.o \
-		src/util-hashtable.o
+		src/util-hashtable.o \
+		src/pisces_pci.o \
 
 all:
 	make -C $(KERN_PATH) M=$(PWD) modules

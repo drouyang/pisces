@@ -17,6 +17,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/version.h>
+#include <linux/pci.h>
 
 #include "pisces.h"      /* device file ioctls*/
 #include "linux_syms.h"
@@ -25,6 +26,7 @@
 #include "ipi.h"
 #include "boot.h"
 #include "pisces_boot_params.h"
+#include "pisces_pci.h"
 
 int pisces_major_num = 0;
 struct class * pisces_class = NULL;
@@ -101,6 +103,17 @@ static long device_ioctl(struct file * file, unsigned int ioctl,
             return enclave_idx;
             break;
         }
+
+        case PISCES_ASSIGN_DEVICE: {
+            struct pisces_host_pci_bdf bdf;
+
+            if (copy_from_user(&bdf, argp, sizeof(struct pisces_host_pci_bdf))) {
+                printk(KERN_ERR "Error copying host device from user space\n");
+                return -EFAULT;
+            }
+
+            return pisces_assign_device(&bdf);
+       }
 
 
         default:
