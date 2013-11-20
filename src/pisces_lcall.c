@@ -19,11 +19,9 @@
 #include "pisces_cmds.h"
 #include "ipi.h"
 #include "util-hashtable.h"
-
-
+#include "pisces_data.h"
 #include "enclave_fs.h"
 
-static int pisces_lcall_recv_cmd(struct pisces_enclave * enclave);
 
 static ssize_t
 lcall_read(struct file * filp, char __user * buffer, size_t length, loff_t * offset ) {
@@ -127,12 +125,14 @@ static int handle_critical_lcall(struct pisces_enclave * enclave,
                 u32 lcall_id, 
                 struct pisces_cmd_buf * cmd_buf) {
      
-    struct pisces_resp * resp = &(cmd_buf->resp);
+    struct pisces_resp resp;
 
     switch (lcall_id) {
     default:
-        resp->status = -1;
-        resp->data_len = 0;
+        resp.status = -1;
+        resp.data_len = 0;
+
+        pisces_send_resp(enclave, &resp);
         return -1;
     }
 
@@ -149,13 +149,13 @@ static void lcall_kick(void * private_data) {
     /* Make sure it's ours. NOTE: with the new staging semantics, active is not
      * true when the IPI is sent, but rather staging is true */
     //if (cmd_buf->active != 1 || cmd_buf->in_progress != 0)
-    if (cmd_buf->staging != 1 || cmd_buf->in_progress != 0) {
+    if (cmd_buf->staging != 1) {
         return;
     }
 
-    printk("LCALL is kicked\n");
+    printk("LCALL is kicked (cmd: %llu)\n", cmd_buf->cmd.cmd);
 
-    if (pisces_lcall_recv_cmd(enclave) != 0) {
+    if (pisces_recv_cmd(enclave, &(lcall_state->cmd)) != 0) {
         printk(KERN_ERR "Error receiving Longcall command\n");
         return;
     }
@@ -165,20 +165,11 @@ static void lcall_kick(void * private_data) {
     if ((cmd->cmd >= CRIT_LCALL_START) && 
         (cmd->cmd < KERN_LCALL_START)) {
         // Call the handler from the IRQ handler
-        cmd_buf->in_progress = 1;
-
         handle_critical_lcall(enclave, cmd->cmd, cmd_buf);
-
-        cmd_buf->completed = 1;
     } else if ((cmd->cmd >= KERN_LCALL_START) && 
            (cmd->cmd < USER_LCALL_START)) {
 
-        printk("active = %d, in_progress = %d\n", 
-               cmd_buf->active, cmd_buf->in_progress);
-
         printk("Waking up kernel thread\n");
-
-
         wake_up_interruptible(&(lcall_state->kern_waitq));
     } else {
         wake_up_interruptible(&(lcall_state->user_waitq));
@@ -191,8 +182,10 @@ static int lcall_kern_thread(void * arg) {
     struct pisces_enclave * enclave = arg;
     struct pisces_lcall * lcall_state = &(enclave->lcall);
     struct pisces_cmd_buf * cmd_buf = lcall_state->cmd_buf;
-    struct pisces_cmd * cmd = &(cmd_buf->cmd);
-    struct pisces_resp * resp = &(cmd_buf->resp);
+    //struct pisces_cmd * cmd = &(cmd_buf->cmd);
+    //struct pisces_resp * resp = &(cmd_buf->resp);
+    struct pisces_cmd * cmd = NULL;
+    struct pisces_resp resp;
  
 
     while (1) {
@@ -200,36 +193,41 @@ static int lcall_kern_thread(void * arg) {
 	//  printk("LCALL Kernel thread going to sleep on cmd buf\n");
 
 	wait_event_interruptible(lcall_state->kern_waitq, 
-				 ((cmd_buf->active == 1) && 
-				  (cmd_buf->in_progress == 0)));
+         (cmd_buf->active == 1));
+
     
     
 	printk("kernel thread is awake\n");
 
-	cmd_buf->in_progress = 1;
+    cmd = lcall_state->cmd;
     
 	switch (cmd->cmd) {
 	    case PISCES_LCALL_VFS_READ:
-		enclave_vfs_read_lcall(enclave, cmd_buf);
+		enclave_vfs_read_lcall(enclave, cmd);
 		break;
 	    case PISCES_LCALL_VFS_WRITE:
-		enclave_vfs_write_lcall(enclave, cmd_buf);
+		enclave_vfs_write_lcall(enclave, cmd);
 		break;
 	    case PISCES_LCALL_VFS_OPEN: 
-		enclave_vfs_open_lcall(enclave, cmd_buf);
+		enclave_vfs_open_lcall(enclave, cmd);
 		break;
 	    case PISCES_LCALL_VFS_CLOSE:
-		enclave_vfs_close_lcall(enclave, cmd_buf);
+		enclave_vfs_close_lcall(enclave, cmd);
 		break;
 	    case PISCES_LCALL_VFS_SIZE:
-		enclave_vfs_size_lcall(enclave, cmd_buf);
+		enclave_vfs_size_lcall(enclave, cmd);
 		break;
+
+        case PISCES_LCALL_XPMEM_ATTACH:
+            pisces_portals_xpmem_attach(enclave, cmd);
+            break;
 
 	    case PISCES_LCALL_VFS_READDIR:
 	    default:
-		printk(KERN_ERR "Enclave requested unimplemented LCLAL %llu\n", cmd->cmd);
-		resp->status = -1;
-		resp->data_len = 0;
+		printk(KERN_ERR "Enclave requested unimplemented LCALL %llu\n", cmd->cmd);
+		resp.status = -1;
+		resp.data_len = 0;
+        pisces_send_resp(enclave, &resp);
 		break;
 	}
 
@@ -278,83 +276,6 @@ pisces_lcall_init( struct pisces_enclave * enclave) {
     lcall_state->cmd_buf->host_apic = 0; // this should be dynamic, but we know that 0 will always be there
 
 
-
-    return 0;
-}
-
-
-static int pisces_lcall_recv_cmd(struct pisces_enclave * enclave) {
-    struct pisces_lcall * lcall_state = &(enclave->lcall);
-    struct pisces_cmd_buf * cmd_buf = lcall_state->cmd_buf;
-    struct pisces_cmd * cmd = NULL;
-
-    u32 read = 0;
-    u32 total = 0;
-    u32 staging_len = 0;
-
-    total = cmd_buf->cmd.data_len;
-    cmd = kmalloc(sizeof(struct pisces_cmd) + total, GFP_KERNEL);
-    if (!cmd) {
-        printk(KERN_ERR "Cannot allocate buffer for longcall command!\n");
-        return -ENOMEM;
-    }
-
-    memcpy(cmd, &(cmd_buf->cmd), sizeof(struct pisces_cmd));
- 
-    for (read = 0; read < total; read += staging_len) {
-        /* Always wait for next stage */
-        cmd_buf->staging = 0;
-        while (cmd_buf->staging == 0) {
-            __asm__ __volatile__ ("":::"memory");
-        }
-
-        staging_len = cmd_buf->staging_len;
-        memcpy(cmd->data + (uintptr_t)read,
-                cmd_buf->cmd.data,
-                staging_len);
-    }
-
-    lcall_state->cmd = cmd;
-    cmd_buf->active = 1;
-    
-    return 0;
-}
-
-int pisces_lcall_send_resp(struct pisces_enclave * enclave, struct pisces_resp * resp) {
-    struct pisces_lcall * lcall_state = &(enclave->lcall);
-    struct pisces_cmd_buf * cmd_buf = lcall_state->cmd_buf;
-    struct pisces_boot_params * boot_params = __va(enclave->bootmem_addr_pa);
-
-    u32 written =  0;  
-    u32 total = resp->data_len;
-    u32 staging_len = 0;
-    u32 buf_size = boot_params->longcall_buf_size - 
-            sizeof(struct pisces_cmd_buf);
-
-    memcpy(&(cmd_buf->resp), resp, sizeof(struct pisces_resp));
-    cmd_buf->staging = 1;
-
-    /* Enclave waits for completed flag */
-    cmd_buf->completed = 1;
-
-    /* Copy the data into the cmd_buf response a stage at a time */
-    for (written = 0; written < total; written += staging_len) {
-        while (cmd_buf->staging == 1) {
-            __asm__ __volatile__ ("":::"memory");
-        }
-
-        staging_len = buf_size;
-        if (staging_len > total - written) {
-            staging_len = total - written;
-        }
-
-        memcpy(cmd_buf->resp.data,
-            resp->data + (uintptr_t)written,
-            staging_len);
-
-        cmd_buf->staging_len = staging_len;
-        cmd_buf->staging = 1;
-    }   
 
     return 0;
 }

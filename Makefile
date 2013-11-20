@@ -10,6 +10,7 @@ pisces-objs :=  src/main.o \
 		src/pisces_ctrl.o \
 		src/pisces_portals.o \
 		src/pisces_lcall.o \
+		src/pisces_data.o \
 		src/enclave_fs.o \
 		src/wakeup_secondary.o \
 		src/ipi.o \
@@ -22,6 +23,7 @@ pisces-objs :=  src/main.o \
 		src/pgtables.o \
 		src/util-hashtable.o \
 		src/pisces_pci.o \
+		src/pagemap.o
 
 all:
 	make -C $(KERN_PATH) M=$(PWD) modules

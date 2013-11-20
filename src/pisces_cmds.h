@@ -31,7 +31,6 @@ struct pisces_cmd_buf {
         struct {
             u8 ready          : 1;   // Flag set by server OS, after channel is init'd
             u8 active         : 1;   // Set when a command has been activated (initiated)
-            u8 in_progress    : 1;   // Set when a command has been received, and is in progress
             u8 completed      : 1;   // Set by server OS when command has been handled
             u8 staging        : 1;   // Set when partial data is sent
             u32 rsvd          : 27;
@@ -68,15 +67,13 @@ struct pisces_cmd_buf {
 #define ENCLAVE_IOCTL_CREATE_VM 120
 #define ENCLAVE_IOCTL_LAUNCH_VM 121
 
+#define ENCLAVE_IOCTL_XPMEM_MAKE    130
+#define ENCLAVE_IOCTL_XPMEM_GET     131
+#define ENCLAVE_IOCTL_XPMEM_ATTACH  132
+
 struct memory_range {
     u64 base_addr;
     u64 pages;
-} __attribute__((packed));
-
-#define PORTALS_SEND_PPE_CMD 200
-struct portals_ppe_msg {
-    u64 msg_length;
-    void *msg;
 } __attribute__((packed));
 
 struct vm_path {
@@ -89,12 +86,6 @@ struct vm_path {
 
 /* Kernel Space command Structures */
 #ifdef __KERNEL__
-
-#define ENCLAVE_CMD_ADD_CPU      100
-#define ENCLAVE_CMD_ADD_MEM      101
-#define ENCLAVE_CMD_TEST_LCALL   102
-#define ENCLAVE_CMD_CREATE_VM    120
-#define ENCLAVE_CMD_LAUNCH_VM    121
 
 struct cmd_cpu_add {
     struct pisces_cmd hdr;
@@ -130,18 +121,29 @@ struct cmd_launch_vm {
 /* 
  * Enclave -> Linux Command Structures
  */
-#define IOCTL_PPE_XPMEM_LOCAL_ADDR  201
-#define IOCTL_PPE_XPMEM_REMOTE_ADDR 202
 
-struct xpmem_address {
-    int64_t apid;
-    off_t offset;
+/* Command types */
+struct pisces_xpmem_make {
+    uint64_t vaddr;
+    uint32_t size;
+    int32_t permit_type;
+    uint64_t permit_value;
+    int64_t segid;          /* Input + output parameter */
 } __attribute__((packed));
 
-struct portals_xpmem_addr {
-    struct xpmem_address addr;
-    u64 vaddr;
-    size_t size;
+struct pisces_xpmem_get {
+    int64_t segid;
+    int32_t flags;
+    int32_t permit_type;
+    uint64_t permit_value;
+    int64_t apid;           /* Output parameter */
+} __attribute__((packed));
+
+struct pisces_xpmem_attach {
+    int64_t apid;
+    uint32_t offset;
+    uint32_t size;
+    int32_t map_fd;         /* Output parameter */
 } __attribute__((packed));
 
 

@@ -75,10 +75,10 @@ struct enclave_fs {
 
 int init_enclave_fs(struct pisces_enclave * enclave);
 
-int enclave_vfs_read_lcall(struct pisces_enclave * enclave, struct pisces_cmd_buf * cmd_buf);
-int enclave_vfs_write_lcall(struct pisces_enclave * enclave, struct pisces_cmd_buf * cmd_buf);
-int enclave_vfs_open_lcall(struct pisces_enclave * enclave, struct pisces_cmd_buf * cmd_buf);
-int enclave_vfs_close_lcall(struct pisces_enclave * enclave, struct pisces_cmd_buf * cmd_buf);
-int enclave_vfs_size_lcall(struct pisces_enclave * enclave, struct pisces_cmd_buf * cmd_buf);
+int enclave_vfs_read_lcall(struct pisces_enclave * enclave, struct pisces_cmd * cmd);
+int enclave_vfs_write_lcall(struct pisces_enclave * enclave, struct pisces_cmd * cmd);
+int enclave_vfs_open_lcall(struct pisces_enclave * enclave, struct pisces_cmd * cmd);
+int enclave_vfs_close_lcall(struct pisces_enclave * enclave, struct pisces_cmd * cmd);
+int enclave_vfs_size_lcall(struct pisces_enclave * enclave, struct pisces_cmd * cmd);
 
 #endif

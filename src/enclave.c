@@ -282,8 +282,7 @@ int pisces_enclave_create(struct pisces_image * img) {
     INIT_LIST_HEAD(&(enclave->memdesc_list));
 
     init_enclave_fs(enclave);
-    
-
+    pisces_portals_init(enclave);
 
     enclave->dev = MKDEV(pisces_major_num, enclave_idx);
     enclave->memdesc_num = 0;

@@ -3,6 +3,7 @@
 #include "file_io.h"
 #include "pisces_cmds.h"
 #include "enclave.h"
+#include "pisces_data.h"
 
 
 static u32 file_hash_fn(uintptr_t key) {
@@ -15,10 +16,11 @@ static int file_eq_fn(uintptr_t key1, uintptr_t key2) {
 
 
 int enclave_vfs_open_lcall(struct pisces_enclave * enclave, 
-			   struct pisces_cmd_buf * cmd_buf) {
+			   struct pisces_cmd * pisces_cmd) {
     struct enclave_fs * fs_state = &(enclave->fs_state);
-    struct vfs_open_cmd * cmd = (struct vfs_open_cmd *)&(cmd_buf->cmd);
+    //struct vfs_open_cmd * cmd = (struct vfs_open_cmd *)&(cmd_buf->cmd);
     //struct pisces_resp * resp = &(cmd_buf->resp);
+    struct vfs_open_cmd * cmd = (struct vfs_open_cmd *)pisces_cmd;
     struct vfs_open_cmd vfs_resp;
     struct file * file_ptr = NULL;
 
@@ -42,17 +44,18 @@ int enclave_vfs_open_lcall(struct pisces_enclave * enclave,
     vfs_resp.resp.data_len = 0;
 
     printk("Returning from open (file_handle = %p)\n", (void *)file_ptr);
-    pisces_lcall_send_resp(enclave, (struct pisces_resp *)&vfs_resp);
+    pisces_send_resp(enclave, (struct pisces_resp *)&vfs_resp);
 
     return 0;
 }
 
 
 int enclave_vfs_close_lcall(struct pisces_enclave * enclave, 
-			    struct pisces_cmd_buf * cmd_buf) {
+			    struct pisces_cmd * pisces_cmd) {
     struct enclave_fs * fs_state = &(enclave->fs_state);
-    struct vfs_close_cmd * cmd = (struct vfs_close_cmd *)&(cmd_buf->cmd);
+    //struct vfs_close_cmd * cmd = (struct vfs_close_cmd *)&(cmd_buf->cmd);
     //struct pisces_resp * resp = &(cmd_buf->resp);
+    struct vfs_close_cmd * cmd = (struct vfs_close_cmd *)pisces_cmd;
     struct vfs_close_cmd vfs_resp;
     struct file * file_ptr = NULL;
 
@@ -78,17 +81,18 @@ int enclave_vfs_close_lcall(struct pisces_enclave * enclave,
     vfs_resp.resp.status = 0;
     vfs_resp.resp.data_len = 0;
 
-    pisces_lcall_send_resp(enclave, (struct pisces_resp *)&vfs_resp);
+    pisces_send_resp(enclave, (struct pisces_resp *)&vfs_resp);
 
     return 0;
 }
 
 
 int enclave_vfs_size_lcall(struct pisces_enclave * enclave, 
-			   struct pisces_cmd_buf * cmd_buf) {
+			   struct pisces_cmd * pisces_cmd) {
     struct enclave_fs * fs_state = &(enclave->fs_state);
-    struct vfs_size_cmd * cmd = (struct vfs_size_cmd *)&(cmd_buf->cmd);
+    //struct vfs_size_cmd * cmd = (struct vfs_size_cmd *)&(cmd_buf->cmd);
     //struct pisces_resp * resp = &(cmd_buf->resp);
+    struct vfs_size_cmd * cmd = (struct vfs_size_cmd *)pisces_cmd;
     struct vfs_size_cmd vfs_resp;
     struct file * file_ptr = NULL;
 
@@ -109,7 +113,7 @@ int enclave_vfs_size_lcall(struct pisces_enclave * enclave,
 
     vfs_resp.resp.data_len = 0;
 
-    pisces_lcall_send_resp(enclave, (struct pisces_resp *)&vfs_resp);
+    pisces_send_resp(enclave, (struct pisces_resp *)&vfs_resp);
     return 0;
 
 }
@@ -117,10 +121,11 @@ int enclave_vfs_size_lcall(struct pisces_enclave * enclave,
 
 
 int enclave_vfs_read_lcall(struct pisces_enclave * enclave, 
-			   struct pisces_cmd_buf * cmd_buf) {
+			   struct pisces_cmd * pisces_cmd) {
     struct enclave_fs * fs_state = &(enclave->fs_state);
-    struct vfs_read_cmd * cmd = (struct vfs_read_cmd *)&(cmd_buf->cmd);
+    //struct vfs_read_cmd * cmd = (struct vfs_read_cmd *)&(cmd_buf->cmd);
     //struct pisces_resp * resp = &(cmd_buf->resp);
+    struct vfs_read_cmd * cmd = (struct vfs_read_cmd *)pisces_cmd;
     struct vfs_read_cmd vfs_resp;
     struct file * file_ptr = NULL;
     u64 offset = cmd->offset;
@@ -176,15 +181,16 @@ int enclave_vfs_read_lcall(struct pisces_enclave * enclave,
     vfs_resp.resp.status = total_bytes_read;
     vfs_resp.resp.data_len = 0;
 
-    pisces_lcall_send_resp(enclave, (struct pisces_resp *)&vfs_resp);
+    pisces_send_resp(enclave, (struct pisces_resp *)&vfs_resp);
     return 0;
 }
 
 int enclave_vfs_write_lcall(struct pisces_enclave * enclave, 
-			    struct pisces_cmd_buf * cmd_buf) {
+			    struct pisces_cmd * pisces_cmd) {
     struct enclave_fs * fs_state = &(enclave->fs_state);
-    struct vfs_write_cmd * cmd = (struct vfs_write_cmd *)&(cmd_buf->cmd);
+    //struct vfs_write_cmd * cmd = (struct vfs_write_cmd *)&(cmd_buf->cmd);
     //struct pisces_resp * resp = &(cmd_buf->resp);
+    struct vfs_write_cmd * cmd = (struct vfs_write_cmd *)pisces_cmd;
     struct vfs_write_cmd vfs_resp;
     struct file * file_ptr = NULL;
     u64 offset = cmd->offset;
@@ -240,7 +246,7 @@ int enclave_vfs_write_lcall(struct pisces_enclave * enclave,
     vfs_resp.resp.status = total_bytes_written;
     vfs_resp.resp.data_len = 0;
 
-    pisces_lcall_send_resp(enclave, (struct pisces_resp *)&vfs_resp);
+    pisces_send_resp(enclave, (struct pisces_resp *)&vfs_resp);
     return 0;
 }
 
