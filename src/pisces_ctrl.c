@@ -3,6 +3,9 @@
 #include <linux/anon_inodes.h>
 #include <linux/uaccess.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
+
+
 #include "pisces.h"
 #include "pisces_boot_params.h"
 #include "pisces_ctrl.h"
@@ -10,43 +13,36 @@
 #include "enclave.h"
 #include "boot.h"
 #include "pisces_cmds.h"
+#include "pisces_data.h"
 
 
-static int send_cmd(struct pisces_enclave * enclave, struct pisces_cmd * cmd) {
+static int send_cmd(struct pisces_enclave * enclave, struct pisces_cmd * cmd,
+            struct pisces_resp ** resp_p) {
     struct pisces_ctrl * ctrl = &(enclave->ctrl);
     struct pisces_cmd_buf * cmd_buf = ctrl->cmd_buf;
-    int ret = 0;
+    struct pisces_resp * resp = NULL;
 
-
-    if (cmd_buf->active) {
-        printk(KERN_ERR "CMD is active. This should be impossible.\n");
+    if (pisces_send_cmd(enclave, cmd) != 0) {
+        printk(KERN_ERR "Failed to send control command to enclave OS\n");
         return -1;
     }
-
-    memcpy(&(cmd_buf->cmd), cmd, sizeof(struct pisces_cmd));
-    memcpy(cmd_buf->cmd.data, cmd->data, cmd->data_len);
-
-    // signal that the command is active
-    cmd_buf->active = 1;
-    cmd_buf->completed = 0;
-    cmd_buf->in_progress = 0;
-
-    printk("Sending IPI to Enclave cpu %d\n", cmd_buf->enclave_cpu);
-
-    pisces_send_ipi(enclave, cmd_buf->enclave_cpu, cmd_buf->enclave_vector);
 
     while (cmd_buf->completed == 0) {
         schedule();
     }
 
+    if (pisces_recv_resp(enclave, &resp) != 0) {
+        printk(KERN_ERR "Failed to receive control command response from enclave OS\n");
+        if (resp) {
+            kfree(resp);
+        }
+        return -1;
+    }
+
     // read response
-    ret = cmd_buf->resp.status;
-
-
-    return ret;
+    *resp_p = resp;
+    return 0;
 }
-
-
 
 
 
@@ -55,7 +51,6 @@ static ssize_t
 ctrl_read(struct file * filp, char __user * buffer, size_t length, loff_t * offset ) {
     struct pisces_enclave * enclave = filp->private_data;
     struct pisces_ctrl * ctrl = &(enclave->ctrl);
-    struct pisces_cmd_buf * cmd_buf = ctrl->cmd_buf;
     unsigned long flags;
     int ret = 0;
 
@@ -63,10 +58,6 @@ ctrl_read(struct file * filp, char __user * buffer, size_t length, loff_t * offs
 
 
     // read potential resp data
-
-    cmd_buf->completed = 0;
-    cmd_buf->in_progress = 0;
-    cmd_buf->active = 0;
 
     spin_unlock_irqrestore(&ctrl->lock, flags);
 
@@ -85,8 +76,7 @@ static ssize_t ctrl_write(struct file * filp, const char __user * buffer, size_t
 // Allow high level control commands over ioctl
 static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg) {
     struct pisces_enclave * enclave = filp->private_data;
-    struct pisces_ctrl * ctrl = &(enclave->ctrl);
-    struct pisces_cmd_buf * cmd_buf = ctrl->cmd_buf;
+    struct pisces_resp * resp = NULL;
     void __user * argp = (void __user *)arg;
     int ret = 0;
 
@@ -96,37 +86,37 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
                 struct cmd_cpu_add  cmd;
                 u64 cpu_id = (u64)arg;
 
-		memset(&cmd, 0, sizeof(struct cmd_cpu_add));
+                memset(&cmd, 0, sizeof(struct cmd_cpu_add));
 
-		if (pisces_enclave_add_cpu(enclave, cpu_id) != 0) {
-		    printk(KERN_ERR "Error adding CPU to enclave %d\n", enclave->id);
-		    return -1;
-		}
+                if (pisces_enclave_add_cpu(enclave, cpu_id) != 0) {
+                    printk(KERN_ERR "Error adding CPU to enclave %d\n", enclave->id);
+                    return -1;
+                }
 
                 cmd.hdr.cmd = ENCLAVE_CMD_ADD_CPU;
                 cmd.hdr.data_len = (sizeof(struct cmd_cpu_add) - sizeof(struct pisces_cmd));
                 cmd.phys_cpu_id = cpu_id;
-		cmd.apic_id = apic->cpu_present_to_apicid(cpu_id);
+                cmd.apic_id = apic->cpu_present_to_apicid(cpu_id);
 
 
-		printk("Adding CPU %llu\n", cpu_id);
+                printk("Adding CPU %llu\n", cpu_id);
 
                 /* Setup Linux trampoline to jump to enclave trampoline */
                 trampoline_lock();
                 set_linux_trampoline(enclave);
 
-		printk("Sending Command\n");
+                printk("Sending Command\n");
 
-                ret = send_cmd(enclave, (struct pisces_cmd *)&cmd);
+                ret = send_cmd(enclave, (struct pisces_cmd *)&cmd, &resp);
                 restore_linux_trampoline(enclave);
                 trampoline_unlock();
 
-		printk("\tDone\n");
+                printk("\tDone\n");
 
-		if (ret != 0) {
-		    // remove CPU from enclave
-		    return -1;
-		}
+                if (ret != 0) {
+                    // remove CPU from enclave
+                    return -1;
+                }
 
                 break;
             }
@@ -147,94 +137,89 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
                     return -EFAULT;
                 }
 
-		if (pisces_enclave_add_mem(enclave, reg.base_addr, reg.pages) != 0) {
-		    printk(KERN_ERR "Error adding memory descriptor to enclave %d\n", enclave->id);
-		    return -1;
-		}
+                if (pisces_enclave_add_mem(enclave, reg.base_addr, reg.pages) != 0) {
+                    printk(KERN_ERR "Error adding memory descriptor to enclave %d\n", enclave->id);
+                    return -1;
+                }
 
                 cmd.phys_addr = reg.base_addr;
                 cmd.size = reg.pages * PAGE_SIZE_4KB;
 
-                ret = send_cmd(enclave, (struct pisces_cmd *)&cmd);
+                ret = send_cmd(enclave, (struct pisces_cmd *)&cmd, &resp);
 
-		if (ret != 0) {
-		    printk(KERN_ERR "Error adding memory to enclave %d\n", enclave->id);
-		    // remove memory from enclave
-		    return -1;
-		}
+                if (ret != 0) {
+                    printk(KERN_ERR "Error adding memory to enclave %d\n", enclave->id);
+                    // remove memory from enclave
+                    return -1;
+                }
 
 
                 break;
             }
 
-	case ENCLAVE_IOCTL_TEST_LCALL:
-	    {
-		struct pisces_cmd cmd;
+        case ENCLAVE_IOCTL_TEST_LCALL:
+            {
+                struct pisces_cmd cmd;
 
-		memset(&cmd, 0, sizeof(struct pisces_cmd));
+                memset(&cmd, 0, sizeof(struct pisces_cmd));
 
-		cmd.cmd = ENCLAVE_CMD_TEST_LCALL;
-		cmd.data_len = 0;
+                cmd.cmd = ENCLAVE_CMD_TEST_LCALL;
+                cmd.data_len = 0;
 
-		ret = send_cmd(enclave, &cmd);
+                ret = send_cmd(enclave, &cmd, &resp);
 
-		printk("Sent LCALL test CMD\n");
-		break;
-	    }
-	case ENCLAVE_IOCTL_CREATE_VM:
-	    {
-		struct cmd_create_vm cmd;
+                printk("Sent LCALL test CMD\n");
+                break;
+            }
+        case ENCLAVE_IOCTL_CREATE_VM:
+            {
+                struct cmd_create_vm cmd;
 
-		memset(&cmd, 0, sizeof(struct cmd_create_vm));
+                memset(&cmd, 0, sizeof(struct cmd_create_vm));
 
-		cmd.hdr.cmd = ENCLAVE_CMD_CREATE_VM;
-		cmd.hdr.data_len = (sizeof(struct cmd_create_vm) - sizeof(struct pisces_cmd));
+                cmd.hdr.cmd = ENCLAVE_CMD_CREATE_VM;
+                cmd.hdr.data_len = (sizeof(struct cmd_create_vm) - sizeof(struct pisces_cmd));
 
+                if (copy_from_user(&(cmd.path), argp, sizeof(struct vm_path))) {
+                    printk(KERN_ERR "Could not copy vm path from user space\n");
+                    return -EFAULT;
+                }
 
-		if (copy_from_user(&(cmd.path), argp, sizeof(struct vm_path))) {
-		    printk(KERN_ERR "Could not copy vm path from user space\n");
-		    return -EFAULT;
-		}
+                ret = send_cmd(enclave, (struct pisces_cmd *)&cmd, &resp);
 
-		ret = send_cmd(enclave, (struct pisces_cmd *)&cmd);
+                if (ret != 0) {
+                    printk("Error creating VM %s (%s)\n", cmd.path.vm_name, cmd.path.file_name);
+                    return -1;
+                }
 
-		if (ret != 0) {
-		    printk("Error creating VM %s (%s)\n", cmd.path.vm_name, cmd.path.file_name);
-		    return -1;
-		}
+                break;
+            }
+        case ENCLAVE_IOCTL_LAUNCH_VM: 
+            {
+                struct cmd_launch_vm cmd;
 
-		break;
-	    }
-	case ENCLAVE_IOCTL_LAUNCH_VM: 
-	    {
-		struct cmd_launch_vm cmd;
+                memset(&cmd, 0, sizeof(struct cmd_launch_vm));
 
-		memset(&cmd, 0, sizeof(struct cmd_launch_vm));
+                cmd.hdr.cmd = ENCLAVE_CMD_LAUNCH_VM;
+                cmd.hdr.data_len = (sizeof(struct cmd_launch_vm) - sizeof(struct pisces_cmd));
 
-		cmd.hdr.cmd = ENCLAVE_CMD_LAUNCH_VM;
-		cmd.hdr.data_len = (sizeof(struct cmd_launch_vm) - sizeof(struct pisces_cmd));
-
-		cmd.vm_id = arg;
-
-
-		ret = send_cmd(enclave, (struct pisces_cmd *)&cmd);
-
-		if (ret != 0) {
-		    printk("Error Launch VM %d\n", cmd.vm_id);
-		    return -1;
-		}
-
-		break;
-	    }
-
-    }
+                cmd.vm_id = arg;
 
 
-    cmd_buf->completed = 0;
-    cmd_buf->in_progress = 0;
-    cmd_buf->active = 0;
+                ret = send_cmd(enclave, (struct pisces_cmd *)&cmd, &resp);
 
+                if (ret != 0) {
+                    printk("Error Launch VM %d\n", cmd.vm_id);
+                    return -1;
+                }
 
+                break;
+            }
+
+        }
+
+    /* If we get here, send_cmd did not fail - we need to free the response */
+    kfree(resp);
     return 0;
 }
 

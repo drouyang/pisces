@@ -9,6 +9,29 @@
 #include "pisces.h"
 #include "pisces_cmds.h"
 
+
+
+#define CRIT_CTRL_START 0
+#define KERN_CTRL_START 10000
+#define USER_CTRL_START 20000
+
+/* CRITICAL/ATOMIC CTRL COMMANDS */
+
+
+/* KERNEL CTRL COMMANDS */
+#define ENCLAVE_CMD_XPMEM_ATTACH    (KERN_CTRL_START + 0)
+
+
+/* USER CTRL COMMANDS */
+#define ENCLAVE_CMD_ADD_CPU         (USER_CTRL_START + 0)
+#define ENCLAVE_CMD_ADD_MEM         (USER_CTRL_START + 1)
+#define ENCLAVE_CMD_TEST_LCALL      (USER_CTRL_START + 2)
+#define ENCLAVE_CMD_CREATE_VM       (USER_CTRL_START + 3)
+#define ENCLAVE_CMD_LAUNCH_VM       (USER_CTRL_START + 4)
+
+
+
+
 struct pisces_enclave;
 
 struct pisces_ctrl {
@@ -20,7 +43,6 @@ struct pisces_ctrl {
 } __attribute__((packed));
 
 int pisces_ctrl_init(struct pisces_enclave * enclave);
-
 int pisces_ctrl_connect(struct pisces_enclave * enclave);
 
 #endif
