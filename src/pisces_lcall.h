@@ -41,7 +41,9 @@ struct pisces_lcall {
     wait_queue_head_t kern_waitq;
     struct task_struct * kern_thread;
 
+    /* shared 4KB buffer for data transfer*/
     struct pisces_cmd_buf * cmd_buf;
+    /* receiver side cmd buffer (may larger than 4KB)*/
     struct pisces_cmd * cmd;
 };
 

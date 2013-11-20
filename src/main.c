@@ -112,7 +112,7 @@ static long device_ioctl(struct file * file, unsigned int ioctl,
                 return -EFAULT;
             }
 
-            return pisces_assign_device(&bdf);
+            return pisces_device_assign(&bdf);
        }
 
 

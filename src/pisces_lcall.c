@@ -14,6 +14,7 @@
 #include "pisces.h"
 #include "pisces_boot_params.h"
 #include "pisces_lcall.h"
+#include "pisces_pci.h"
 #include "enclave.h"
 #include "boot.h"
 #include "pisces_cmds.h"
@@ -224,6 +225,10 @@ static int lcall_kern_thread(void * arg) {
 	    case PISCES_LCALL_VFS_SIZE:
 		enclave_vfs_size_lcall(enclave, cmd_buf);
 		break;
+
+	    case PISCES_LCALL_PCI_SETUP:
+                enclave_pci_setup_lcall(enclave, lcall_state->cmd);
+                break;
 
 	    case PISCES_LCALL_VFS_READDIR:
 	    default:
