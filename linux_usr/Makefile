@@ -13,6 +13,7 @@ execs := 	pisces_load \
 		pisces_ctrl \
 		pisces_cons \
 		pisces_lcall_test \
+		pisces_assign_device \
 		v3_create \
 		v3_launch
 

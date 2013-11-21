@@ -58,7 +58,7 @@ int pisces_device_assign(struct pisces_host_pci_bdf * bdf)
     unsigned long flags;
 
     if (find_dev_by_name(assigned_dev->name)) {
-        printk(KERN_ERR "Deviced already assigned.\n");
+        printk(KERN_ERR "Deviced %s already assigned.\n", assigned_dev->name);
         return -1;
     }
 
@@ -118,6 +118,7 @@ int pisces_device_assign(struct pisces_host_pci_bdf * bdf)
     list_add(&(assigned_dev->dev_node), &assigned_device_list);
     spin_unlock_irqrestore(&assigned_device_list_lock, flags);
 
+/*
     {
         int i = 0;
         for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
@@ -132,13 +133,16 @@ int pisces_device_assign(struct pisces_host_pci_bdf * bdf)
 
         printk("Rom BAR=%d\n", dev->rom_base_reg);
     }
+*/
 
     if (!iommu_present(&pci_bus_type)) {
-        printk(KERN_ERR "iommu not found\n");
+        printk(KERN_ERR "IOMMU not found\n");
         r = -ENODEV;
         goto out_del_list;
     }
     assigned_dev->iommu_enabled = 1;
+
+    printk(KERN_INFO "Device %s assigned.\n", assigned_dev->name);
 
     return 0;
 
