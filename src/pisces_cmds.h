@@ -31,8 +31,8 @@ struct pisces_cmd_buf {
         struct {
             u8 ready          : 1;   // Flag set by server OS, after channel is init'd
             u8 active         : 1;   // Set when a command has been activated (initiated)
-            u8 completed      : 1;   // Set by server OS when command has been handled
             u8 staging        : 1;   // Set when partial data is sent
+            u8 completed      : 1;   // Set by server OS when command has been handled
             u32 rsvd          : 27;
         } __attribute__((packed));
     } __attribute__((packed));
