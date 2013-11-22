@@ -47,6 +47,8 @@ static int pisces_send_data(struct pisces_cmd_buf * cmd_buf, void * data,
 
         cmd_buf->staging_len = staging_len;
         cmd_buf->staging = 1;
+	__asm__ __volatile__ ("":::"memory");
+
     }
 
     return 0;
@@ -122,6 +124,8 @@ int pisces_send_cmd(struct pisces_enclave * enclave, struct pisces_cmd * cmd) {
 
     /* Send the IPI here */
     cmd_buf->staging = 1;
+    mb();
+    __asm__ __volatile__ ("":::"memory");
 
     printk("Sending IPI to enclave cpu %d\n", cmd_buf->enclave_cpu);
     pisces_send_ipi(enclave, cmd_buf->enclave_cpu, cmd_buf->enclave_vector);
