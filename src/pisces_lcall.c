@@ -123,21 +123,22 @@ int pisces_lcall_connect(struct pisces_enclave * enclave) {
 }
 
 static int handle_critical_lcall(struct pisces_enclave * enclave, 
-                u32 lcall_id, 
-                struct pisces_cmd_buf * cmd_buf) {
+                struct pisces_cmd * cmd) {
      
+    int ret = 0;
     struct pisces_resp resp;
 
-    switch (lcall_id) {
+    switch (cmd->cmd) {
     default:
         resp.status = -1;
         resp.data_len = 0;
-
         pisces_send_resp(enclave, &resp);
-        return -1;
+
+        ret = -1;
+        break;
     }
 
-    return 0;
+    return ret;
 }
 
 
@@ -145,37 +146,35 @@ static void lcall_kick(void * private_data) {
     struct pisces_enclave * enclave = private_data;
     struct pisces_lcall * lcall_state = &(enclave->lcall);
     struct pisces_cmd_buf * cmd_buf = lcall_state->cmd_buf;
-    struct pisces_cmd * cmd = NULL;
 
     /* Make sure it's ours. NOTE: with the new staging semantics, active is not
      * true when the IPI is sent, but rather staging is true */
-    //if (cmd_buf->active != 1 || cmd_buf->in_progress != 0)
     if (cmd_buf->staging != 1) {
         return;
     }
 
     printk("LCALL is kicked (cmd: %llu)\n", cmd_buf->cmd.cmd);
 
-    if (pisces_recv_cmd(enclave, &(lcall_state->cmd)) != 0) {
-        printk(KERN_ERR "Error receiving Longcall command\n");
-        return;
-    }
-
-    cmd = lcall_state->cmd;
-
-    if ((cmd->cmd >= CRIT_LCALL_START) && 
-        (cmd->cmd < KERN_LCALL_START)) {
+    if ((cmd_buf->cmd.cmd >= CRIT_LCALL_START) && 
+        (cmd_buf->cmd.cmd < KERN_LCALL_START)) {
         // Call the handler from the IRQ handler
-        handle_critical_lcall(enclave, cmd->cmd, cmd_buf);
-    } else if ((cmd->cmd >= KERN_LCALL_START) && 
-           (cmd->cmd < USER_LCALL_START)) {
+        if (pisces_recv_cmd(enclave, &(lcall_state->cmd), 1) != 0) {
+            printk(KERN_ERR "Error receiving Longcall command\n");
+            return;
+        }
 
+        handle_critical_lcall(enclave, lcall_state->cmd);
+        kfree(lcall_state->cmd);
+        lcall_state->cmd = NULL;
+    } else {
+        /* Instead of copying the command from the interrupt handler, wake up
+         * the kernel thread to do this, even if it's a user level lcall. The
+         * kernel thread wakes up user threads
+         */
         printk("Waking up kernel thread\n");
         wake_up_interruptible(&(lcall_state->kern_waitq));
-    } else {
-        wake_up_interruptible(&(lcall_state->user_waitq));
     }
-
+    
     return;
 }
 
@@ -183,59 +182,78 @@ static int lcall_kern_thread(void * arg) {
     struct pisces_enclave * enclave = arg;
     struct pisces_lcall * lcall_state = &(enclave->lcall);
     struct pisces_cmd_buf * cmd_buf = lcall_state->cmd_buf;
-    //struct pisces_cmd * cmd = &(cmd_buf->cmd);
-    //struct pisces_resp * resp = &(cmd_buf->resp);
-    struct pisces_cmd * cmd = NULL;
     struct pisces_resp resp;
- 
 
     while (1) {
 
-	//  printk("LCALL Kernel thread going to sleep on cmd buf\n");
+        //  printk("LCALL Kernel thread going to sleep on cmd buf\n");
+        wait_event_interruptible(lcall_state->kern_waitq, 
+             (cmd_buf->staging == 1));
 
-	wait_event_interruptible(lcall_state->kern_waitq, 
-         (cmd_buf->active == 1));
+        printk("kernel thread is awake\n");
 
-    
-    
-	printk("kernel thread is awake\n");
+        if (pisces_recv_cmd(enclave, &(lcall_state->cmd), 0) != 0) {
+            printk(KERN_ERR "Error receiving Longcall command\n");
+            continue;
+        }
 
-    cmd = lcall_state->cmd;
-    
-	switch (cmd->cmd) {
-	    case PISCES_LCALL_VFS_READ:
-		enclave_vfs_read_lcall(enclave, cmd);
-		break;
-	    case PISCES_LCALL_VFS_WRITE:
-		enclave_vfs_write_lcall(enclave, cmd);
-		break;
-	    case PISCES_LCALL_VFS_OPEN: 
-		enclave_vfs_open_lcall(enclave, cmd);
-		break;
-	    case PISCES_LCALL_VFS_CLOSE:
-		enclave_vfs_close_lcall(enclave, cmd);
-		break;
-	    case PISCES_LCALL_VFS_SIZE:
-		enclave_vfs_size_lcall(enclave, cmd);
-		break;
-
+        if (lcall_state->cmd->cmd >= USER_LCALL_START) { 
+            printk("kernel thread waking up user thread and going to sleep\n");
+            wake_up_interruptible(&(lcall_state->user_waitq));
+            continue;
+        }
+        
+        switch (lcall_state->cmd->cmd) {
+            case PISCES_LCALL_VFS_READ:
+                enclave_vfs_read_lcall(enclave, lcall_state->cmd);
+                break;
+            case PISCES_LCALL_VFS_WRITE:
+                enclave_vfs_write_lcall(enclave, lcall_state->cmd);
+                break;
+            case PISCES_LCALL_VFS_OPEN: 
+                enclave_vfs_open_lcall(enclave, lcall_state->cmd);
+                break;
+            case PISCES_LCALL_VFS_CLOSE:
+                enclave_vfs_close_lcall(enclave, lcall_state->cmd);
+                break;
+            case PISCES_LCALL_VFS_SIZE:
+                enclave_vfs_size_lcall(enclave, lcall_state->cmd);
+                break;
             case PISCES_LCALL_PCI_SETUP:
                 enclave_pci_setup_lcall(enclave, lcall_state->cmd);
                 break;
-
-            case PISCES_LCALL_XPMEM_ATTACH:
-                pisces_portals_xpmem_attach(enclave, cmd);
+            case PISCES_LCALL_XPMEM_VERSION:
+                pisces_portals_xpmem_version(enclave, lcall_state->cmd);
                 break;
+            case PISCES_LCALL_XPMEM_MAKE:
+                pisces_portals_xpmem_make(enclave, lcall_state->cmd);
+                break;
+            case PISCES_LCALL_XPMEM_REMOVE:
+                pisces_portals_xpmem_remove(enclave, lcall_state->cmd);
+                break;
+            case PISCES_LCALL_XPMEM_GET:
+                pisces_portals_xpmem_get(enclave, lcall_state->cmd);
+                break;
+            case PISCES_LCALL_XPMEM_RELEASE:
+                pisces_portals_xpmem_release(enclave, lcall_state->cmd);
+                break;
+            case PISCES_LCALL_XPMEM_ATTACH:
+                pisces_portals_xpmem_attach(enclave, lcall_state->cmd);
+                break;
+            case PISCES_LCALL_XPMEM_DETACH:
+                pisces_portals_xpmem_detach(enclave, lcall_state->cmd);
+                break;
+            case PISCES_LCALL_VFS_READDIR:
+            default:
+                printk(KERN_ERR "Enclave requested unimplemented LCALL %llu\n", lcall_state->cmd->cmd);
+                resp.status = -1;
+                resp.data_len = 0;
+                pisces_send_resp(enclave, &resp);
+                break;
+        }
 
-	    case PISCES_LCALL_VFS_READDIR:
-	    default:
-		printk(KERN_ERR "Enclave requested unimplemented LCALL %llu\n", cmd->cmd);
-		resp.status = -1;
-		resp.data_len = 0;
-        pisces_send_resp(enclave, &resp);
-		break;
-	}
-
+        kfree(lcall_state->cmd);
+        lcall_state->cmd = NULL;
     }
 
     return 0;

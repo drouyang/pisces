@@ -134,14 +134,12 @@ int pisces_get_xpmem_map(
 ) {
 
     u64 pfn = 0;
-    u64 src_size = 0;
     u64 dest_size = 0;
     u64 num_pfns = 0;
     u64 i = 0;
     u64 vaddr = 0;
     struct xpmem_pfn * pfns = NULL;
 
-    src_size = src_addr->size;
     dest_size = dest_addr->size;
     num_pfns = dest_size / PAGE_SIZE;
 
@@ -151,12 +149,17 @@ int pisces_get_xpmem_map(
         return -ENOMEM;
     }
 
-    /* Source vaddr must be offset by the destination request */
-    for (i = 0, vaddr = (u64)src_addr->vaddr + (u64)dest_addr->offset; i < num_pfns; 
-                i++, vaddr += (PAGE_SIZE * i)) 
+    for (i = 0; i < num_pfns; i++) 
     {
-        vaddr = (u64)(src_addr->vaddr + (PAGE_SIZE * i));
+        /* Source vaddr must be offset by the destination request */
+        vaddr = src_addr->vaddr + dest_addr->offset + (PAGE_SIZE * i);
+
         pfn = xpmem_vaddr_to_PFN(mm, vaddr);
+        if (pfn == 0) {
+            printk(KERN_ERR "Could not generated pfn list!\n");
+            goto err;
+        }
+
         pfns[i].pfn = pfn;
         printk("vaddr = %p, pfn = %llu (paddr = %p)\n",
             (void *)vaddr, 
@@ -168,5 +171,11 @@ int pisces_get_xpmem_map(
     *p_num_pfns = num_pfns;
     *p_pfns = pfns;
     return 0;
+
+err:
+    kfree(pfns);
+    *p_num_pfns = 0;
+    *p_pfns = NULL;
+    return -1;
 }
 

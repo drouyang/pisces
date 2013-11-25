@@ -19,7 +19,7 @@
 
 
 /* KERNEL CTRL COMMANDS */
-#define ENCLAVE_CMD_XPMEM_ATTACH    (KERN_CTRL_START + 0)
+#define ENCLAVE_CMD_XPMEM_ATTACH    (KERN_CTRL_START + 200)
 
 
 /* USER CTRL COMMANDS */
@@ -39,9 +39,12 @@ struct pisces_ctrl {
     wait_queue_head_t waitq;
     spinlock_t lock;
 
+    int active; /* Is the control channel active? Separate from cmd_buf->active */
     struct pisces_cmd_buf * cmd_buf;
 } __attribute__((packed));
 
+int pisces_ctrl_send_cmd(struct pisces_enclave * enclave, struct pisces_cmd * cmd,
+                struct pisces_resp ** resp_p);
 int pisces_ctrl_init(struct pisces_enclave * enclave);
 int pisces_ctrl_connect(struct pisces_enclave * enclave);
 

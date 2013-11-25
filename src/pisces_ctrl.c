@@ -16,35 +16,66 @@
 #include "pisces_data.h"
 
 
-static int send_cmd(struct pisces_enclave * enclave, struct pisces_cmd * cmd,
+int pisces_ctrl_send_cmd(struct pisces_enclave * enclave, struct pisces_cmd * cmd,
             struct pisces_resp ** resp_p) {
     struct pisces_ctrl * ctrl = &(enclave->ctrl);
     struct pisces_cmd_buf * cmd_buf = ctrl->cmd_buf;
     struct pisces_resp * resp = NULL;
+    unsigned long flags = 0;
+    int acquired = 0;
+    int ret = 0;
 
-    if (pisces_send_cmd(enclave, cmd) != 0) {
-        printk(KERN_ERR "Failed to send control command to enclave OS\n");
+    if (cmd_buf->ready == 0) {
+        printk(KERN_ERR "Attempted control command to unready enclave OS (%d)\n",
+            enclave->id);
+        *resp_p = NULL;
         return -1;
     }
 
+    while (acquired == 0) {
+        spin_lock_irqsave(&(ctrl->lock), flags);
+
+        if (ctrl->active == 0) {
+            acquired = 1;
+            ctrl->active = 1;
+        }
+
+        spin_unlock_irqrestore(&(ctrl->lock), flags);
+
+        if (acquired == 0) {
+            wait_event_interruptible(ctrl->waitq, (ctrl->active == 0));
+        }
+    }
+
+    if (pisces_send_cmd(enclave, cmd) != 0) {
+        printk(KERN_ERR "Failed to send control command to enclave OS\n");
+        ret = -1;
+        goto out;
+    }
+
+    /* Now, we wait for reponse */
     while (cmd_buf->completed == 0) {
         schedule();
     }
 
-    if (pisces_recv_resp(enclave, &resp) != 0) {
+    if (pisces_recv_resp(enclave, &resp, 0) != 0) {
         printk(KERN_ERR "Failed to receive control command response from enclave OS\n");
         if (resp) {
             kfree(resp);
         }
-        return -1;
+        ret = -1;
+        goto out;
     }
 
-    // read response
+
+out:
+    ctrl->active = 0;
+    __asm__ __volatile__ ("":::"memory");
+    wake_up_interruptible(&(ctrl->waitq));
+
     *resp_p = resp;
     return 0;
 }
-
-
 
 
 static ssize_t
@@ -107,7 +138,7 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 
                 printk("Sending Command\n");
 
-                ret = send_cmd(enclave, (struct pisces_cmd *)&cmd, &resp);
+                ret = pisces_ctrl_send_cmd(enclave, (struct pisces_cmd *)&cmd, &resp);
                 restore_linux_trampoline(enclave);
                 trampoline_unlock();
 
@@ -145,7 +176,7 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
                 cmd.phys_addr = reg.base_addr;
                 cmd.size = reg.pages * PAGE_SIZE_4KB;
 
-                ret = send_cmd(enclave, (struct pisces_cmd *)&cmd, &resp);
+                ret = pisces_ctrl_send_cmd(enclave, (struct pisces_cmd *)&cmd, &resp);
 
                 if (ret != 0) {
                     printk(KERN_ERR "Error adding memory to enclave %d\n", enclave->id);
@@ -166,7 +197,7 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
                 cmd.cmd = ENCLAVE_CMD_TEST_LCALL;
                 cmd.data_len = 0;
 
-                ret = send_cmd(enclave, &cmd, &resp);
+                ret = pisces_ctrl_send_cmd(enclave, &cmd, &resp);
 
                 printk("Sent LCALL test CMD\n");
                 break;
@@ -185,7 +216,7 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
                     return -EFAULT;
                 }
 
-                ret = send_cmd(enclave, (struct pisces_cmd *)&cmd, &resp);
+                ret = pisces_ctrl_send_cmd(enclave, (struct pisces_cmd *)&cmd, &resp);
 
                 if (ret != 0) {
                     printk("Error creating VM %s (%s)\n", cmd.path.vm_name, cmd.path.file_name);
@@ -206,7 +237,7 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
                 cmd.vm_id = arg;
 
 
-                ret = send_cmd(enclave, (struct pisces_cmd *)&cmd, &resp);
+                ret = pisces_ctrl_send_cmd(enclave, (struct pisces_cmd *)&cmd, &resp);
 
                 if (ret != 0) {
                     printk("Error Launch VM %d\n", cmd.vm_id);
@@ -218,7 +249,7 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 
         }
 
-    /* If we get here, send_cmd did not fail - we need to free the response */
+    /* If we get here, pisces_ctrl_send_cmd did not fail - we need to free the response */
     kfree(resp);
     return 0;
 }

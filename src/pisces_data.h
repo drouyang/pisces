@@ -10,10 +10,10 @@
 #include "pisces_cmds.h"
 
 int pisces_send_cmd(struct pisces_enclave * enclave, struct pisces_cmd * cmd);
-int pisces_recv_cmd(struct pisces_enclave * enclave, struct pisces_cmd ** cmd_p);
+int pisces_recv_cmd(struct pisces_enclave * enclave, struct pisces_cmd ** cmd_p, int atomic);
 
 int pisces_send_resp(struct pisces_enclave * enclave, struct pisces_resp * resp);
-int pisces_recv_resp(struct pisces_enclave * enclave, struct pisces_resp ** resp_p);
+int pisces_recv_resp(struct pisces_enclave * enclave, struct pisces_resp ** resp_p, int atomic);
 
 
 #endif /* __PISCES_DATA_H__ */

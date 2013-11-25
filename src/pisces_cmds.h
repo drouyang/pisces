@@ -33,7 +33,7 @@ struct pisces_cmd_buf {
             u8 active         : 1;   // Set when a command has been activated (initiated)
             u8 staging        : 1;   // Set when partial data is sent
             u8 completed      : 1;   // Set by server OS when command has been handled
-            u32 rsvd          : 27;
+            u32 rsvd          : 28;
         } __attribute__((packed));
     } __attribute__((packed));
     
@@ -67,9 +67,14 @@ struct pisces_cmd_buf {
 #define ENCLAVE_IOCTL_CREATE_VM 120
 #define ENCLAVE_IOCTL_LAUNCH_VM 121
 
-#define ENCLAVE_IOCTL_XPMEM_MAKE    130
-#define ENCLAVE_IOCTL_XPMEM_GET     131
-#define ENCLAVE_IOCTL_XPMEM_ATTACH  132
+
+#define ENCLAVE_IOCTL_XPMEM_VERSION 130
+#define ENCLAVE_IOCTL_XPMEM_MAKE    131
+#define ENCLAVE_IOCTL_XPMEM_REMOVE  132
+#define ENCLAVE_IOCTL_XPMEM_GET     133
+#define ENCLAVE_IOCTL_XPMEM_RELEASE 134
+#define ENCLAVE_IOCTL_XPMEM_ATTACH  135
+#define ENCLAVE_IOCTL_XPMEM_DETACH  136
 
 struct memory_range {
     u64 base_addr;
@@ -123,12 +128,22 @@ struct cmd_launch_vm {
  */
 
 /* Command types */
+struct pisces_xpmem_version {
+    int64_t version;        /* Input + output parameter */
+} __attribute__((packed));
+
 struct pisces_xpmem_make {
     uint64_t vaddr;
-    uint32_t size;
+    uint64_t size;
     int32_t permit_type;
     uint64_t permit_value;
+    int32_t pid;
     int64_t segid;          /* Input + output parameter */
+} __attribute__((packed));
+
+struct pisces_xpmem_remove {
+    int64_t segid;
+    int32_t result;         /* Output parameter */
 } __attribute__((packed));
 
 struct pisces_xpmem_get {
@@ -139,13 +154,22 @@ struct pisces_xpmem_get {
     int64_t apid;           /* Output parameter */
 } __attribute__((packed));
 
+struct pisces_xpmem_release {
+    int64_t apid;
+    int32_t result;         /* Output parameter */
+} __attribute__((packed));
+
 struct pisces_xpmem_attach {
     int64_t apid;
-    uint32_t offset;
-    uint32_t size;
+    uint64_t offset;
+    uint64_t size;
     int32_t map_fd;         /* Output parameter */
 } __attribute__((packed));
 
+struct pisces_xpmem_detach {
+    uint64_t vaddr;
+    int32_t result;         /* Output parameter */
+} __attribute__((packed));
 
 
 

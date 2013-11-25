@@ -47,8 +47,7 @@ static int pisces_send_data(struct pisces_cmd_buf * cmd_buf, void * data,
 
         cmd_buf->staging_len = staging_len;
         cmd_buf->staging = 1;
-	__asm__ __volatile__ ("":::"memory");
-
+        __asm__ __volatile__ ("":::"memory");
     }
 
     return 0;
@@ -90,7 +89,7 @@ static int pisces_recv_data(struct pisces_cmd_buf * cmd_buf, void * data,
                     cmd_buf->resp.data,
                     staging_len);
         }
-    }   
+    }
 
     return 0;
 }
@@ -142,12 +141,20 @@ int pisces_send_cmd(struct pisces_enclave * enclave, struct pisces_cmd * cmd) {
     return ret;
 }
 
-int pisces_recv_resp(struct pisces_enclave * enclave, struct pisces_resp ** resp_p) {
+int pisces_recv_resp(struct pisces_enclave * enclave, struct pisces_resp ** resp_p,
+        int atomic) 
+{
     struct pisces_ctrl * ctrl = &(enclave->ctrl);
     struct pisces_cmd_buf * cmd_buf = ctrl->cmd_buf;
     int ret;
+    gfp_t flags = 0;
 
-    *resp_p = kmalloc(sizeof(struct pisces_resp) + cmd_buf->resp.data_len, GFP_KERNEL);
+    if (atomic)
+        flags = GFP_ATOMIC;
+    else 
+        flags = GFP_KERNEL;
+
+    *resp_p = kmalloc(sizeof(struct pisces_resp) + cmd_buf->resp.data_len, flags);
     if (!*resp_p) {
         printk(KERN_ERR "Cannot allocate buffer for response!\n");
         return -ENOMEM;
@@ -163,16 +170,23 @@ int pisces_recv_resp(struct pisces_enclave * enclave, struct pisces_resp ** resp
     cmd_buf->active = 0;
     cmd_buf->completed = 0;
     cmd_buf->staging = 0;
-
     return ret;
 }
 
-int pisces_recv_cmd(struct pisces_enclave * enclave, struct pisces_cmd ** cmd_p) {
+int pisces_recv_cmd(struct pisces_enclave * enclave, struct pisces_cmd ** cmd_p,
+            int atomic) 
+{
     struct pisces_lcall * lcall = &(enclave->lcall);
     struct pisces_cmd_buf * cmd_buf = lcall->cmd_buf;
     int ret = 0;
+    gfp_t flags = 0;
 
-    *cmd_p = kmalloc(sizeof(struct pisces_cmd) + cmd_buf->cmd.data_len, GFP_KERNEL);
+    if (atomic)
+        flags = GFP_ATOMIC;
+    else 
+        flags = GFP_KERNEL;
+
+    *cmd_p = kmalloc(sizeof(struct pisces_cmd) + cmd_buf->cmd.data_len, flags);
     if (!*cmd_p) {
         printk(KERN_ERR "Cannot allocate buffer for command!\n");
         return -ENOMEM;
@@ -185,6 +199,7 @@ int pisces_recv_cmd(struct pisces_enclave * enclave, struct pisces_cmd ** cmd_p)
     ret = pisces_recv_data(cmd_buf, (void *)*cmd_p, 1);
 
     cmd_buf->active = 1;
+    cmd_buf->staging = 0;
     return ret;
 }
 
@@ -211,6 +226,6 @@ int pisces_send_resp(struct pisces_enclave * enclave, struct pisces_resp * resp)
     while (cmd_buf->active) {
         __asm__ __volatile__ ("":::"memory");
     }
-    
+
     return ret;
 }
