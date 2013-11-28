@@ -44,7 +44,6 @@ portals_read(struct file * filp, char __user * buffer, size_t length, loff_t * o
     struct pisces_enclave * enclave = filp->private_data;
     struct pisces_portals * portals = &(enclave->portals);
     struct pisces_lcall * lcall_state = &(enclave->lcall);
-    struct pisces_cmd_buf * cmd_buf = lcall_state->cmd_buf;
     struct pisces_resp resp;
 
     struct portals_ppe_cmd * ppe_cmd = NULL;

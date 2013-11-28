@@ -78,12 +78,14 @@ struct v3_host_pci_bar {
   } __attribute__((packed));
 };
 
-struct pisces_pci_setup_cmd {
-    union {
-        struct pisces_cmd cmd; 
-        struct pisces_resp resp;
-    } __attribute__((packed));
+struct pisces_pci_setup_lcall {
+    struct pisces_lcall lcall; 
     char name[128];
+} __attribute__((packed));
+
+
+struct pisces_pci_setup_resp {
+    struct pisces_lcall_resp resp;
     u32 domain;
     u32 bus;
     u32 devfn;
@@ -91,12 +93,14 @@ struct pisces_pci_setup_cmd {
     struct v3_host_pci_bar bars[6];
     struct v3_host_pci_bar exp_rom;
     uint8_t cfg_space[256];
-};
+} __attribute__((packed));
 
 int pisces_device_assign(struct pisces_host_pci_bdf * bdf);
 int enclave_pci_setup_lcall(struct pisces_enclave * enclave, 
-                            struct pisces_cmd * cmd);
+			    struct pisces_xbuf_desc * xbuf_desc,
+                            struct pisces_lcall * lcall);
 int enclave_pci_request_deivce_lcall(struct pisces_enclave * enclave,
-                                     struct pisces_cmd * cmd);
+				     struct pisces_xbuf_desc * xbuf_desc,
+                                     struct pisces_lcall * lcall);
 
 #endif

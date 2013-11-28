@@ -62,6 +62,9 @@ platform_ipi_handler(void) {
 
 int pisces_ipi_init(void)
 {
+
+   INIT_LIST_HEAD(&ipi_callbacks);
+
     if (linux_x86_platform_ipi_callback == NULL) {
         return -1;
     } else {
@@ -79,6 +82,8 @@ int pisces_send_ipi(struct pisces_enclave * enclave, int cpu_id, unsigned int ve
 	printk(KERN_ERR "Currently we only allow sending IPI's to the boot CPU\n");
 	return -1;
     }
+
+    printk("Sending IPI %u to CPU %d (APIC=%d)\n", vector, enclave->boot_cpu, apic->cpu_present_to_apicid(enclave->boot_cpu));
 
     __default_send_IPI_dest_field(apic->cpu_present_to_apicid(enclave->boot_cpu), vector, APIC_DEST_PHYSICAL);
 

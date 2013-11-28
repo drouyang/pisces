@@ -48,7 +48,7 @@ struct pisces_enclave {
     struct pisces_cons cons;
     struct pisces_ctrl ctrl;
     struct pisces_portals portals;
-    struct pisces_lcall lcall;
+    struct pisces_lcall_state lcall_state;
 
     struct enclave_fs fs_state;
 

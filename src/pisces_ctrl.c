@@ -13,69 +13,7 @@
 #include "enclave.h"
 #include "boot.h"
 #include "pisces_cmds.h"
-#include "pisces_data.h"
-
-
-int pisces_ctrl_send_cmd(struct pisces_enclave * enclave, struct pisces_cmd * cmd,
-            struct pisces_resp ** resp_p) {
-    struct pisces_ctrl * ctrl = &(enclave->ctrl);
-    struct pisces_cmd_buf * cmd_buf = ctrl->cmd_buf;
-    struct pisces_resp * resp = NULL;
-    unsigned long flags = 0;
-    int acquired = 0;
-    int ret = 0;
-
-    if (cmd_buf->ready == 0) {
-        printk(KERN_ERR "Attempted control command to unready enclave OS (%d)\n",
-            enclave->id);
-        *resp_p = NULL;
-        return -1;
-    }
-
-    while (acquired == 0) {
-        spin_lock_irqsave(&(ctrl->lock), flags);
-
-        if (ctrl->active == 0) {
-            acquired = 1;
-            ctrl->active = 1;
-        }
-
-        spin_unlock_irqrestore(&(ctrl->lock), flags);
-
-        if (acquired == 0) {
-            wait_event_interruptible(ctrl->waitq, (ctrl->active == 0));
-        }
-    }
-
-    if (pisces_send_cmd(enclave, cmd) != 0) {
-        printk(KERN_ERR "Failed to send control command to enclave OS\n");
-        ret = -1;
-        goto out;
-    }
-
-    /* Now, we wait for reponse */
-    while (cmd_buf->completed == 0) {
-        schedule();
-    }
-
-    if (pisces_recv_resp(enclave, &resp, 0) != 0) {
-        printk(KERN_ERR "Failed to receive control command response from enclave OS\n");
-        if (resp) {
-            kfree(resp);
-        }
-        ret = -1;
-        goto out;
-    }
-
-
-out:
-    ctrl->active = 0;
-    __asm__ __volatile__ ("":::"memory");
-    wake_up_interruptible(&(ctrl->waitq));
-
-    *resp_p = resp;
-    return 0;
-}
+#include "pisces_xbuf.h"
 
 
 static ssize_t
@@ -97,8 +35,9 @@ ctrl_read(struct file * filp, char __user * buffer, size_t length, loff_t * offs
 
 // Allow ctrl server to write in a raw command
 static ssize_t ctrl_write(struct file * filp, const char __user * buffer, size_t length, loff_t * offset) {
-    //   struct pisces_enclave * enclave = filp->private_data;
-    //   struct pisces_ctrl * ctrl = &(enclave->ctrl);
+    //  struct pisces_enclave * enclave = filp->private_data;
+
+
     return 0;
 }
 
@@ -107,12 +46,15 @@ static ssize_t ctrl_write(struct file * filp, const char __user * buffer, size_t
 // Allow high level control commands over ioctl
 static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg) {
     struct pisces_enclave * enclave = filp->private_data;
+    struct pisces_ctrl * ctrl = &(enclave->ctrl);
+    struct pisces_xbuf_desc * xbuf_desc = ctrl->xbuf_desc;
     struct pisces_resp * resp = NULL;
+    u32 resp_len = 0;
     void __user * argp = (void __user *)arg;
     int ret = 0;
 
     switch (ioctl) {
-        case ENCLAVE_IOCTL_ADD_CPU:
+        case ENCLAVE_CMD_ADD_CPU:
             {
                 struct cmd_cpu_add  cmd;
                 u64 cpu_id = (u64)arg;
@@ -138,7 +80,7 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 
                 printk("Sending Command\n");
 
-                ret = pisces_ctrl_send_cmd(enclave, (struct pisces_cmd *)&cmd, &resp);
+                ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_cpu_add),  (u8 **)&resp, &resp_len);
                 restore_linux_trampoline(enclave);
                 trampoline_unlock();
 
@@ -152,7 +94,7 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
                 break;
             }
 
-        case ENCLAVE_IOCTL_ADD_MEM:
+        case ENCLAVE_CMD_ADD_MEM:
             {
                 struct cmd_mem_add cmd;
                 struct memory_range reg;
@@ -176,7 +118,7 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
                 cmd.phys_addr = reg.base_addr;
                 cmd.size = reg.pages * PAGE_SIZE_4KB;
 
-                ret = pisces_ctrl_send_cmd(enclave, (struct pisces_cmd *)&cmd, &resp);
+                ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_mem_add),  (u8 **)&resp, &resp_len);
 
                 if (ret != 0) {
                     printk(KERN_ERR "Error adding memory to enclave %d\n", enclave->id);
@@ -188,7 +130,7 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
                 break;
             }
 
-        case ENCLAVE_IOCTL_TEST_LCALL:
+        case ENCLAVE_CMD_TEST_LCALL:
             {
                 struct pisces_cmd cmd;
 
@@ -197,12 +139,13 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
                 cmd.cmd = ENCLAVE_CMD_TEST_LCALL;
                 cmd.data_len = 0;
 
-                ret = pisces_ctrl_send_cmd(enclave, &cmd, &resp);
+
+                ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_mem_add),  (u8 **)&resp, &resp_len);
 
                 printk("Sent LCALL test CMD\n");
                 break;
             }
-        case ENCLAVE_IOCTL_CREATE_VM:
+        case ENCLAVE_CMD_CREATE_VM:
             {
                 struct cmd_create_vm cmd;
 
@@ -216,7 +159,8 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
                     return -EFAULT;
                 }
 
-                ret = pisces_ctrl_send_cmd(enclave, (struct pisces_cmd *)&cmd, &resp);
+                ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_create_vm),  (u8 **)&resp, &resp_len);
+
 
                 if (ret != 0) {
                     printk("Error creating VM %s (%s)\n", cmd.path.vm_name, cmd.path.file_name);
@@ -225,7 +169,7 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 
                 break;
             }
-        case ENCLAVE_IOCTL_LAUNCH_VM: 
+        case ENCLAVE_CMD_LAUNCH_VM: 
             {
                 struct cmd_launch_vm cmd;
 
@@ -236,8 +180,7 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 
                 cmd.vm_id = arg;
 
-
-                ret = pisces_ctrl_send_cmd(enclave, (struct pisces_cmd *)&cmd, &resp);
+                ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_launch_vm),  (u8 **)&resp, &resp_len);
 
                 if (ret != 0) {
                     printk("Error Launch VM %d\n", cmd.vm_id);
@@ -282,15 +225,10 @@ static struct file_operations ctrl_fops = {
 
 int pisces_ctrl_connect(struct pisces_enclave * enclave) {
     struct pisces_ctrl * ctrl = &(enclave->ctrl);
-    struct pisces_cmd_buf * cmd_buf = ctrl->cmd_buf;
     unsigned long flags = 0;
     int acquired = 0;
     int ctrl_fd = 0;
 
-    if (cmd_buf->ready == 0) {
-        printk(KERN_ERR "Cannot connect to uninitialized control channel\n");
-        return -1;
-    }
 
     spin_lock_irqsave(&ctrl->lock, flags);
     if (ctrl->connected == 0) {
@@ -327,8 +265,12 @@ pisces_ctrl_init( struct pisces_enclave * enclave) {
     ctrl->connected = 0;
 
     boot_params = __va(enclave->bootmem_addr_pa);
-    ctrl->cmd_buf = (struct pisces_cmd_buf *)__va(boot_params->control_buf_addr);
+    
+    ctrl->xbuf_desc = pisces_xbuf_client_init(enclave, (uintptr_t)__va(boot_params->control_buf_addr), 0, 0);
+    
+    
 
     return 0;
 }
 
+ 

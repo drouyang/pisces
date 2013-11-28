@@ -9,7 +9,7 @@
 #include <linux/wait.h>
 #include <linux/types.h>
 #include "pisces.h"
-#include "pisces_cmds.h"
+#include "pisces_xbuf.h"
 
 #define CRIT_LCALL_START 0
 #define KERN_LCALL_START 10000
@@ -47,15 +47,28 @@
 
 
 struct pisces_lcall {
-    int connected;
-    wait_queue_head_t user_waitq;
-    spinlock_t lock;
+    u64 lcall;
+    u32 data_len;
+    u8 data[0];
+} __attribute__((packed));
 
+
+
+struct pisces_lcall_resp {
+    u64 status;
+    u32 data_len;
+    u8 data[0];
+} __attribute__((packed));
+
+
+
+struct pisces_lcall_state {
     wait_queue_head_t kern_waitq;
     struct task_struct * kern_thread;
+    struct pisces_lcall * active_lcall;
 
-    struct pisces_cmd_buf * cmd_buf;
-    struct pisces_cmd * cmd;
+    struct pisces_xbuf_desc * xbuf_desc;
+    
 };
 
 
@@ -63,7 +76,6 @@ struct pisces_enclave;
 
 int pisces_lcall_init(struct pisces_enclave * enclave);
 int pisces_lcall_connect(struct pisces_enclave * enclave);
-int pisces_lcall_send_resp(struct pisces_enclave * enclave, struct pisces_resp * resp);
 
 
 #endif

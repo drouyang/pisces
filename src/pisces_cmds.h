@@ -24,36 +24,6 @@ struct pisces_resp {
 } __attribute__((packed));
 
 
-#ifdef __KERNEL__
-struct pisces_cmd_buf {
-    union {
-        u64 flags;
-        struct {
-            u8 ready          : 1;   // Flag set by server OS, after channel is init'd
-            u8 active         : 1;   // Set when a command has been activated (initiated)
-            u8 staging        : 1;   // Set when partial data is sent
-            u8 completed      : 1;   // Set by server OS when command has been handled
-            u32 rsvd          : 28;
-        } __attribute__((packed));
-    } __attribute__((packed));
-    
-    u32 host_apic;
-    u32 host_vector;
-    u32 enclave_cpu;
-    u32 enclave_vector;
-    u32 staging_len;
-
-    union {
-        struct pisces_cmd cmd;
-        struct pisces_resp resp;
-    } __attribute__((packed));
-    
-} __attribute__((packed));
-#endif
-
-
-
-
 
 /* 
  * Linux -> Enclave Command Structures
@@ -61,20 +31,20 @@ struct pisces_cmd_buf {
 
 /* User space ioctl structures */
 
-#define ENCLAVE_IOCTL_ADD_CPU 100
-#define ENCLAVE_IOCTL_ADD_MEM 101
-#define ENCLAVE_IOCTL_TEST_LCALL 102
-#define ENCLAVE_IOCTL_CREATE_VM 120
-#define ENCLAVE_IOCTL_LAUNCH_VM 121
+#define ENCLAVE_CMD_ADD_CPU 100
+#define ENCLAVE_CMD_ADD_MEM 101
+#define ENCLAVE_CMD_TEST_LCALL 102
+#define ENCLAVE_CMD_CREATE_VM 120
+#define ENCLAVE_CMD_LAUNCH_VM 121
 
 
-#define ENCLAVE_IOCTL_XPMEM_VERSION 130
-#define ENCLAVE_IOCTL_XPMEM_MAKE    131
-#define ENCLAVE_IOCTL_XPMEM_REMOVE  132
-#define ENCLAVE_IOCTL_XPMEM_GET     133
-#define ENCLAVE_IOCTL_XPMEM_RELEASE 134
-#define ENCLAVE_IOCTL_XPMEM_ATTACH  135
-#define ENCLAVE_IOCTL_XPMEM_DETACH  136
+#define ENCLAVE_CMD_XPMEM_VERSION 130
+#define ENCLAVE_CMD_XPMEM_MAKE    131
+#define ENCLAVE_CMD_XPMEM_REMOVE  132
+#define ENCLAVE_CMD_XPMEM_GET     133
+#define ENCLAVE_CMD_XPMEM_RELEASE 134
+#define ENCLAVE_CMD_XPMEM_ATTACH  135
+#define ENCLAVE_CMD_XPMEM_DETACH  136
 
 struct memory_range {
     u64 base_addr;

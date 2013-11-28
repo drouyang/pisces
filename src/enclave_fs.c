@@ -1,9 +1,8 @@
 #include "pisces_lcall.h"
 #include "util-hashtable.h"
 #include "file_io.h"
-#include "pisces_cmds.h"
 #include "enclave.h"
-#include "pisces_data.h"
+#include "enclave_fs.h"
 
 
 static u32 file_hash_fn(uintptr_t key) {
@@ -16,21 +15,20 @@ static int file_eq_fn(uintptr_t key1, uintptr_t key2) {
 
 
 int enclave_vfs_open_lcall(struct pisces_enclave * enclave, 
-			   struct pisces_cmd * pisces_cmd) {
+		     struct pisces_xbuf_desc * xbuf_desc, 
+		     struct vfs_open_lcall * lcall) {
     struct enclave_fs * fs_state = &(enclave->fs_state);
-    //struct vfs_open_cmd * cmd = (struct vfs_open_cmd *)&(cmd_buf->cmd);
-    //struct pisces_resp * resp = &(cmd_buf->resp);
-    struct vfs_open_cmd * cmd = (struct vfs_open_cmd *)pisces_cmd;
-    struct vfs_open_cmd vfs_resp;
+    struct pisces_lcall_resp vfs_resp;
     struct file * file_ptr = NULL;
 
-    printk("Opening file %s\n", cmd->path);
+    printk("Opening file %s\n", lcall->path);
 
-    file_ptr = file_open(cmd->path, cmd->mode);
+    file_ptr = file_open(lcall->path, lcall->mode);
 
     if (IS_ERR(file_ptr)) {
-	vfs_resp.resp.status = 0;
-	vfs_resp.resp.data_len = 0;
+	vfs_resp.status = 0;
+	vfs_resp.data_len = 0;
+	pisces_xbuf_complete(xbuf_desc, (u8 *)&vfs_resp, sizeof(struct pisces_lcall_resp));
 	return 0;
     }
 
@@ -40,26 +38,24 @@ int enclave_vfs_open_lcall(struct pisces_enclave * enclave,
 
     fs_state->num_files++;
 
-    vfs_resp.resp.status = (u64)file_ptr;
-    vfs_resp.resp.data_len = 0;
+    vfs_resp.status = (u64)file_ptr;
+    vfs_resp.data_len = 0;
 
     printk("Returning from open (file_handle = %p)\n", (void *)file_ptr);
-    pisces_send_resp(enclave, (struct pisces_resp *)&vfs_resp);
+    pisces_xbuf_complete(xbuf_desc, (u8 *)&vfs_resp, sizeof(struct pisces_lcall_resp));
 
     return 0;
 }
 
 
 int enclave_vfs_close_lcall(struct pisces_enclave * enclave, 
-			    struct pisces_cmd * pisces_cmd) {
+			    struct pisces_xbuf_desc * xbuf_desc, 
+			    struct vfs_close_lcall * lcall) {
     struct enclave_fs * fs_state = &(enclave->fs_state);
-    //struct vfs_close_cmd * cmd = (struct vfs_close_cmd *)&(cmd_buf->cmd);
-    //struct pisces_resp * resp = &(cmd_buf->resp);
-    struct vfs_close_cmd * cmd = (struct vfs_close_cmd *)pisces_cmd;
-    struct vfs_close_cmd vfs_resp;
+    struct pisces_lcall_resp vfs_resp;
     struct file * file_ptr = NULL;
 
-    file_ptr = (struct file *)cmd->file_handle;
+    file_ptr = (struct file *)lcall->file_handle;
 
 
     printk("closing file %p\n", file_ptr);
@@ -68,8 +64,9 @@ int enclave_vfs_close_lcall(struct pisces_enclave * enclave,
     if (!htable_search(fs_state->open_files, (uintptr_t)file_ptr)) {
 	printk("File %p does not exist\n", file_ptr);
 	// File does not exist
-	vfs_resp.resp.status = -1;
-	vfs_resp.resp.data_len = 0;
+	vfs_resp.status = -1;
+	vfs_resp.data_len = 0;
+	pisces_xbuf_complete(xbuf_desc, (u8 *)&vfs_resp, sizeof(struct pisces_lcall_resp));
 	return 0;
     }
 
@@ -78,25 +75,24 @@ int enclave_vfs_close_lcall(struct pisces_enclave * enclave,
 
     file_close(file_ptr);
 
-    vfs_resp.resp.status = 0;
-    vfs_resp.resp.data_len = 0;
+    vfs_resp.status = 0;
+    vfs_resp.data_len = 0;
 
-    pisces_send_resp(enclave, (struct pisces_resp *)&vfs_resp);
+    pisces_xbuf_complete(xbuf_desc, (u8 *)&vfs_resp, sizeof(struct pisces_lcall_resp));
+
 
     return 0;
 }
 
 
 int enclave_vfs_size_lcall(struct pisces_enclave * enclave, 
-			   struct pisces_cmd * pisces_cmd) {
+			   struct pisces_xbuf_desc * xbuf_desc, 
+			   struct vfs_size_lcall * lcall) {
     struct enclave_fs * fs_state = &(enclave->fs_state);
-    //struct vfs_size_cmd * cmd = (struct vfs_size_cmd *)&(cmd_buf->cmd);
-    //struct pisces_resp * resp = &(cmd_buf->resp);
-    struct vfs_size_cmd * cmd = (struct vfs_size_cmd *)pisces_cmd;
-    struct vfs_size_cmd vfs_resp;
+    struct pisces_lcall_resp vfs_resp;
     struct file * file_ptr = NULL;
 
-    file_ptr = (struct file *)cmd->file_handle;
+    file_ptr = (struct file *)lcall->file_handle;
     
     printk("Getting file %p size\n", file_ptr);
     
@@ -104,16 +100,17 @@ int enclave_vfs_size_lcall(struct pisces_enclave * enclave,
 	printk("File %p does not exist\n", file_ptr);
 
 	// File does not exist
-	vfs_resp.resp.status = -1;
-	vfs_resp.resp.data_len = 0;
+	vfs_resp.status = -1;
+	vfs_resp.data_len = 0;
+	pisces_xbuf_complete(xbuf_desc, (u8 *)&vfs_resp, sizeof(struct pisces_lcall_resp));
 	return 0;
     }
 
-    vfs_resp.resp.status = file_size(file_ptr);
+    vfs_resp.status = file_size(file_ptr);
 
-    vfs_resp.resp.data_len = 0;
+    vfs_resp.data_len = 0;
 
-    pisces_send_resp(enclave, (struct pisces_resp *)&vfs_resp);
+    pisces_xbuf_complete(xbuf_desc, (u8 *)&vfs_resp, sizeof(struct pisces_lcall_resp));
     return 0;
 
 }
@@ -121,32 +118,32 @@ int enclave_vfs_size_lcall(struct pisces_enclave * enclave,
 
 
 int enclave_vfs_read_lcall(struct pisces_enclave * enclave, 
-			   struct pisces_cmd * pisces_cmd) {
+			   struct pisces_xbuf_desc * xbuf_desc, 
+			   struct vfs_read_lcall * lcall) {
     struct enclave_fs * fs_state = &(enclave->fs_state);
-    //struct vfs_read_cmd * cmd = (struct vfs_read_cmd *)&(cmd_buf->cmd);
-    //struct pisces_resp * resp = &(cmd_buf->resp);
-    struct vfs_read_cmd * cmd = (struct vfs_read_cmd *)pisces_cmd;
-    struct vfs_read_cmd vfs_resp;
+    struct pisces_lcall_resp vfs_resp;
     struct file * file_ptr = NULL;
-    u64 offset = cmd->offset;
-    u64 read_len = cmd->length;
+    u64 offset = lcall->offset;
+    u64 read_len = lcall->length;
     u64 total_bytes_read = 0;
     u32 i = 0;
 
-    file_ptr = (struct file *)cmd->file_handle;
+    file_ptr = (struct file *)lcall->file_handle;
     printk("FS: Reading file %p\n", file_ptr);
     
     if (!htable_search(fs_state->open_files, (uintptr_t)file_ptr)) {
 	// File does not exist
 	printk("File %p does not exist\n", file_ptr);
 
-	vfs_resp.resp.status = -1;
-	vfs_resp.resp.data_len = 0;
+	vfs_resp.status = -1;
+	vfs_resp.data_len = 0;
+	pisces_xbuf_complete(xbuf_desc, (u8 *)&vfs_resp, sizeof(struct pisces_lcall_resp));
+
 	return 0;
     }
 
-    for (i = 0; i < cmd->num_descs; i++) {
-	struct vfs_buf_desc * desc = &(cmd->descs[i]);
+    for (i = 0; i < lcall->num_descs; i++) {
+	struct vfs_buf_desc * desc = &(lcall->descs[i]);
 	u32 desc_bytes_read = 0;
 	u32 desc_bytes_left = desc->size;
 	u64 ret = 0;
@@ -178,40 +175,41 @@ int enclave_vfs_read_lcall(struct pisces_enclave * enclave,
     }
 
     
-    vfs_resp.resp.status = total_bytes_read;
-    vfs_resp.resp.data_len = 0;
+    vfs_resp.status = total_bytes_read;
+    vfs_resp.data_len = 0;
 
-    pisces_send_resp(enclave, (struct pisces_resp *)&vfs_resp);
+    pisces_xbuf_complete(xbuf_desc, (u8 *)&vfs_resp, sizeof(struct pisces_lcall_resp));
+
     return 0;
 }
 
 int enclave_vfs_write_lcall(struct pisces_enclave * enclave, 
-			    struct pisces_cmd * pisces_cmd) {
+			    struct pisces_xbuf_desc * xbuf_desc, 
+			    struct vfs_write_lcall * lcall) {
     struct enclave_fs * fs_state = &(enclave->fs_state);
-    //struct vfs_write_cmd * cmd = (struct vfs_write_cmd *)&(cmd_buf->cmd);
-    //struct pisces_resp * resp = &(cmd_buf->resp);
-    struct vfs_write_cmd * cmd = (struct vfs_write_cmd *)pisces_cmd;
-    struct vfs_write_cmd vfs_resp;
+    struct pisces_lcall_resp vfs_resp;
     struct file * file_ptr = NULL;
-    u64 offset = cmd->offset;
-    u64 write_len = cmd->length;
+    u64 offset = lcall->offset;
+    u64 write_len = lcall->length;
     u64 total_bytes_written = 0;
     u32 i = 0;
 
-    file_ptr = (struct file *)cmd->file_handle;
+    file_ptr = (struct file *)lcall->file_handle;
     printk("writing file %p\n", file_ptr);    
 
     if (!htable_search(fs_state->open_files, (uintptr_t)file_ptr)) {
 	// File does not exist
 	printk("File %p does not exist\n", file_ptr);
 
-	vfs_resp.resp.status = -1;
-	vfs_resp.resp.data_len = 0;
+	vfs_resp.status = -1;
+	vfs_resp.data_len = 0;
+	pisces_xbuf_complete(xbuf_desc, (u8 *)&vfs_resp, sizeof(struct pisces_lcall_resp));
+
 	return 0;
     }
 
-    for (i = 0; i < cmd->num_descs; i++) {
-	struct vfs_buf_desc * desc = &(cmd->descs[i]);
+    for (i = 0; i < lcall->num_descs; i++) {
+	struct vfs_buf_desc * desc = &(lcall->descs[i]);
 	u32 desc_bytes_written = 0;
 	u32 desc_bytes_left = desc->size;
 	u64 ret = 0;
@@ -243,10 +241,10 @@ int enclave_vfs_write_lcall(struct pisces_enclave * enclave,
     }
 
     
-    vfs_resp.resp.status = total_bytes_written;
-    vfs_resp.resp.data_len = 0;
+    vfs_resp.status = total_bytes_written;
+    vfs_resp.data_len = 0;
 
-    pisces_send_resp(enclave, (struct pisces_resp *)&vfs_resp);
+    pisces_xbuf_complete(xbuf_desc, (u8 *)&vfs_resp, sizeof(struct pisces_lcall_resp));
     return 0;
 }
 
