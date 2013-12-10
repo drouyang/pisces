@@ -44,6 +44,10 @@ struct pisces_xbuf {
 
 
 
+static u64 xbuf_op_idx = 0;
+
+
+
 static u32 init_stage_data(struct pisces_xbuf * xbuf, u8 * data, u32 data_len) {
     u32 xbuf_size = xbuf->total_size;
     u32 staged_len = (data_len > xbuf_size) ? xbuf_size : data_len;
@@ -63,22 +67,18 @@ static u32 send_data(struct pisces_xbuf * xbuf, u8 * data, u32 data_len) {
     u32 bytes_sent = 0;
     u32 bytes_left = data_len;
 
-
-    while (xbuf->staged == 1) {
-	__asm__ __volatile__ ("":::"memory");
-    }
-
     while (bytes_left > 0) {
 	u32 staged_len = (bytes_left > xbuf_size) ? xbuf_size : bytes_left;
 	
+	while (xbuf->staged == 1) {
+	    schedule();
+	    __asm__ __volatile__ ("":::"memory");
+	}
+
 	memcpy(xbuf->data, data + bytes_sent, staged_len);
 
 	xbuf->staged = 1;
 	mb();
-	
-	while (xbuf->staged == 1) {
-	    __asm__ __volatile__ ("":::"memory");
-	}
 	
 	bytes_sent += staged_len;
 	bytes_left -= staged_len;
@@ -93,24 +93,28 @@ static u32 recv_data(struct pisces_xbuf * xbuf, u8 ** data, u32 * data_len) {
     u32 xbuf_size = xbuf->total_size;
     u32 bytes_read = 0;
     u32 bytes_left = xbuf->data_len;
-
-    while (xbuf->staged == 0) {
-	__asm__ __volatile__ ("":::"memory");
-    }
-
-
-    
+    u64 iter_cnt = 0;
 
     *data_len = xbuf->data_len;
-    *data = kmalloc(xbuf->data_len, GFP_ATOMIC);
+    *data = kmalloc(xbuf->data_len, GFP_KERNEL);
 
-
+    printk("XBUF Receiving %u bytes of data\n", *data_len);
 
     while (bytes_left > 0) {
 	u32 staged_len = (bytes_left > xbuf_size) ? xbuf_size : bytes_left;
 
+
+	iter_cnt = 0;
 	while (xbuf->staged == 0) {
 	    __asm__ __volatile__ ("":::"memory");
+
+	    if (iter_cnt == 1000000) {
+		printk("XBUF recv STall detected\n");
+	    } else if (iter_cnt > 1000000) {
+		schedule();
+	    }
+	    
+	    iter_cnt++;
 	}
 	
 	printk("Copying %d bytes in recv_Data\n", staged_len);
@@ -129,6 +133,18 @@ static u32 recv_data(struct pisces_xbuf * xbuf, u8 ** data, u32 * data_len) {
 
 }
 
+
+int pisces_xbuf_pending(struct pisces_xbuf_desc * desc) {
+    return desc->xbuf->pending;
+}
+
+int pisces_xbuf_recv(struct pisces_xbuf_desc * desc, u8 ** data, u32 * data_len) {
+    if (desc->xbuf->active == 0) {
+	return -1;
+    }
+    
+    return recv_data(desc->xbuf, data, data_len);
+}
 
 int pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc, u8 * data, u32 data_len,
 			  u8 ** resp_data, u32 * resp_len) {
@@ -164,6 +180,8 @@ int pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc, u8 * data, u32 data_le
 
 	bytes_staged = init_stage_data(xbuf, data, data_len);
 	
+	printk("Staged %u bytes\n", bytes_staged);
+
 	data_len -= bytes_staged;
 	data += bytes_staged;
     }
@@ -183,15 +201,21 @@ int pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc, u8 * data, u32 data_le
         __asm__ __volatile__ ("":::"memory");
     }
 
+    printk("CMD COMPLETE\n");
+
 
 
     if ((resp_data) && (xbuf->staged == 1)) {
 	// Response exists and we actually want to retrieve it
 	printk("Receiving Response Data\n");
-	recv_data(xbuf, resp_data, resp_len);
+
+	if (recv_data(xbuf, resp_data, resp_len) == 0) {
+	    return -1;
+	}
     }
 
 
+    printk("CMD IS NOW READY\n");
     xbuf->flags = XBUF_READY;
     mb();
     
@@ -252,7 +276,7 @@ int pisces_xbuf_complete(struct pisces_xbuf_desc * desc, u8 * data, u32 data_len
 
     __asm__ __volatile__ ("":::"memory");
 
-    
+     
     send_data(xbuf, data, data_len);
 
     return 0;
@@ -269,15 +293,31 @@ ipi_handler(void * private_data)
 {	
     struct pisces_xbuf_desc * desc = private_data;
     struct pisces_xbuf * xbuf = desc->xbuf;
-    u8 * data = NULL;
-    u32 data_len = 0;
+    unsigned long flags;
+    int valid_ipi = 0;
 
-    recv_data(xbuf, &data, &data_len);
-    
+    spin_lock_irqsave(&(desc->xbuf_lock), flags);
+
+    if ((xbuf->pending == 1)  && 
+	(xbuf->active == 0)) {
+	valid_ipi = 1;
+    }
+
     xbuf->active = 1;
 
+    spin_unlock_irqrestore(&(desc->xbuf_lock), flags);
+
+    if (!valid_ipi) {
+	return;
+    }
+
+
+    printk("Handling XBUFF request (idx=%llu)\n", xbuf_op_idx++);
+
+ 
+    
     if (desc->recv_handler) {
-	desc->recv_handler(desc->enclave, data, data_len);
+	desc->recv_handler(desc->enclave, desc);
     } else {
 	printk("IPI Arrived for XBUF without a handler\n");
 	xbuf->complete = 1;
@@ -290,7 +330,7 @@ ipi_handler(void * private_data)
 
 struct pisces_xbuf_desc * pisces_xbuf_server_init(struct pisces_enclave * enclave, 
 						  uintptr_t xbuf_va, u32 total_bytes, 
-						  void (*recv_handler)(struct pisces_enclave *, u8 *, u32), 
+						  void (*recv_handler)(struct pisces_enclave *, struct pisces_xbuf_desc *), 
 						  u32 ipi_vector, u32 target_cpu) {
     struct pisces_xbuf * xbuf = (struct pisces_xbuf *)xbuf_va;
     struct pisces_xbuf_desc * desc = NULL;

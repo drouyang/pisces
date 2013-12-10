@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
   
 
 
-    if (pet_ioctl_fd(ctrl_fd, ENCLAVE_IOCTL_TEST_LCALL, (void *)NULL) != 0) {
+    if (pet_ioctl_fd(ctrl_fd, ENCLAVE_CMD_TEST_LCALL, (void *)NULL) != 0) {
 	printf("Error: Could not test lcall\n");
 	return -1;
     }

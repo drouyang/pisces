@@ -82,6 +82,7 @@ struct palacios_console {
     struct pisces_enclave * enclave;
     u32 vm_id;
 
+    spinlock_t irq_lock;
     wait_queue_head_t intr_queue;
 
     struct cons_ring_buf * ring_buf;
@@ -90,8 +91,8 @@ struct palacios_console {
 
 
 static int cons_dequeue(struct cons_ring_buf * ringbuf, struct cons_msg * msg) {
-    pisces_spin_lock(&(ringbuf->lock));
 
+    pisces_spin_lock(&(ringbuf->lock));
 
     if (ringbuf->cur_entries <= 0) {
 	pisces_spin_unlock(&(ringbuf->lock));
@@ -100,7 +101,10 @@ static int cons_dequeue(struct cons_ring_buf * ringbuf, struct cons_msg * msg) {
 
     memcpy(msg, &(ringbuf->msgs[ringbuf->read_idx]), sizeof(struct cons_msg));
     
-    ringbuf->cur_entries--;
+    __asm__ __volatile__ ("lock decw %1;"
+			  : "+m"(ringbuf->cur_entries)
+			  :
+			  : "memory");
     ringbuf->read_idx++;
     ringbuf->read_idx %= ringbuf->total_entries;
 
@@ -117,13 +121,15 @@ console_read(struct file * filp, char __user * buf, size_t size, loff_t * offset
     struct cons_msg msg;
     int ret = 0;
 
-
     memset(&msg, 0, sizeof(struct cons_msg));
 
     if (size != sizeof(struct cons_msg)) {
 	printk(KERN_ERR "Invalid Read operation size: %lu\n", size);
 	return -EFAULT;
     }
+
+    wait_event_interruptible(cons->intr_queue, (cons->ring_buf->cur_entries >= 1));
+
     
     ret = cons_dequeue(cons->ring_buf, &msg);
     
@@ -138,7 +144,7 @@ console_read(struct file * filp, char __user * buf, size_t size, loff_t * offset
 	return -EFAULT;
     }
  
-    printk(KERN_DEBUG "Read from console\n");
+
     return size;
 }
 
@@ -238,12 +244,16 @@ static struct file_operations cons_fops = {
 static void cons_kick(void * arg) {
     struct palacios_console * cons = arg;
     u32 entries = 0;
-    
-    printk("Console Kick\n");
-    
-    pisces_spin_lock(&(cons->ring_buf->lock));
+    //    unsigned long flags;
+
+    // We double lock here to prevent local IPI preemption, as well as cross enclave contention
+
+    //    printk("Console Kick\n");
+    //   spin_lock_irqsave(&(cons->irq_lock), flags);
+    // pisces_spin_lock(&(cons->ring_buf->lock));
     entries = cons->ring_buf->cur_entries;
-    pisces_spin_unlock(&(cons->ring_buf->lock));
+    // pisces_spin_unlock(&(cons->ring_buf->lock));
+    //spin_unlock_irqrestore(&(cons->irq_lock), flags);
 
     if (entries > 0) {
 	wake_up_interruptible(&(cons->intr_queue));
@@ -270,6 +280,7 @@ int v3_console_connect(struct pisces_enclave * enclave, u32 vm_id, uintptr_t con
     cons->vm_id = vm_id;
     
     cons->ring_buf = __va(cons_buf_pa);
+    spin_lock_init(&(cons->irq_lock));
 
     cons->ring_buf->kick_ipi_vec = STUPID_LINUX_IRQ;
     cons->ring_buf->kick_apic = 0;

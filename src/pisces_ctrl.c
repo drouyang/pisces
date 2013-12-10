@@ -244,6 +244,24 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 		break;
 	    }
 
+	case ENCLAVE_CMD_VM_CONS_KEYCODE:
+	    {
+		struct cmd_vm_cons_keycode cmd;
+
+		memset(&cmd, 0, sizeof(struct cmd_vm_cons_keycode));
+
+		cmd.hdr.cmd = ENCLAVE_CMD_VM_CONS_KEYCODE;
+		cmd.hdr.data_len = (sizeof(struct cmd_vm_cons_keycode) - sizeof(struct pisces_cmd));
+		cmd.vm_id = 0;
+		cmd.scan_code = (u8)arg;
+
+		printk("Directly Sending Scan_Code %x\n", cmd.scan_code);
+
+		pisces_xbuf_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_vm_cons_keycode));
+    
+		break;
+
+	    }
 	case ENCLAVE_CMD_VM_DBG:
 	    {
 		printk("Sending Debug IPI to palacios\n");

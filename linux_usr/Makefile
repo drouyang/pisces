@@ -17,6 +17,7 @@ execs := 	pisces_load \
 		v3_create \
 		v3_launch \
 		v3_cons_sc \
+		v3_cons_nosc \
 		v3_dbg \
 
 
@@ -45,6 +46,9 @@ all: $(execs) $(libs)
 
 
 v3_cons_sc: v3_cons_sc.c
+	$(call build,CC,$(CC) $(CFLAGS)  $< -lcurses $(libs) -o $@)
+
+v3_cons_nosc: v3_cons_nosc.c
 	$(call build,CC,$(CC) $(CFLAGS)  $< -lcurses $(libs) -o $@)
 
 

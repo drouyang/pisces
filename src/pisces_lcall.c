@@ -20,57 +20,19 @@
 #include "util-hashtable.h"
 #include "enclave_fs.h"
 #include "ipi.h"
+#include "pisces_xbuf.h"
 
 
-static int complete_with_status(struct pisces_xbuf_desc * xbuf_desc, u64 status) {
-    struct pisces_lcall_resp resp;
 
-    resp.status = status;
-    resp.data_len = 0;
-
-    pisces_xbuf_complete(xbuf_desc, (u8*)&resp, sizeof(struct pisces_lcall_resp));
-    return 0;
-}
-
-static int handle_critical_lcall(struct pisces_enclave * enclave, 
-				 struct pisces_lcall * lcall) {
-     
-    int ret = 0;
-
-    switch (lcall->lcall) {
-    default:
-        ret = -1;
-        break;
-    }
-    
-
-
-    return ret;
-}
-
-
-static void lcall_handler(struct pisces_enclave * enclave, u8 * data, u32 data_len) {
+static void lcall_handler(struct pisces_enclave * enclave, struct pisces_xbuf_desc * lcall_desc) {
     struct pisces_lcall_state * lcall_state = &(enclave->lcall_state);
     struct pisces_xbuf_desc * xbuf_desc = lcall_state->xbuf_desc;
-    struct pisces_lcall * lcall = (struct pisces_lcall *)data;
+    
+    if (pisces_xbuf_pending(xbuf_desc)) {
+	lcall_state->active_lcall = 1;
 
-
-    lcall_state->active_lcall = lcall;
-
-    if ((lcall->lcall >= CRIT_LCALL_START) && 
-        (lcall->lcall < KERN_LCALL_START)) {
-	int ret = 0;
-
-        // Call the handler from the IRQ handler
-	ret = handle_critical_lcall(enclave, lcall);
-	
-	complete_with_status(xbuf_desc, ret);
-        kfree(lcall);
-    } else {
-
-	/* Data is already copied into lcall, so now we wake up the kernel thread to handle it. */
-        printk("Waking up kernel thread for lcall (xbuf_desc = %p)\n", xbuf_desc);
-        wake_up_interruptible(&(lcall_state->kern_waitq));
+	printk("Waking up kernel thread for lcall (xbuf_desc = %p)\n", xbuf_desc);
+	wake_up_interruptible(&(lcall_state->kern_waitq));
     }
     
     return;
@@ -82,20 +44,18 @@ static int lcall_kern_thread(void * arg) {
     struct pisces_xbuf_desc * xbuf_desc = lcall_state->xbuf_desc;
     struct pisces_lcall_resp resp;
     struct pisces_lcall * cur_lcall = NULL;
+    u32 lcall_size = 0;
 	
-
+    
     while (1) {
         //  printk("LCALL Kernel thread going to sleep on cmd buf\n");
         wait_event_interruptible(lcall_state->kern_waitq, 
-             (lcall_state->active_lcall != NULL));
+				 (lcall_state->active_lcall == 1));
 	
-	// Cache active lcall locally
-	cur_lcall = lcall_state->active_lcall;
-       
-	// clear global lcall, to avoid race condition when handler returns with xbuf_complete
-	// This means a new lcall can come in while we are in the loop, but we won't handle it until the next iteration
-	lcall_state->active_lcall = 0;
-
+	
+	// grab the lcall from the xbuf
+	pisces_xbuf_recv(xbuf_desc, (u8 **)&cur_lcall, &lcall_size);
+	
 	printk("kernel thread is awake (handling lcall %llu)\n", cur_lcall->lcall);
 
         switch (cur_lcall->lcall) {
@@ -149,9 +109,9 @@ static int lcall_kern_thread(void * arg) {
 		pisces_xbuf_complete(xbuf_desc, (u8*)&resp, sizeof(struct pisces_lcall_resp));
                 break;
         }
-
+	
 	kfree(cur_lcall);
-
+	lcall_state->active_lcall = 0;
 
     }
 
@@ -167,7 +127,6 @@ pisces_lcall_init( struct pisces_enclave * enclave) {
     struct pisces_xbuf_desc * xbuf_desc = NULL;
 
     init_waitqueue_head(&lcall_state->kern_waitq);
-    lcall_state->active_lcall = NULL;
 
     boot_params = __va(enclave->bootmem_addr_pa);
 
@@ -181,7 +140,7 @@ pisces_lcall_init( struct pisces_enclave * enclave) {
     }
 
     lcall_state->xbuf_desc = xbuf_desc;
-
+    lcall_state->active_lcall = 0;
     {
 	char thrd_name[32];
 	memset(thrd_name, 0, 32);

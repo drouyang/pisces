@@ -11,12 +11,8 @@
 #include "pisces.h"
 #include "pisces_xbuf.h"
 
-#define CRIT_LCALL_START 0
 #define KERN_LCALL_START 10000
 #define USER_LCALL_START 20000
-
-/* CRITICAL/ATOMIC LCALLS (0 - 9999) */
-
 
 /* KERNEL LCALLS (10000 - 19999) */
 #define PISCES_LCALL_VFS_READ      (KERN_LCALL_START + 0)
@@ -65,7 +61,7 @@ struct pisces_lcall_resp {
 struct pisces_lcall_state {
     wait_queue_head_t kern_waitq;
     struct task_struct * kern_thread;
-    struct pisces_lcall * active_lcall;
+    int active_lcall;
 
     struct pisces_xbuf_desc * xbuf_desc;
     

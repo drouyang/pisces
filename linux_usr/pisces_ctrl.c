@@ -109,7 +109,7 @@ int main(int argc, char* argv[]) {
 		mem_range.base_addr = idx * pet_block_size();
 		mem_range.pages = pet_block_size() / 4096;
 
-		if (pet_ioctl_fd(ctrl_fd, ENCLAVE_IOCTL_ADD_MEM, &mem_range) != 0) {
+		if (pet_ioctl_fd(ctrl_fd, ENCLAVE_CMD_ADD_MEM, &mem_range) != 0) {
 		    printf("Error: Could not add memory block %d to enclave\n", idx);
 		    continue;
 		}
@@ -142,7 +142,7 @@ int main(int argc, char* argv[]) {
 		printf("Adding memory range (%p) to enclave %s\n", 
 		       (void *)mem_range.base_addr, enclave_path);
 
-		if (pet_ioctl_fd(ctrl_fd, ENCLAVE_IOCTL_ADD_MEM, &mem_range) != 0) {
+		if (pet_ioctl_fd(ctrl_fd, ENCLAVE_CMD_ADD_MEM, &mem_range) != 0) {
 		    printf("Error: Could not add memory block %d to enclave\n", block_arr[i].base_addr / pet_block_size());
 		    continue;
 		}
@@ -167,7 +167,7 @@ int main(int argc, char* argv[]) {
 		    continue;
 		}
        
-		if (pet_ioctl_fd(ctrl_fd, ENCLAVE_IOCTL_ADD_CPU, (void *)phys_cpu_id) != 0) {
+		if (pet_ioctl_fd(ctrl_fd, ENCLAVE_CMD_ADD_CPU, (void *)phys_cpu_id) != 0) {
 		    printf("Error: Could not add CPU %llu to enclave\n", phys_cpu_id);
 		    continue;
 		}
@@ -199,7 +199,7 @@ int main(int argc, char* argv[]) {
 		printf("Adding CPU %d to enclave %s\n", 
 		       (void *)phys_cpu_id, enclave_path);
 
-		if (pet_ioctl_fd(ctrl_fd, ENCLAVE_IOCTL_ADD_CPU, (void *)phys_cpu_id) != 0) {
+		if (pet_ioctl_fd(ctrl_fd, ENCLAVE_CMD_ADD_CPU, (void *)phys_cpu_id) != 0) {
 		    printf("Error: Could not add CPU %d to enclave\n", phys_cpu_id);
 		    continue;
 		}

@@ -16,7 +16,7 @@ struct pisces_xbuf_desc {
     spinlock_t xbuf_lock;
     struct pisces_enclave * enclave;
 
-    void (*recv_handler)(struct pisces_enclave * enclave, u8 * data, u32 data_len);
+    void (*recv_handler)(struct pisces_enclave * enclave, struct pisces_xbuf_desc * desc);
 
 };
 
@@ -24,7 +24,7 @@ struct pisces_xbuf_desc {
 struct pisces_xbuf_desc * pisces_xbuf_server_init(struct pisces_enclave * enclave, 
 						  uintptr_t xbuf_va, u32 total_bytes, 
 						  void (*recv_handler)(struct pisces_enclave * enclave, 
-								       u8 * data, u32 data_len), 
+								       struct pisces_xbuf_desc * desc), 
 						  u32 ipi_vector, u32 target_cpu);
 struct pisces_xbuf_desc * pisces_xbuf_client_init(struct pisces_enclave * enclave, 
 						  uintptr_t xbuf_va, 
@@ -37,5 +37,8 @@ int pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc, u8 * data, u32 data_le
 int pisces_xbuf_send(struct pisces_xbuf_desc * desc, u8 * data, u32 data_len);
 
 int pisces_xbuf_complete(struct pisces_xbuf_desc * desc, u8 * data, u32 data_len);
+
+int pisces_xbuf_pending(struct pisces_xbuf_desc * desc);
+int pisces_xbuf_recv(struct pisces_xbuf_desc * desc, u8 ** data, u32 * data_len);
 
 #endif

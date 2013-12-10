@@ -50,7 +50,7 @@ static void
 platform_ipi_handler(void) {
     struct ipi_callback * iter = NULL;
 
-    printk("Handling IPI callbacks\n");
+//    printk("Handling IPI callbacks\n");
 
     list_for_each_entry(iter, &(ipi_callbacks), node) {
 	iter->callback(iter->private_data);

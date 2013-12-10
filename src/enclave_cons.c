@@ -20,12 +20,10 @@ static ssize_t console_read(struct file *file, char __user *buffer,
     size_t left_to_read = 0;
     u64 read_len = 0;
 
-    printk("reading console length = %lu, offset = %llu\n", length, *offset);
-
     pisces_spin_lock(&(ringbuf->lock));
 
-    printk("console len=%llu, read_idx=%llu, write_idx=%llu\n", 
-	   ringbuf->cur_len, ringbuf->read_idx, ringbuf->write_idx);
+/*     printk("console len=%llu, read_idx=%llu, write_idx=%llu\n",  */
+/* 	   ringbuf->cur_len, ringbuf->read_idx, ringbuf->write_idx); */
 
     if (length > ringbuf->cur_len) {
         length = ringbuf->cur_len;
@@ -82,7 +80,7 @@ static ssize_t console_read(struct file *file, char __user *buffer,
 
     pisces_spin_unlock(&(ringbuf->lock));
 
-    printk("Read %lu bytes\n", length);
+ /*    printk("Read %lu bytes\n", length); */
 
     return length;
 }
