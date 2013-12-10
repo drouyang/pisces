@@ -36,6 +36,11 @@ struct pisces_resp {
 #define ENCLAVE_CMD_TEST_LCALL 102
 #define ENCLAVE_CMD_CREATE_VM 120
 #define ENCLAVE_CMD_LAUNCH_VM 121
+#define ENCLAVE_CMD_VM_CONS_CONNECT 122
+#define ENCLAVE_CMD_VM_CONS_DISCONNECT 123
+#define ENCLAVE_CMD_VM_CONS_KEYCODE 124
+
+#define ENCLAVE_CMD_VM_DBG 169
 
 
 #define ENCLAVE_CMD_XPMEM_VERSION 130
@@ -87,6 +92,24 @@ struct cmd_launch_vm {
     u32 vm_id;
 } __attribute__((packed));
 
+
+struct cmd_vm_cons_connect {
+    struct pisces_cmd hdr;
+    u32 vm_id;
+} __attribute__((packed));
+
+
+struct cmd_vm_cons_disconnect {
+    struct pisces_cmd hdr;
+    u32 vm_id;
+} __attribute__((packed));
+
+
+struct cmd_vm_cons_keycode {
+    struct pisces_cmd hdr;
+    u32 vm_id;
+    u8 scan_code;
+} __attribute__((packed));
 
 #endif
 

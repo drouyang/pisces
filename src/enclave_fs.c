@@ -21,7 +21,7 @@ int enclave_vfs_open_lcall(struct pisces_enclave * enclave,
     struct pisces_lcall_resp vfs_resp;
     struct file * file_ptr = NULL;
 
-    printk("Opening file %s\n", lcall->path);
+    printk("Opening file %s (xbuf_desc=%p)\n", lcall->path, xbuf_desc);
 
     file_ptr = file_open(lcall->path, lcall->mode);
 

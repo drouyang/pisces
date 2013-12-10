@@ -15,6 +15,8 @@
 #include "pisces_cmds.h"
 #include "pisces_xbuf.h"
 
+#include "v3_console.h"
+
 
 static ssize_t
 ctrl_read(struct file * filp, char __user * buffer, size_t length, loff_t * offset ) {
@@ -81,6 +83,9 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
                 printk("Sending Command\n");
 
                 ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_cpu_add),  (u8 **)&resp, &resp_len);
+
+		kfree(resp);
+
                 restore_linux_trampoline(enclave);
                 trampoline_unlock();
 
@@ -120,6 +125,8 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 
                 ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_mem_add),  (u8 **)&resp, &resp_len);
 
+		kfree(resp);
+
                 if (ret != 0) {
                     printk(KERN_ERR "Error adding memory to enclave %d\n", enclave->id);
                     // remove memory from enclave
@@ -142,6 +149,8 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 
                 ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_mem_add),  (u8 **)&resp, &resp_len);
 
+		kfree(resp);
+
                 printk("Sent LCALL test CMD\n");
                 break;
             }
@@ -161,6 +170,7 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 
                 ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_create_vm),  (u8 **)&resp, &resp_len);
 
+		kfree(resp);
 
                 if (ret != 0) {
                     printk("Error creating VM %s (%s)\n", cmd.path.vm_name, cmd.path.file_name);
@@ -181,6 +191,7 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
                 cmd.vm_id = arg;
 
                 ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_launch_vm),  (u8 **)&resp, &resp_len);
+		kfree(resp);
 
                 if (ret != 0) {
                     printk("Error Launch VM %d\n", cmd.vm_id);
@@ -189,11 +200,58 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 
                 break;
             }
+	case ENCLAVE_CMD_VM_CONS_CONNECT:
+	    {
+		struct cmd_vm_cons_connect cmd;
+		uintptr_t cons_pa = 0;
+		u32 vm_id = arg;
 
-        }
+		memset(&cmd, 0, sizeof(struct cmd_vm_cons_connect));
 
-    /* If we get here, pisces_ctrl_send_cmd did not fail - we need to free the response */
-    kfree(resp);
+		cmd.hdr.cmd = ENCLAVE_CMD_VM_CONS_CONNECT;
+		cmd.hdr.data_len = (sizeof(struct cmd_vm_cons_connect) - sizeof(struct pisces_cmd));
+
+		cmd.vm_id = vm_id;
+
+		printk("Connecting to VM Console in Kitten (&resp=%p)\n", &resp);
+
+		ret = pisces_xbuf_sync_send(xbuf_desc, 
+					    (u8 *)&cmd, sizeof(struct cmd_vm_cons_connect), 
+					    (u8 **)&resp, &resp_len);
+		
+
+
+		if ((ret != 0) || (resp == NULL)) {
+		    printk("Error connecting to VM (%d) console\n", cmd.vm_id);
+		    return -1;
+		}
+
+		printk("Getting Console PAddr (resp=%p)\n", resp);
+
+		cons_pa = (uintptr_t)(resp->status);
+
+
+		printk("Console found at %p\n", (void *)cons_pa);
+
+		kfree(resp);
+
+		if (cons_pa == 0) {
+		    printk("Could not acquire console ring buffer\n");
+		    return -1;
+		}
+
+		return v3_console_connect(enclave, vm_id, cons_pa);
+		break;
+	    }
+
+	case ENCLAVE_CMD_VM_DBG:
+	    {
+		printk("Sending Debug IPI to palacios\n");
+		pisces_send_ipi(enclave, 0, 169);
+		break;
+	    }
+    }
+
     return 0;
 }
 

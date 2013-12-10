@@ -18,7 +18,6 @@
 #include "enclave.h"
 #include "boot.h"
 #include "util-hashtable.h"
-#include "pisces_data.h"
 #include "enclave_fs.h"
 #include "ipi.h"
 
@@ -70,7 +69,7 @@ static void lcall_handler(struct pisces_enclave * enclave, u8 * data, u32 data_l
     } else {
 
 	/* Data is already copied into lcall, so now we wake up the kernel thread to handle it. */
-        printk("Waking up kernel thread\n");
+        printk("Waking up kernel thread for lcall (xbuf_desc = %p)\n", xbuf_desc);
         wake_up_interruptible(&(lcall_state->kern_waitq));
     }
     
@@ -82,69 +81,77 @@ static int lcall_kern_thread(void * arg) {
     struct pisces_lcall_state * lcall_state = &(enclave->lcall_state);
     struct pisces_xbuf_desc * xbuf_desc = lcall_state->xbuf_desc;
     struct pisces_lcall_resp resp;
+    struct pisces_lcall * cur_lcall = NULL;
+	
 
     while (1) {
-
         //  printk("LCALL Kernel thread going to sleep on cmd buf\n");
         wait_event_interruptible(lcall_state->kern_waitq, 
              (lcall_state->active_lcall != NULL));
+	
+	// Cache active lcall locally
+	cur_lcall = lcall_state->active_lcall;
+       
+	// clear global lcall, to avoid race condition when handler returns with xbuf_complete
+	// This means a new lcall can come in while we are in the loop, but we won't handle it until the next iteration
+	lcall_state->active_lcall = 0;
 
-        printk("kernel thread is awake\n");
+	printk("kernel thread is awake (handling lcall %llu)\n", cur_lcall->lcall);
 
-        switch (lcall_state->active_lcall->lcall) {
+        switch (cur_lcall->lcall) {
             case PISCES_LCALL_VFS_READ:
-                enclave_vfs_read_lcall(enclave, xbuf_desc, (struct vfs_read_lcall *)lcall_state->active_lcall);
+                enclave_vfs_read_lcall(enclave, xbuf_desc, (struct vfs_read_lcall *)cur_lcall);
                 break;
             case PISCES_LCALL_VFS_WRITE:
-                enclave_vfs_write_lcall(enclave, xbuf_desc, (struct vfs_write_lcall *)lcall_state->active_lcall);
+                enclave_vfs_write_lcall(enclave, xbuf_desc, (struct vfs_write_lcall *)cur_lcall);
                 break;
             case PISCES_LCALL_VFS_OPEN: 
-                enclave_vfs_open_lcall(enclave, xbuf_desc, (struct vfs_open_lcall *)lcall_state->active_lcall);
+                enclave_vfs_open_lcall(enclave, xbuf_desc, (struct vfs_open_lcall *)cur_lcall);
                 break;
             case PISCES_LCALL_VFS_CLOSE:
-                enclave_vfs_close_lcall(enclave, xbuf_desc, (struct vfs_close_lcall *)lcall_state->active_lcall);
+                enclave_vfs_close_lcall(enclave, xbuf_desc, (struct vfs_close_lcall *)cur_lcall);
                 break;
             case PISCES_LCALL_VFS_SIZE:
-                enclave_vfs_size_lcall(enclave, xbuf_desc, (struct vfs_size_lcall *)lcall_state->active_lcall);
+                enclave_vfs_size_lcall(enclave, xbuf_desc, (struct vfs_size_lcall *)cur_lcall);
                 break;
             case PISCES_LCALL_PCI_SETUP:
-                enclave_pci_setup_lcall(enclave, xbuf_desc, lcall_state->active_lcall);
+                enclave_pci_setup_lcall(enclave, xbuf_desc, cur_lcall);
                 break;
 #ifdef PORTALS
             case PISCES_LCALL_XPMEM_VERSION:
-                pisces_portals_xpmem_version(enclave, xbuf_desc, lcall_state->active_lcall);
+                pisces_portals_xpmem_version(enclave, xbuf_desc, cur_lcall);
                 break;
             case PISCES_LCALL_XPMEM_MAKE:
-                pisces_portals_xpmem_make(enclave, xbuf_desc, lcall_state->active_lcall);
+                pisces_portals_xpmem_make(enclave, xbuf_desc, cur_lcall);
                 break;
             case PISCES_LCALL_XPMEM_REMOVE:
-                pisces_portals_xpmem_remove(enclave, xbuf_desc, lcall_state->active_lcall);
+                pisces_portals_xpmem_remove(enclave, xbuf_desc, cur_lcall);
                 break;
             case PISCES_LCALL_XPMEM_GET:
-                pisces_portals_xpmem_get(enclave, xbuf_desc, lcall_state->active_lcall);
+                pisces_portals_xpmem_get(enclave, xbuf_desc, cur_lcall);
                 break;
             case PISCES_LCALL_XPMEM_RELEASE:
-                pisces_portals_xpmem_release(enclave, xbuf_desc, lcall_state->active_lcall);
+                pisces_portals_xpmem_release(enclave, xbuf_desc, cur_lcall);
                 break;
             case PISCES_LCALL_XPMEM_ATTACH:
-                pisces_portals_xpmem_attach(enclave, xbuf_desc, lcall_state->active_lcall);
+                pisces_portals_xpmem_attach(enclave, xbuf_desc, cur_lcall);
                 break;
             case PISCES_LCALL_XPMEM_DETACH:
-                pisces_portals_xpmem_detach(enclave, xbuf_desc, lcall_state->active_lcall);
+                pisces_portals_xpmem_detach(enclave, xbuf_desc, cur_lcall);
                 break;
 
 #endif
             case PISCES_LCALL_VFS_READDIR:
             default:
-                printk(KERN_ERR "Enclave requested unimplemented LCALL %llu\n", lcall_state->active_lcall->lcall);
+                printk(KERN_ERR "Enclave requested unimplemented LCALL %llu\n", cur_lcall->lcall);
                 resp.status = -1;
                 resp.data_len = 0;
 		pisces_xbuf_complete(xbuf_desc, (u8*)&resp, sizeof(struct pisces_lcall_resp));
                 break;
         }
 
-	kfree(lcall_state->active_lcall);
-	lcall_state->active_lcall = 0;
+	kfree(cur_lcall);
+
 
     }
 
@@ -162,8 +169,18 @@ pisces_lcall_init( struct pisces_enclave * enclave) {
     init_waitqueue_head(&lcall_state->kern_waitq);
     lcall_state->active_lcall = NULL;
 
-
     boot_params = __va(enclave->bootmem_addr_pa);
+
+    xbuf_desc = pisces_xbuf_server_init(enclave, (uintptr_t)__va(boot_params->longcall_buf_addr), 
+			    boot_params->longcall_buf_size, 
+			    lcall_handler, STUPID_LINUX_IRQ, apic->cpu_present_to_apicid(0));
+
+    if (xbuf_desc == NULL) {
+	printk("Error initializing LCALL XBUF server\n");
+	return -1;
+    }
+
+    lcall_state->xbuf_desc = xbuf_desc;
 
     {
 	char thrd_name[32];
@@ -174,15 +191,6 @@ pisces_lcall_init( struct pisces_enclave * enclave) {
 	lcall_state->kern_thread = kthread_create(lcall_kern_thread, enclave, thrd_name);
 	wake_up_process(lcall_state->kern_thread);
     }
-
-
-
-
-    xbuf_desc = pisces_xbuf_server_init(enclave, (uintptr_t)__va(boot_params->longcall_buf_addr), 
-			    boot_params->longcall_buf_size, 
-			    lcall_handler, STUPID_LINUX_IRQ, apic->cpu_present_to_apicid(0));
-
-    lcall_state->xbuf_desc = xbuf_desc;
 
 
     return 0;

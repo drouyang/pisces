@@ -21,8 +21,11 @@ pisces-objs :=  src/main.o \
 		src/launch_code.o \
 		src/pgtables.o \
 		src/util-hashtable.o \
+		src/util-queue.o \
 		src/pisces_pci.o \
-		src/pagemap.o
+		src/pagemap.o \
+		src/v3_console.o \
+
 
 all:
 	make -C $(KERN_PATH) M=$(PWD) modules

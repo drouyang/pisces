@@ -15,7 +15,10 @@ execs := 	pisces_load \
 		pisces_lcall_test \
 		pisces_assign_device \
 		v3_create \
-		v3_launch
+		v3_launch \
+		v3_cons_sc \
+		v3_dbg \
+
 
 build = \
 	@if [ -z "$V" ]; then \
@@ -41,6 +44,8 @@ all: $(execs) $(libs)
 
 
 
+v3_cons_sc: v3_cons_sc.c
+	$(call build,CC,$(CC) $(CFLAGS)  $< -lcurses $(libs) -o $@)
 
 
 

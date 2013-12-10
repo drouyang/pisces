@@ -137,7 +137,7 @@ int pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc, u8 * data, u32 data_le
     int acquired = 0;
     
     if (xbuf->ready == 0) {
-        printk(KERN_ERR "Attempted longcall to unready host OS\n");
+        printk(KERN_ERR "Attempted sync_end to unready xbuf\n");
         return -1;
     }
 
@@ -175,6 +175,8 @@ int pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc, u8 * data, u32 data_le
 
     send_data(xbuf, data, data_len);
 
+    printk("DAta fully sent\n");
+
     /* Wait for complete flag to be 1 */
     while (xbuf->complete == 0) {
 	schedule();
@@ -182,8 +184,10 @@ int pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc, u8 * data, u32 data_le
     }
 
 
-    if ((*resp_data) && (xbuf->staged == 1)) {
+
+    if ((resp_data) && (xbuf->staged == 1)) {
 	// Response exists and we actually want to retrieve it
+	printk("Receiving Response Data\n");
 	recv_data(xbuf, resp_data, resp_len);
     }
 
@@ -198,15 +202,32 @@ int pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc, u8 * data, u32 data_le
 
 
 int pisces_xbuf_send(struct pisces_xbuf_desc * desc, u8 * data, u32 data_len) {
-    return pisces_xbuf_sync_send(desc, data, data_len, NULL, NULL);
+    u8 * resp = NULL;
+    u32 resp_len = 0;
+    int ret = 0;
+
+    printk("Sending xbuf msg (desc=%p, data=%p, data_len=%u)\n", desc, data, data_len);
+    ret = pisces_xbuf_sync_send(desc, data, data_len, &resp, &resp_len);
+
+    if (resp) {
+	kfree(resp);
+    }
+
+    return ret;
 }
 
 
 
 
 int pisces_xbuf_complete(struct pisces_xbuf_desc * desc, u8 * data, u32 data_len) {
-    struct pisces_xbuf * xbuf = desc->xbuf;
+    struct pisces_xbuf * xbuf = NULL;
 	
+    BUG_ON(desc == NULL);
+    BUG_ON(desc->xbuf == NULL);
+
+    xbuf = desc->xbuf;
+
+
     if (xbuf->active == 0) {
 	printk(KERN_ERR "Error: Attempting to complete an inactive xbuf\n");
 	return -1;
@@ -282,6 +303,7 @@ struct pisces_xbuf_desc * pisces_xbuf_server_init(struct pisces_enclave * enclav
     desc = kmalloc(sizeof(struct pisces_xbuf_desc), GFP_KERNEL);
 
     if (IS_ERR(desc)) {
+	printk("ERROR: Could not allocate xbuf descriptor\n");
 	return NULL;
     }
 
