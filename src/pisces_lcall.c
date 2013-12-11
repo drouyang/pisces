@@ -31,6 +31,9 @@ static void lcall_handler(struct pisces_enclave * enclave, struct pisces_xbuf_de
     if (pisces_xbuf_pending(xbuf_desc)) {
 	lcall_state->active_lcall = 1;
 
+	__asm__ __volatile__ ("":::"memory");
+	mb();
+
 	printk("Waking up kernel thread for lcall (xbuf_desc = %p)\n", xbuf_desc);
 	wake_up_interruptible(&(lcall_state->kern_waitq));
     }
@@ -45,18 +48,23 @@ static int lcall_kern_thread(void * arg) {
     struct pisces_lcall_resp resp;
     struct pisces_lcall * cur_lcall = NULL;
     u32 lcall_size = 0;
-	
+    int ret = 0;
     
     while (1) {
         //  printk("LCALL Kernel thread going to sleep on cmd buf\n");
         wait_event_interruptible(lcall_state->kern_waitq, 
 				 (lcall_state->active_lcall == 1));
-	
-	
+
+	printk("kernel thread is awake\n");
+
+	lcall_state->active_lcall = 0;
+	mb();
+
 	// grab the lcall from the xbuf
-	pisces_xbuf_recv(xbuf_desc, (u8 **)&cur_lcall, &lcall_size);
+	ret = pisces_xbuf_recv(xbuf_desc, (u8 **)&cur_lcall, &lcall_size);
 	
-	printk("kernel thread is awake (handling lcall %llu)\n", cur_lcall->lcall);
+
+	printk("Xbuf data received (ret==%d) (%u byte)\n", ret, lcall_size);
 
         switch (cur_lcall->lcall) {
             case PISCES_LCALL_VFS_READ:
@@ -111,7 +119,7 @@ static int lcall_kern_thread(void * arg) {
         }
 	
 	kfree(cur_lcall);
-	lcall_state->active_lcall = 0;
+
 
     }
 

@@ -10,7 +10,12 @@
 #include "pisces_xbuf.h"
 #include "ipi.h"
 
-
+#ifdef DEBUG
+static u64 xbuf_op_idx = 0;
+#define debug(fmt, args...) printk(fmt, args)
+#else 
+#define debug(fmt, args...)
+#endif
 
 #define XBUF_READY     0x01
 #define XBUF_PENDING   0x02
@@ -42,9 +47,6 @@ struct pisces_xbuf {
     u8 data[0];
 } __attribute__((packed));
 
-
-
-static u64 xbuf_op_idx = 0;
 
 
 
@@ -98,7 +100,7 @@ static u32 recv_data(struct pisces_xbuf * xbuf, u8 ** data, u32 * data_len) {
     *data_len = xbuf->data_len;
     *data = kmalloc(xbuf->data_len, GFP_KERNEL);
 
-    printk("XBUF Receiving %u bytes of data\n", *data_len);
+    debug("XBUF Receiving %u bytes of data\n", *data_len);
 
     while (bytes_left > 0) {
 	u32 staged_len = (bytes_left > xbuf_size) ? xbuf_size : bytes_left;
@@ -117,7 +119,7 @@ static u32 recv_data(struct pisces_xbuf * xbuf, u8 ** data, u32 * data_len) {
 	    iter_cnt++;
 	}
 	
-	printk("Copying %d bytes in recv_Data\n", staged_len);
+	debug("Copying %d bytes in recv_Data\n", staged_len);
 
 	memcpy(*data + bytes_read, xbuf->data, staged_len);
 
@@ -180,20 +182,20 @@ int pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc, u8 * data, u32 data_le
 
 	bytes_staged = init_stage_data(xbuf, data, data_len);
 	
-	printk("Staged %u bytes\n", bytes_staged);
+	debug("Staged %u bytes\n", bytes_staged);
 
 	data_len -= bytes_staged;
 	data += bytes_staged;
     }
 
 
-    printk("Sending IPI %d to cpu %d\n", xbuf->enclave_vector, xbuf->enclave_cpu);
+    debug("Sending IPI %d to cpu %d\n", xbuf->enclave_vector, xbuf->enclave_cpu);
     pisces_send_ipi(desc->enclave, xbuf->enclave_cpu, xbuf->enclave_vector);
-    printk("IPI completed\n");
+    debug("IPI completed\n");
 
     send_data(xbuf, data, data_len);
 
-    printk("DAta fully sent\n");
+    debug("DAta fully sent\n");
 
     /* Wait for complete flag to be 1 */
     while (xbuf->complete == 0) {
@@ -201,13 +203,13 @@ int pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc, u8 * data, u32 data_le
         __asm__ __volatile__ ("":::"memory");
     }
 
-    printk("CMD COMPLETE\n");
+    debug("CMD COMPLETE\n");
 
 
 
     if ((resp_data) && (xbuf->staged == 1)) {
 	// Response exists and we actually want to retrieve it
-	printk("Receiving Response Data\n");
+	debug("Receiving Response Data\n");
 
 	if (recv_data(xbuf, resp_data, resp_len) == 0) {
 	    return -1;
@@ -215,7 +217,7 @@ int pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc, u8 * data, u32 data_le
     }
 
 
-    printk("CMD IS NOW READY\n");
+    debug("CMD IS NOW READY\n");
     xbuf->flags = XBUF_READY;
     mb();
     
@@ -230,7 +232,7 @@ int pisces_xbuf_send(struct pisces_xbuf_desc * desc, u8 * data, u32 data_len) {
     u32 resp_len = 0;
     int ret = 0;
 
-    printk("Sending xbuf msg (desc=%p, data=%p, data_len=%u)\n", desc, data, data_len);
+    debug("Sending xbuf msg (desc=%p, data=%p, data_len=%u)\n", desc, data, data_len);
     ret = pisces_xbuf_sync_send(desc, data, data_len, &resp, &resp_len);
 
     if (resp) {
@@ -257,12 +259,12 @@ int pisces_xbuf_complete(struct pisces_xbuf_desc * desc, u8 * data, u32 data_len
 	return -1;
     }
 
-    printk("Completing LCALL\n");
+    debug("Completing LCALL\n");
 
     if ((data_len > 0) && (data != NULL)) {
 	u32 bytes_staged = 0;
 
-	printk("Initing Staged data. Len=%d\n", data_len);
+	debug("Initing Staged data. Len=%d\n", data_len);
 
 	bytes_staged = init_stage_data(xbuf, data, data_len);
 	
@@ -312,14 +314,14 @@ ipi_handler(void * private_data)
     }
 
 
-    printk("Handling XBUFF request (idx=%llu)\n", xbuf_op_idx++);
+    debug("Handling XBUFF request (idx=%llu)\n", xbuf_op_idx++);
 
  
     
     if (desc->recv_handler) {
 	desc->recv_handler(desc->enclave, desc);
     } else {
-	printk("IPI Arrived for XBUF without a handler\n");
+	debug("IPI Arrived for XBUF without a handler\n");
 	xbuf->complete = 1;
     }
 
