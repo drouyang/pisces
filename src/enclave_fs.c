@@ -4,6 +4,13 @@
 #include "enclave.h"
 #include "enclave_fs.h"
 
+#ifdef DEBUG
+static u64 xbuf_op_idx = 0;
+#define debug(fmt, args...) printk(fmt, args)
+#else 
+#define debug(fmt, args...)
+#endif
+
 
 static u32 file_hash_fn(uintptr_t key) {
     return hash_long(key);
@@ -21,7 +28,7 @@ int enclave_vfs_open_lcall(struct pisces_enclave * enclave,
     struct pisces_lcall_resp vfs_resp;
     struct file * file_ptr = NULL;
 
-    printk("Opening file %s (xbuf_desc=%p)\n", lcall->path, xbuf_desc);
+    debug("Opening file %s (xbuf_desc=%p)\n", lcall->path, xbuf_desc);
 
     file_ptr = file_open(lcall->path, lcall->mode);
 
@@ -41,7 +48,7 @@ int enclave_vfs_open_lcall(struct pisces_enclave * enclave,
     vfs_resp.status = (u64)file_ptr;
     vfs_resp.data_len = 0;
 
-    printk("Returning from open (file_handle = %p)\n", (void *)file_ptr);
+    debug("Returning from open (file_handle = %p)\n", (void *)file_ptr);
     pisces_xbuf_complete(xbuf_desc, (u8 *)&vfs_resp, sizeof(struct pisces_lcall_resp));
 
     return 0;
@@ -58,7 +65,7 @@ int enclave_vfs_close_lcall(struct pisces_enclave * enclave,
     file_ptr = (struct file *)lcall->file_handle;
 
 
-    printk("closing file %p\n", file_ptr);
+    debug("closing file %p\n", file_ptr);
 
     
     if (!htable_search(fs_state->open_files, (uintptr_t)file_ptr)) {
@@ -94,7 +101,7 @@ int enclave_vfs_size_lcall(struct pisces_enclave * enclave,
 
     file_ptr = (struct file *)lcall->file_handle;
     
-    printk("Getting file %p size\n", file_ptr);
+    debug("Getting file %p size\n", file_ptr);
     
     if (!htable_search(fs_state->open_files, (uintptr_t)file_ptr)) {
 	printk("File %p does not exist\n", file_ptr);
@@ -129,7 +136,7 @@ int enclave_vfs_read_lcall(struct pisces_enclave * enclave,
     u32 i = 0;
 
     file_ptr = (struct file *)lcall->file_handle;
-    printk("FS: Reading file %p\n", file_ptr);
+    debug("FS: Reading file %p\n", file_ptr);
     
     if (!htable_search(fs_state->open_files, (uintptr_t)file_ptr)) {
 	// File does not exist
@@ -195,7 +202,7 @@ int enclave_vfs_write_lcall(struct pisces_enclave * enclave,
     u32 i = 0;
 
     file_ptr = (struct file *)lcall->file_handle;
-    printk("writing file %p\n", file_ptr);    
+    debug("writing file %p\n", file_ptr);    
 
     if (!htable_search(fs_state->open_files, (uintptr_t)file_ptr)) {
 	// File does not exist

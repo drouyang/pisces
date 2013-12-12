@@ -25,10 +25,12 @@ struct ipi_callback {
 };
 
 static LIST_HEAD(ipi_callbacks);
+static DEFINE_SPINLOCK(ipi_lock);
 
 
 int pisces_register_ipi_callback(void (*callback)(void *), void * private_data) {
     struct ipi_callback * new_cb = NULL;
+    unsigned long flags;
 
     new_cb = kmalloc(sizeof(struct ipi_callback), GFP_KERNEL);
 
@@ -40,7 +42,28 @@ int pisces_register_ipi_callback(void (*callback)(void *), void * private_data) 
     new_cb->callback = callback;
     new_cb->private_data = private_data;
 
+    spin_lock_irqsave(&ipi_lock, flags);
     list_add_tail(&(new_cb->node), &ipi_callbacks);
+    spin_unlock_irqrestore(&ipi_lock, flags);
+
+    return 0;
+}
+
+
+int pisces_remove_ipi_callback(void (*callback)(void *), void * private_data) {
+    struct ipi_callback * cb = NULL;
+    struct ipi_callback * tmp = NULL;
+    unsigned long flags;
+
+    spin_lock_irqsave(&ipi_lock, flags);
+    list_for_each_entry_safe(cb, tmp, &ipi_callbacks, node) {
+	if ((cb->callback == callback) && 
+	    (cb->private_data == private_data)) {
+	    list_del(&(cb->node));
+	    kfree(cb);
+	}
+    }
+    spin_unlock_irqrestore(&ipi_lock, flags);
 
     return 0;
 }
@@ -49,12 +72,14 @@ int pisces_register_ipi_callback(void (*callback)(void *), void * private_data) 
 static void 
 platform_ipi_handler(void) {
     struct ipi_callback * iter = NULL;
-
+    unsigned long flags;
 //    printk("Handling IPI callbacks\n");
 
+    spin_lock_irqsave(&ipi_lock, flags);
     list_for_each_entry(iter, &(ipi_callbacks), node) {
 	iter->callback(iter->private_data);
     }
+    spin_unlock_irqrestore(&ipi_lock, flags);
 
     return;
 }
@@ -77,6 +102,7 @@ int pisces_ipi_init(void)
 
 int pisces_send_ipi(struct pisces_enclave * enclave, int cpu_id, unsigned int vector)
 {
+    unsigned long flags;
 
     if (cpu_id != 0) {
 	printk(KERN_ERR "Currently we only allow sending IPI's to the boot CPU\n");
@@ -85,7 +111,9 @@ int pisces_send_ipi(struct pisces_enclave * enclave, int cpu_id, unsigned int ve
 
     printk("Sending IPI %u to CPU %d (APIC=%d)\n", vector, enclave->boot_cpu, apic->cpu_present_to_apicid(enclave->boot_cpu));
 
+    local_irq_save(flags);
     __default_send_IPI_dest_field(apic->cpu_present_to_apicid(enclave->boot_cpu), vector, APIC_DEST_PHYSICAL);
+    local_irq_restore(flags);
 
     return 0;
 }

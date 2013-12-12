@@ -6,6 +6,8 @@ struct pisces_enclave;
 #define STUPID_LINUX_IRQ 247
 
 int pisces_register_ipi_callback(void (*callback)(void *), void * private_data);
+int pisces_remove_ipi_callback(void (*callback)(void *), void * private_data);
+
 int pisces_ipi_init(void);
 
 int pisces_send_ipi(struct pisces_enclave * enclave, int cpu_id, unsigned int vector);

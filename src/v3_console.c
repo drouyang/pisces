@@ -90,6 +90,28 @@ struct palacios_console {
 };
 
 
+static void cons_kick(void * arg) {
+    struct palacios_console * cons = arg;
+    u32 entries = 0;
+    //    unsigned long flags;
+
+    // We double lock here to prevent local IPI preemption, as well as cross enclave contention
+
+    //    printk("Console Kick\n");
+    //   spin_lock_irqsave(&(cons->irq_lock), flags);
+    // pisces_spin_lock(&(cons->ring_buf->lock));
+    entries = cons->ring_buf->cur_entries;
+    // pisces_spin_unlock(&(cons->ring_buf->lock));
+    //spin_unlock_irqrestore(&(cons->irq_lock), flags);
+
+    if (entries > 0) {
+	wake_up_interruptible(&(cons->intr_queue));
+    }
+
+    return;
+}
+
+
 static int cons_dequeue(struct cons_ring_buf * ringbuf, struct cons_msg * msg) {
 
     pisces_spin_lock(&(ringbuf->lock));
@@ -113,6 +135,9 @@ static int cons_dequeue(struct cons_ring_buf * ringbuf, struct cons_msg * msg) {
     
     return 0;
 }
+
+
+
 
 
 static ssize_t 
@@ -220,6 +245,8 @@ static int console_release(struct inode * i, struct file * filp) {
     // disconnect console
     ret = pisces_xbuf_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_vm_cons_disconnect));
 
+    pisces_remove_ipi_callback(cons_kick, cons);
+
     if (ret != 0) {
 	printk(KERN_ERR "Error sending disconnect message to VM %d on enclave (%d)\n", 
 	       cons->vm_id, enclave->id);
@@ -241,26 +268,6 @@ static struct file_operations cons_fops = {
 };
 
 
-static void cons_kick(void * arg) {
-    struct palacios_console * cons = arg;
-    u32 entries = 0;
-    //    unsigned long flags;
-
-    // We double lock here to prevent local IPI preemption, as well as cross enclave contention
-
-    //    printk("Console Kick\n");
-    //   spin_lock_irqsave(&(cons->irq_lock), flags);
-    // pisces_spin_lock(&(cons->ring_buf->lock));
-    entries = cons->ring_buf->cur_entries;
-    // pisces_spin_unlock(&(cons->ring_buf->lock));
-    //spin_unlock_irqrestore(&(cons->irq_lock), flags);
-
-    if (entries > 0) {
-	wake_up_interruptible(&(cons->intr_queue));
-    }
-
-    return;
-}
 
 
 
