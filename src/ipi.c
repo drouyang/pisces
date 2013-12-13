@@ -9,8 +9,11 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/export.h>
+#include <linux/kthread.h>
 #include <asm/desc.h>
 #include <asm/ipi.h>
+
+
 #include "pisces.h"
 #include "enclave.h"
 #include "ipi.h"
@@ -24,8 +27,13 @@ struct ipi_callback {
     struct list_head node;
 };
 
+
 static LIST_HEAD(ipi_callbacks);
 static DEFINE_SPINLOCK(ipi_lock);
+static wait_queue_head_t notifier_waitq;
+static struct task_struct * notifier_thread = NULL;
+static u64 ipis_recvd = 0;
+static u64 notifications = 0;
 
 
 int pisces_register_ipi_callback(void (*callback)(void *), void * private_data) {
@@ -56,6 +64,7 @@ int pisces_remove_ipi_callback(void (*callback)(void *), void * private_data) {
     unsigned long flags;
 
     spin_lock_irqsave(&ipi_lock, flags);
+
     list_for_each_entry_safe(cb, tmp, &ipi_callbacks, node) {
 	if ((cb->callback == callback) && 
 	    (cb->private_data == private_data)) {
@@ -63,24 +72,43 @@ int pisces_remove_ipi_callback(void (*callback)(void *), void * private_data) {
 	    kfree(cb);
 	}
     }
+
     spin_unlock_irqrestore(&ipi_lock, flags);
 
     return 0;
 }
 
 
-static void 
-platform_ipi_handler(void) {
+int notifier_thread_fn(void * arg) {
     struct ipi_callback * iter = NULL;
-    unsigned long flags;
 //    printk("Handling IPI callbacks\n");
 
-    spin_lock_irqsave(&ipi_lock, flags);
-    list_for_each_entry(iter, &(ipi_callbacks), node) {
-	iter->callback(iter->private_data);
-    }
-    spin_unlock_irqrestore(&ipi_lock, flags);
+    while (1) {
+	wait_event_interruptible(notifier_waitq, (notifications < ipis_recvd));
+	    
+	if (notifications < ipis_recvd) {
 
+	    notifications = ipis_recvd;
+
+	    spin_lock(&ipi_lock);
+	
+	    list_for_each_entry(iter, &(ipi_callbacks), node) {
+		iter->callback(iter->private_data);
+	    }
+	    
+	    spin_unlock(&ipi_lock);
+	}
+    }
+   
+    return 0;
+}
+
+
+static void 
+platform_ipi_handler(void) {
+    ipis_recvd++;
+    mb();
+    wake_up_interruptible(&notifier_waitq);
     return;
 }
 
@@ -88,14 +116,20 @@ platform_ipi_handler(void) {
 int pisces_ipi_init(void)
 {
 
-   INIT_LIST_HEAD(&ipi_callbacks);
-
     if (linux_x86_platform_ipi_callback == NULL) {
         return -1;
-    } else {
-        *linux_x86_platform_ipi_callback = platform_ipi_handler;
-        return 0;
     }
+
+   INIT_LIST_HEAD(&ipi_callbacks);
+   spin_lock_init(&ipi_lock);
+   init_waitqueue_head(&notifier_waitq);
+
+   notifier_thread = kthread_create(notifier_thread_fn, NULL, "pisces_notifyd");
+   wake_up_process(notifier_thread);
+
+   *linux_x86_platform_ipi_callback = platform_ipi_handler;
+   
+   return 0;
 }
 
 

@@ -48,7 +48,37 @@ struct pisces_xbuf {
 } __attribute__((packed));
 
 
+static void set_flags(struct pisces_xbuf * xbuf, u64 new_flags) {
+    __asm__ __volatile__ ("lock xchgq %1, %0;"
+			  : "+m"(xbuf->flags), "+r"(new_flags)
+			  :
+			  : "memory");
 
+}
+
+
+static void raise_flag(struct pisces_xbuf * xbuf, u64 flags) {
+    __asm__ __volatile__ ("lock orq %1, %0;"
+			  : "+m"(xbuf->flags)
+			  : "r"(flags)
+			  : "memory");
+}
+
+static void lower_flag(struct pisces_xbuf * xbuf, u64 flags) {
+    u64 inv_flags = ~flags;
+
+    __asm__ __volatile__ ("lock andq %1, %0;"
+			  : "+m"(xbuf->flags)
+			  : "r"(inv_flags)
+			  : "memory");
+}
+
+
+
+
+int pisces_xbuf_pending(struct pisces_xbuf_desc * desc) {
+    return desc->xbuf->pending;
+}
 
 static u32 init_stage_data(struct pisces_xbuf * xbuf, u8 * data, u32 data_len) {
     u32 xbuf_size = xbuf->total_size;
@@ -57,7 +87,8 @@ static u32 init_stage_data(struct pisces_xbuf * xbuf, u8 * data, u32 data_len) {
     xbuf->data_len = data_len;
 
     memcpy(xbuf->data, data, staged_len);
-    xbuf->staged = 1;
+    raise_flag(xbuf, XBUF_STAGED);
+    //    xbuf->staged = 1;
     mb();
 	
     return staged_len;
@@ -79,7 +110,8 @@ static u32 send_data(struct pisces_xbuf * xbuf, u8 * data, u32 data_len) {
 
 	memcpy(xbuf->data, data + bytes_sent, staged_len);
 
-	xbuf->staged = 1;
+	// xbuf->staged = 1;
+	raise_flag(xbuf, XBUF_STAGED);
 	mb();
 	
 	bytes_sent += staged_len;
@@ -111,7 +143,9 @@ static u32 recv_data(struct pisces_xbuf * xbuf, u8 ** data, u32 * data_len) {
 	    __asm__ __volatile__ ("":::"memory");
 
 	    if (iter_cnt == 1000000) {
-		printk("XBUF recv STall detected\n");
+		printk("XBUF recv Stall detected!\n");
+		printk("xbuf_size=%u, xbuf->data_len=%u, bytes_left=%u\n", 
+		       xbuf->total_size, xbuf->data_len, bytes_left);
 	    } else if (iter_cnt > 1000000) {
 		schedule();
 	    }
@@ -124,8 +158,8 @@ static u32 recv_data(struct pisces_xbuf * xbuf, u8 ** data, u32 * data_len) {
 	memcpy(*data + bytes_read, xbuf->data, staged_len);
 
 	
-	xbuf->staged = 0;
-
+	//	xbuf->staged = 0;
+	lower_flag(xbuf, XBUF_STAGED);
 	
 	bytes_read += staged_len;
 	bytes_left -= staged_len;
@@ -136,9 +170,7 @@ static u32 recv_data(struct pisces_xbuf * xbuf, u8 ** data, u32 * data_len) {
 }
 
 
-int pisces_xbuf_pending(struct pisces_xbuf_desc * desc) {
-    return desc->xbuf->pending;
-}
+
 
 int pisces_xbuf_recv(struct pisces_xbuf_desc * desc, u8 ** data, u32 * data_len) {
     if (desc->xbuf->active == 0) {
@@ -164,7 +196,8 @@ int pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc, u8 * data, u32 data_le
 	
 	if (xbuf->pending == 0) {
 	    // clear all flags and signal that message is pending */
-	    xbuf->flags = XBUF_READY | XBUF_PENDING;
+	    //	    xbuf->flags = XBUF_READY | XBUF_PENDING;
+	    set_flags(xbuf, XBUF_READY | XBUF_PENDING);
 	    mb();
 	    acquired = 1;
 	}
@@ -218,7 +251,8 @@ int pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc, u8 * data, u32 data_le
 
 
     debug("CMD IS NOW READY\n");
-    xbuf->flags = XBUF_READY;
+    set_flags(xbuf, XBUF_READY);
+    //    xbuf->flags = XBUF_READY;
     mb();
     
     wake_up_interruptible(&(desc->xbuf_waitq));
@@ -274,7 +308,8 @@ int pisces_xbuf_complete(struct pisces_xbuf_desc * desc, u8 * data, u32 data_len
 
     __asm__ __volatile__ ("":::"memory");
 
-    xbuf->complete = 1;    
+    raise_flag(xbuf, XBUF_COMPLETE);
+    //    xbuf->complete = 1;    
 
     __asm__ __volatile__ ("":::"memory");
 
@@ -305,7 +340,8 @@ ipi_handler(void * private_data)
 	valid_ipi = 1;
     }
 
-    xbuf->active = 1;
+    raise_flag(xbuf, XBUF_ACTIVE);
+    //    xbuf->active = 1;
 
     spin_unlock_irqrestore(&(desc->xbuf_lock), flags);
 
@@ -321,8 +357,9 @@ ipi_handler(void * private_data)
     if (desc->recv_handler) {
 	desc->recv_handler(desc->enclave, desc);
     } else {
-	debug("IPI Arrived for XBUF without a handler\n");
-	xbuf->complete = 1;
+	printk("IPI Arrived for XBUF without a handler\n");
+	raise_flag(xbuf, XBUF_COMPLETE);
+	//	xbuf->complete = 1;
     }
 
     return;
@@ -370,7 +407,8 @@ struct pisces_xbuf_desc * pisces_xbuf_server_init(struct pisces_enclave * enclav
 	return NULL;
     }
     
-    xbuf->ready = 1;
+    set_flags(xbuf, XBUF_READY);
+    //    xbuf->ready = 1;
 
     return desc;
 
