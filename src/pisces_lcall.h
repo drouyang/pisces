@@ -39,7 +39,7 @@
 #define PISCES_LCALL_XPMEM_DETACH       (KERN_LCALL_START + 206)
 
 /* USER LCALLS (20000 - 29999) */
-#define PISCES_PPE_MSG             (USER_LCALL_START + 0)
+#define PISCES_LCALL_PPE_MESSAGE        (USER_LCALL_START + 0)
 
 
 struct pisces_lcall {

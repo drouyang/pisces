@@ -23,8 +23,9 @@ pisces-objs :=  src/main.o \
 		src/util-hashtable.o \
 		src/util-queue.o \
 		src/pisces_pci.o \
-		src/pagemap.o \
 		src/v3_console.o \
+		src/pisces_portals.o \
+		src/pagemap.o
 
 
 all:

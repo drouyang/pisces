@@ -131,14 +131,12 @@ static long enclave_ioctl(struct file * filp,
                 break;
 
             }
-#ifdef PORTALS
         case PISCES_ENCLAVE_PORTALS_CONNECT:
         {
             printk("Connecting Portals Channel\n");
             ret = pisces_portals_connect(enclave);
             break;
         }
-#endif
 
     }
 
@@ -275,9 +273,8 @@ int pisces_enclave_create(struct pisces_image * img) {
     INIT_LIST_HEAD(&(enclave->memdesc_list));
 
     init_enclave_fs(enclave);
-#ifdef PORTALS
     pisces_portals_init(enclave);
-#endif
+
     enclave->dev = MKDEV(pisces_major_num, enclave_idx);
     enclave->memdesc_num = 0;
 

@@ -85,7 +85,9 @@ static int lcall_kern_thread(void * arg) {
             case PISCES_LCALL_PCI_SETUP:
                 enclave_pci_setup_lcall(enclave, xbuf_desc, cur_lcall);
                 break;
-#ifdef PORTALS
+            case PISCES_LCALL_PPE_MESSAGE:
+                pisces_portals_ppe_message(enclave, xbuf_desc, cur_lcall);
+                break;
             case PISCES_LCALL_XPMEM_VERSION:
                 pisces_portals_xpmem_version(enclave, xbuf_desc, cur_lcall);
                 break;
@@ -107,8 +109,6 @@ static int lcall_kern_thread(void * arg) {
             case PISCES_LCALL_XPMEM_DETACH:
                 pisces_portals_xpmem_detach(enclave, xbuf_desc, cur_lcall);
                 break;
-
-#endif
             case PISCES_LCALL_VFS_READDIR:
             default:
                 printk(KERN_ERR "Enclave requested unimplemented LCALL %llu\n", cur_lcall->lcall);
