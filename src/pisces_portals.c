@@ -85,6 +85,9 @@ err:
         lcall_resp.data_len = 0;
         pisces_xbuf_complete(portals->xbuf_desc, (u8 *)&lcall_resp, 
                 sizeof(struct pisces_lcall_resp));
+
+        kfree(portals->ppe_lcall);
+        portals->ppe_lcall = NULL;
         return ret;
     }
 }
