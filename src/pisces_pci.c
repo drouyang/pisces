@@ -63,6 +63,7 @@ int pisces_device_assign(struct pisces_host_pci_bdf * bdf)
     }
 
     assigned_dev = kmalloc(sizeof(struct pisces_host_pci_bdf), GFP_KERNEL);
+
     if (IS_ERR(assigned_dev)) {
         printk(KERN_ERR "Could not allocate space for assigned device\n");
         r = -ENOMEM;
@@ -76,10 +77,11 @@ int pisces_device_assign(struct pisces_host_pci_bdf * bdf)
     assigned_dev->intx_disabled = 1;
     spin_lock_init(&(assigned_dev->intx_lock));
 
-    dev = pci_get_domain_bus_and_slot(
-            assigned_dev->domain,
+    dev = pci_get_bus_and_slot(
+
             assigned_dev->bus,
             assigned_dev->devfn);
+
     if (!dev) {
         printk(KERN_ERR "Assigned device not found\n");
         r = -EINVAL;
@@ -118,22 +120,6 @@ int pisces_device_assign(struct pisces_host_pci_bdf * bdf)
     list_add(&(assigned_dev->dev_node), &assigned_device_list);
     spin_unlock_irqrestore(&assigned_device_list_lock, flags);
 
-/*
-    {
-        int i = 0;
-        for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-            printk("Resource %d\n", i);
-            printk("\tflags = 0x%lx\n", pci_resource_flags(dev, i));
-            printk("\t name=%s, start=%lx, size=%d\n",
-                    dev->resource[i].name,
-                    (uintptr_t)pci_resource_start(dev, i),
-                    (u32)pci_resource_len(dev, i));
-
-        }
-
-        printk("Rom BAR=%d\n", dev->rom_base_reg);
-    }
-*/
 
     if (!iommu_present(&pci_bus_type)) {
         printk(KERN_ERR "IOMMU not found\n");
@@ -156,125 +142,5 @@ out_put:
 out_free:
     kfree(assigned_dev);
     return r;
-}
-
-int pisces_device_deassign(struct pisces_host_pci_bdf * bdf)
-{
-    return 0;
-}
-
-int enclave_pci_setup_lcall(
-        struct pisces_enclave * enclave,
-	struct pisces_xbuf_desc * xbuf_desc,
-        struct pisces_lcall * lcall)
-{
-    struct pisces_pci_setup_lcall * pci_setup_lcall 
-        = (struct pisces_pci_setup_lcall *) lcall;
-
-    struct pisces_pci_setup_resp pci_setup_resp;
-    struct pisces_assigned_dev * assiged_dev;
-    struct pci_dev * dev;
-
-    assiged_dev = find_dev_by_name(pci_setup_lcall->name);
-    if (assiged_dev == NULL) {
-        printk(KERN_ERR "enclave_pci_setup_lcall deviced not found.\n");
-        goto out;
-    }
-
-    dev = assiged_dev->dev;
-
-    /* Cache first 6 BAR regs */
-    {
-        int i = 0;
-
-        for (i = 0; i < 6; i++) {
-            struct v3_host_pci_bar * bar = &(pci_setup_resp.bars[i]);
-            unsigned long flags;
-
-            bar->size = pci_resource_len(dev, i);
-            bar->addr = pci_resource_start(dev, i);
-            flags = pci_resource_flags(dev, i);
-
-            if (flags & IORESOURCE_MEM) {
-                if (flags & IORESOURCE_MEM_64) {
-                    struct v3_host_pci_bar * hi_bar = &(pci_setup_resp.bars[i + 1]);
-                    bar->type = PT_BAR_MEM64_LO;
-
-                    hi_bar->type = PT_BAR_MEM64_HI;
-                    hi_bar->size = bar->size;
-                    hi_bar->addr = bar->addr;
-                    hi_bar->cacheable = ((flags & IORESOURCE_CACHEABLE) != 0);
-                    hi_bar->prefetchable = ((flags & IORESOURCE_PREFETCH) != 0);
-                    i++;
-                } else if (flags & IORESOURCE_DMA) {
-                    bar->type = PT_BAR_MEM24;
-                } else {
-                    bar->type = PT_BAR_MEM32;
-                }
-                bar->cacheable = ((flags & IORESOURCE_CACHEABLE) != 0);
-                bar->prefetchable = ((flags & IORESOURCE_PREFETCH) != 0);
-            } else if (flags & IORESOURCE_IO) {
-                bar->type = PT_BAR_IO;
-            } else {
-                bar->type = PT_BAR_NONE;
-            }
-        }
-    }
-
-    /* Cache expansion rom bar */
-    {
-        struct resource * rom_res = &(dev->resource[PCI_ROM_RESOURCE]);
-        int rom_size = pci_resource_len(dev, PCI_ROM_RESOURCE);
-
-        if (rom_size > 0) {
-            unsigned long flags;
-
-            pci_setup_resp.exp_rom.size = rom_size;
-            pci_setup_resp.exp_rom.addr = pci_resource_start(dev, PCI_ROM_RESOURCE);
-            flags = pci_resource_flags(dev, PCI_ROM_RESOURCE);
-
-            pci_setup_resp.exp_rom.type = PT_EXP_ROM;
-
-            pci_setup_resp.exp_rom.exp_rom_enabled = rom_res->flags & IORESOURCE_ROM_ENABLE;
-        }
-    }
-
-
-    /* Cache entire configuration space */
-    {
-        int m = 0;
-
-        // Copy the configuration space to the local cached version
-        for (m = 0; m < PCI_HDR_SIZE; m += 4) {
-            pci_read_config_dword(dev, m, (u32 *)&(pci_setup_resp.cfg_space[m]));
-        }
-    }
-
-    /* IOMMU checked when assign device to Pisces */
-    pci_setup_resp.iommu_present = 1;
-
-    pci_setup_resp.resp.status = 0;
-    pci_setup_resp.resp.data_len = 0;
-    pisces_xbuf_complete(xbuf_desc, (u8 *)&pci_setup_resp, sizeof(struct pisces_lcall_resp));
-    return 0;
-
-out:
-    pci_setup_resp.resp.status = -1;
-    pci_setup_resp.resp.data_len = 0;
-    pisces_xbuf_complete(xbuf_desc, (u8 *)&pci_setup_resp, sizeof(struct pisces_lcall_resp));
-    return 0;
-}
-
-
-int enclave_pci_request_deivce_lcall(
-        struct pisces_enclave * enclave,
-	struct pisces_xbuf_desc * xbuf_desc,
-        struct pisces_lcall * lcall)
-{
-    /* iommu map guest */
-
-    /* iommu attach device */
-
-    return 0;
 }
 

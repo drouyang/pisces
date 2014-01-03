@@ -55,6 +55,8 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
     void __user * argp = (void __user *)arg;
     int ret = 0;
 
+    printk("CTRL IOCTL (%d)\n", ioctl);
+
     switch (ioctl) {
         case ENCLAVE_CMD_ADD_CPU:
             {
@@ -154,6 +156,35 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
                 printk("Sent LCALL test CMD\n");
                 break;
             }
+	case ENCLAVE_CMD_ADD_V3_PCI:
+	    {
+		struct cmd_add_pci_dev cmd;
+
+		printk("Adding V3 PCI device\n");
+
+		memset(&cmd, 0, sizeof(struct cmd_add_pci_dev));
+
+		cmd.hdr.cmd = ENCLAVE_CMD_ADD_V3_PCI;
+		cmd.hdr.data_len = (sizeof(struct cmd_add_pci_dev) - sizeof(struct pisces_cmd));
+
+		if (copy_from_user(&(cmd.device), argp, sizeof(struct pisces_pci_dev))) {
+		    printk(KERN_ERR "Could not copy pci device structure from user space\n");
+		    return -EFAULT;
+		}
+
+		printk(" Notifying enclave\n");
+		ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_add_pci_dev), (u8 **)&resp, &resp_len);
+
+
+		kfree(resp);
+		
+		if (ret != 0) {
+		    printk(KERN_ERR "Error adding PCI device to Enclave %d\n", enclave->id);
+		    return -1;
+		}
+
+		break;
+	    }
         case ENCLAVE_CMD_CREATE_VM:
             {
                 struct cmd_create_vm cmd;
@@ -268,6 +299,13 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 		pisces_send_ipi(enclave, 0, 169);
 		break;
 	    }
+	default: 
+	    {
+		printk(KERN_ERR "Unknown Enclave IOCTL (%d)\n", ioctl);
+		return -1;
+	    }
+		   
+
     }
 
     return 0;

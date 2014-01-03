@@ -19,6 +19,7 @@ execs := 	pisces_load \
 		v3_cons_sc \
 		v3_cons_nosc \
 		v3_dbg \
+		v3_pci \
 
 
 build = \

@@ -39,6 +39,7 @@ struct pisces_resp {
 #define ENCLAVE_CMD_VM_CONS_CONNECT 122
 #define ENCLAVE_CMD_VM_CONS_DISCONNECT 123
 #define ENCLAVE_CMD_VM_CONS_KEYCODE 124
+#define ENCLAVE_CMD_ADD_V3_PCI 125
 
 #define ENCLAVE_CMD_VM_DBG 169
 
@@ -53,6 +54,12 @@ struct vm_path {
     uint8_t vm_name[128];
 } __attribute__((packed));
 
+struct pisces_pci_dev {
+    u8 name[128];
+    u32 bus;
+    u32 dev;
+    u32 func;
+} __attribute__((packed));
 
 
 
@@ -102,6 +109,13 @@ struct cmd_vm_cons_keycode {
     u32 vm_id;
     u8 scan_code;
 } __attribute__((packed));
+
+
+struct cmd_add_pci_dev {
+	struct pisces_cmd hdr;
+	struct pisces_pci_dev device;
+} __attribute__((packed));
+
 
 #endif
 
