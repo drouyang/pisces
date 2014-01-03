@@ -1,6 +1,7 @@
 #include <linux/fs.h>
 #include <linux/mutex.h>
 #include <linux/percpu.h>
+#include <linux/delay.h>
 
 #include <asm/delay.h>
 #include <asm/desc.h>
@@ -16,6 +17,8 @@
 
 #include "pgtables.h"
 #include "linux_syms.h"
+
+
 
 extern int wakeup_secondary_cpu_via_init(int, unsigned long);
 extern u64 linux_level3_ident_pgt_pa;
@@ -544,8 +547,8 @@ int boot_enclave(struct pisces_enclave * enclave)
     reset_cpu(apicid);
 
     /* Delay for target CPU to use Linux trampoline*/
-    udelay(500);
-
+    //udelay(500);
+    mdelay(10);
 
     restore_linux_trampoline(enclave);
     mutex_unlock(linux_trampoline_lock);
