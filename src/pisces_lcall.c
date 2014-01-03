@@ -14,7 +14,6 @@
 #include "pisces.h"
 #include "pisces_boot_params.h"
 #include "pisces_lcall.h"
-#include "pisces_pci.h"
 #include "enclave.h"
 #include "boot.h"
 #include "util-hashtable.h"
@@ -81,12 +80,6 @@ static int lcall_kern_thread(void * arg) {
                 break;
             case PISCES_LCALL_VFS_SIZE:
                 enclave_vfs_size_lcall(enclave, xbuf_desc, (struct vfs_size_lcall *)cur_lcall);
-                break;
-            case PISCES_LCALL_PCI_SETUP:
-                enclave_pci_setup_lcall(enclave, xbuf_desc, cur_lcall);
-                break;
-            case PISCES_LCALL_PPE_MESSAGE:
-                pisces_portals_ppe_message(enclave, xbuf_desc, cur_lcall);
                 break;
             case PISCES_LCALL_XPMEM_VERSION:
                 pisces_portals_xpmem_version(enclave, xbuf_desc, cur_lcall);
