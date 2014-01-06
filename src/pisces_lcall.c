@@ -81,6 +81,9 @@ static int lcall_kern_thread(void * arg) {
             case PISCES_LCALL_VFS_SIZE:
                 enclave_vfs_size_lcall(enclave, xbuf_desc, (struct vfs_size_lcall *)cur_lcall);
                 break;
+	    case PISCES_LCALL_PPE_MESSAGE:
+		pisces_portals_ppe_message(enclave, xbuf_desc, cur_lcall);
+		break;
             case PISCES_LCALL_XPMEM_VERSION:
                 pisces_portals_xpmem_version(enclave, xbuf_desc, cur_lcall);
                 break;
