@@ -56,7 +56,6 @@ struct vm_path {
 
 struct pisces_pci_dev {
     u8 name[128];
-    u32 domain;
     u32 bus;
     u32 dev;
     u32 func;

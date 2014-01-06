@@ -20,6 +20,7 @@ struct pisces_assigned_dev {
 
   u8 in_use;
   u8 iommu_enabled;
+  u8 assigned;
   struct iommu_domain * iommu_domain;
 
   enum {INTX_IRQ, MSI_IRQ, MSIX_IRQ} irq_type;
@@ -46,11 +47,52 @@ typedef enum {
   HOST_PCI_CMD_MSIX_ENABLE = 8
 } host_pci_cmd_t;
 
+struct pisces_pci_iommu_map_lcall {
+    union {
+        struct pisces_lcall lcall;
+        struct pisces_lcall_resp lcall_resp;
+    } __attribute__((packed));
+    char name[128];
+    u64 gpa;
+    u64 hpa;
+    u64 page_size;
+    int completed;
+} __attribute__((packed));
 
+struct pisces_pci_ack_irq_lcall {
+    union {
+        struct pisces_lcall lcall;
+        struct pisces_lcall_resp lcall_resp;
+    } __attribute__((packed));
+    char name[128];
+    u32 vector;
+} __attribute__((packed));
 
+struct pisces_pci_cmd_lcall {
+    union {
+        struct pisces_lcall lcall;
+        struct pisces_lcall_resp lcall_resp;
+    } __attribute__((packed));
+    char name[128];
+    host_pci_cmd_t cmd;
+    u64 arg;
+} __attribute__((packed));
 
+int pisces_pci_dev_init(struct pisces_pci_dev * device);
 
-//int pisces_device_assign(struct pisces_assigned_dev * bdf);
-int pisces_pci_dev_get(struct pisces_pci_dev * device);
+int pisces_pci_iommu_map(
+    struct pisces_enclave * enclave,
+    struct pisces_xbuf_desc * xbuf_desc,
+    struct pisces_pci_iommu_map_lcall * lcall);
+
+int pisces_pci_ack_irq(
+    struct pisces_enclave * enclave,
+    struct pisces_xbuf_desc * xbuf_desc,
+    struct pisces_pci_ack_irq_lcall * cur_lcall);
+
+int pisces_pci_cmd(
+    struct pisces_enclave * enclave,
+    struct pisces_xbuf_desc * xbuf_desc,
+    struct pisces_pci_cmd_lcall * cur_lcall);
 
 #endif

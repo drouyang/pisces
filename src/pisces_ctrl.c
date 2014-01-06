@@ -174,8 +174,8 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 		    return -EFAULT;
 		}
 
-		printk("Reserve and init an offlined PCI device");
-		pisces_pci_dev_get(&cmd.device);
+		printk("Init an offlined PCI device");
+		pisces_pci_dev_init(&cmd.device);
 
 		printk(" Notifying enclave\n");
 		ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_add_pci_dev), (u8 **)&resp, &resp_len);
