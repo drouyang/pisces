@@ -53,10 +53,10 @@ struct pisces_pci_iommu_map_lcall {
         struct pisces_lcall_resp lcall_resp;
     } __attribute__((packed));
     char name[128];
+    u64 region_start;
+    u64 region_end;
     u64 gpa;
-    u64 hpa;
-    u64 page_size;
-    int completed;
+    int last;
 } __attribute__((packed));
 
 struct pisces_pci_ack_irq_lcall {

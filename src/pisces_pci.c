@@ -161,17 +161,13 @@ out_free:
 }
 
 /* REF: Linux kvm_iommu_map_pages */
-static int _pisces_pci_iommu_map_page(char *name, u64 gpa, u64 hpa, u64 page_size)
+static int _pisces_pci_iommu_map_region(struct pisces_assigned_dev *assigned_dev, u64 start, u64 end, u64 gpa)
 {
-    struct pisces_assigned_dev * assigned_dev = NULL;
     u64 flags = 0;
     int r = 0;
-
-    assigned_dev = find_dev_by_name(name);
-    if (assigned_dev == NULL) {
-        printk(KERN_ERR "iommu_map device %s not found.\n", assigned_dev->name);
-        return -1;
-    }
+    u64 size = end - start;
+    u32 page_size = 512 * 4096; // assume large 64bit pages (2MB)
+    u64 hpa = start;
 
     flags = IOMMU_READ | IOMMU_WRITE;
     /* not sure if we need IOMMU_CACHE */
@@ -179,23 +175,33 @@ static int _pisces_pci_iommu_map_page(char *name, u64 gpa, u64 hpa, u64 page_siz
     //    flags |= IOMMU_CACHE;
     //}
 
-    r = iommu_map(assigned_dev->iommu_domain, gpa, hpa, page_size, flags);
-    if (r) {
-        printk(KERN_ERR "iommu_map failed for device %s at gpa=%llx, hpa=%llx\n", name, hpa, hpa);
-    }
+    printk("Memory region: GPA=%p, HPA=%p, size=%p\n", (void *)gpa, (void *)hpa, (void *)size);
+
+    do {
+        if (size < page_size) {
+            // less than a 2MB granularity, so we switch to small pages (4KB)
+            page_size = 4096;
+        }
+
+        r = iommu_map(assigned_dev->iommu_domain, gpa, hpa, page_size, flags);
+        if (r) {
+            printk(KERN_ERR "iommu_map failed for device %s at gpa=%llx, hpa=%llx\n", assigned_dev->name, gpa, hpa);
+            return r;
+        }
+
+        hpa += page_size;
+        gpa += page_size;
+        size -= page_size;
+    } while (size > 0);
+
+
+
     return r;
 }
 
-static int _pisces_pci_iommu_attach_device(char *name)
+static int _pisces_pci_iommu_attach_device(struct pisces_assigned_dev *assigned_dev)
 {
-    struct pisces_assigned_dev * assigned_dev = NULL;
     int r = 0;
-
-    assigned_dev = find_dev_by_name(name);
-    if (assigned_dev == NULL) {
-        printk(KERN_ERR "iommu_map device %s not found.\n", assigned_dev->name);
-        return -1;
-    }
 
     if (assigned_dev->assigned) {
         printk(KERN_ERR "device %s already assigned.\n", assigned_dev->name);
@@ -210,7 +216,7 @@ static int _pisces_pci_iommu_attach_device(char *name)
 
     assigned_dev->dev->dev_flags |= PCI_DEV_FLAGS_ASSIGNED;
     assigned_dev->assigned = 1;
-    printk(KERN_INFO "Device %s assigned.", name);
+    printk(KERN_INFO "Device %s attached to iommu domain.", assigned_dev->name);
 
     return r;
 }
@@ -221,19 +227,29 @@ int pisces_pci_iommu_map(
     struct pisces_pci_iommu_map_lcall * lcall)
 {
     struct pisces_lcall_resp iommu_map_resp;
+    struct pisces_assigned_dev *assigned_dev = NULL;
     char *name = lcall->name;
+    u64 start = lcall->region_start;
+    u64 end = lcall->region_end;
     u64 gpa = lcall->gpa;
-    u64 hpa = lcall->hpa;
-    u64 page_size = lcall->page_size;
-    int completed = lcall->completed;
+    int last = lcall->last;
     int r = 0;
 
-    if (!completed) {
-        r = _pisces_pci_iommu_map_page(name, gpa, hpa, page_size);
-    } else {
-        r = _pisces_pci_iommu_attach_device(name);
+    assigned_dev = find_dev_by_name(name);
+    if (assigned_dev == NULL) {
+        printk(KERN_ERR "iommu_map device %s not found.\n", assigned_dev->name);
+        r = -1;
+        goto out;
     }
-    iommu_map_resp.status = -1;
+
+    if (!last) {
+        r = _pisces_pci_iommu_map_region(assigned_dev, start, end, gpa);
+    } else {
+        r = _pisces_pci_iommu_attach_device(assigned_dev);
+    }
+
+out:
+    iommu_map_resp.status = r;
     iommu_map_resp.data_len = 0;
     pisces_xbuf_complete(xbuf_desc, (u8 *)&iommu_map_resp, 
             sizeof(struct pisces_lcall_resp));
