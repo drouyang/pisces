@@ -11,9 +11,10 @@
 #include <string.h>
 
 #include "../src/pisces.h"
+#include "../src/pisces_pci.h"
 #include <pet_ioctl.h>
 
-static struct pisces_host_pci_bdf dev_info;
+static struct pisces_assigned_dev dev_info;
 
 int main(int argc, char ** argv) {
     int v3_fd = 0;

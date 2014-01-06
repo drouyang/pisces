@@ -14,6 +14,7 @@
 #include "boot.h"
 #include "pisces_cmds.h"
 #include "pisces_xbuf.h"
+#include "pisces_pci.h"
 
 #include "v3_console.h"
 
@@ -156,6 +157,7 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
                 printk("Sent LCALL test CMD\n");
                 break;
             }
+
 	case ENCLAVE_CMD_ADD_V3_PCI:
 	    {
 		struct cmd_add_pci_dev cmd;
@@ -172,6 +174,9 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 		    return -EFAULT;
 		}
 
+		printk("Reserve and init an offlined PCI device");
+		pisces_pci_dev_get(&cmd.device);
+
 		printk(" Notifying enclave\n");
 		ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_add_pci_dev), (u8 **)&resp, &resp_len);
 
@@ -185,6 +190,7 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 
 		break;
 	    }
+
         case ENCLAVE_CMD_CREATE_VM:
             {
                 struct cmd_create_vm cmd;

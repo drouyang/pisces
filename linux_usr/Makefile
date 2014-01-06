@@ -13,13 +13,13 @@ execs := 	pisces_load \
 		pisces_ctrl \
 		pisces_cons \
 		pisces_lcall_test \
-		pisces_assign_device \
 		v3_create \
 		v3_launch \
 		v3_cons_sc \
 		v3_cons_nosc \
 		v3_dbg \
 		v3_pci \
+		#pisces_assign_device \
 
 
 build = \

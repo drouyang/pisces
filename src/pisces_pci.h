@@ -50,6 +50,7 @@ typedef enum {
 
 
 
-int pisces_device_assign(struct pisces_host_pci * bdf);
+//int pisces_device_assign(struct pisces_assigned_dev * bdf);
+int pisces_pci_dev_get(struct pisces_pci_dev * device);
 
 #endif
