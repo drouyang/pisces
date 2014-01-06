@@ -210,6 +210,7 @@ static int _pisces_pci_iommu_attach_device(char *name)
 
     assigned_dev->dev->dev_flags |= PCI_DEV_FLAGS_ASSIGNED;
     assigned_dev->assigned = 1;
+    printk(KERN_INFO "Device %s assigned.", name);
 
     return r;
 }
