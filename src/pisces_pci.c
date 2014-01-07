@@ -35,6 +35,11 @@ static struct pisces_assigned_dev * find_dev_by_name(char * name) {
     unsigned long flags;
 
     spin_lock_irqsave(&assigned_device_list_lock, flags);
+    if (list_empty(&assigned_device_list)) {
+        spin_unlock_irqrestore(&assigned_device_list_lock, flags);
+        return NULL;
+    }
+
     list_for_each_entry(dev, &assigned_device_list, dev_node) {
         if (strncmp(dev->name, name, 128) == 0) {
             spin_unlock_irqrestore(&assigned_device_list_lock, flags);
@@ -237,7 +242,7 @@ int pisces_pci_iommu_map(
 
     assigned_dev = find_dev_by_name(name);
     if (assigned_dev == NULL) {
-        printk(KERN_ERR "iommu_map device %s not found.\n", assigned_dev->name);
+        printk(KERN_ERR "iommu_map device %s not found.\n", name);
         r = -1;
         goto out;
     }
