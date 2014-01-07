@@ -16,6 +16,9 @@ struct pisces_assigned_dev {
   u32 bus;
   u32 devfn;
 
+  struct pisces_enclave * enclave;
+  u32 device_ipi_vector; /* for irq forwarding */
+
   struct list_head dev_node;
 
   u8 in_use;
@@ -56,7 +59,7 @@ struct pisces_pci_iommu_map_lcall {
     u64 region_start;
     u64 region_end;
     u64 gpa;
-    int last;
+    u32 last;
 } __attribute__((packed));
 
 struct pisces_pci_ack_irq_lcall {
@@ -78,7 +81,7 @@ struct pisces_pci_cmd_lcall {
     u64 arg;
 } __attribute__((packed));
 
-int pisces_pci_dev_init(struct pisces_pci_dev * device);
+struct pisces_assigned_dev * pisces_pci_dev_init(struct pisces_pci_dev * device);
 
 int pisces_pci_iommu_map(
     struct pisces_enclave * enclave,

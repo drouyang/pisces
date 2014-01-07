@@ -112,8 +112,12 @@ struct cmd_vm_cons_keycode {
 
 
 struct cmd_add_pci_dev {
-	struct pisces_cmd hdr;
-	struct pisces_pci_dev device;
+    union {
+      struct pisces_cmd hdr;
+      struct pisces_resp resp;
+    } __attribute__((packed));
+    struct pisces_pci_dev device;
+    u32 device_ipi_vector;
 } __attribute__((packed));
 
 

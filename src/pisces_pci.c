@@ -14,6 +14,7 @@
 
 #include "pisces_cmds.h"
 #include "pisces_pci.h"
+#include "ipi.h"
 
 /*
 #define PCI_BUS_MAX  7
@@ -61,7 +62,8 @@ static struct pisces_assigned_dev * find_dev_by_name(char * name) {
  *
  * REF: linux: virt/kvm/assigned-dev.c
  */
-int pisces_pci_dev_init(struct pisces_pci_dev *device)
+struct pisces_assigned_dev *
+pisces_pci_dev_init(struct pisces_pci_dev *device)
 {
     struct pisces_assigned_dev * assigned_dev = NULL;
     struct pci_dev * dev;
@@ -70,7 +72,7 @@ int pisces_pci_dev_init(struct pisces_pci_dev *device)
 
     if (find_dev_by_name(device->name)) {
         printk(KERN_ERR "Device %s already assigned.\n", assigned_dev->name);
-        return -1;
+        return NULL;
     }
 
     assigned_dev = kmalloc(sizeof(struct pisces_assigned_dev), GFP_KERNEL);
@@ -85,8 +87,10 @@ int pisces_pci_dev_init(struct pisces_pci_dev *device)
     assigned_dev->domain = 0;
     assigned_dev->bus = device->bus;
     assigned_dev->devfn = PCI_DEVFN(device->dev, device->func);
+    assigned_dev->device_ipi_vector = 0;
     assigned_dev->intx_disabled = 1;
     assigned_dev->assigned = 0;
+    assigned_dev->enclave = NULL;
     spin_lock_init(&(assigned_dev->intx_lock));
 
     /* equivilent pci_pci_get_domain_bus_and_slot(0, bus, devfn) */
@@ -151,7 +155,7 @@ int pisces_pci_dev_init(struct pisces_pci_dev *device)
 
     printk(KERN_INFO "Device %s initialized, iommu_domain allocated.\n", assigned_dev->name);
 
-    return 0;
+    return assigned_dev;
 
 out_del_list:
     list_del(&assigned_device_list);
@@ -162,10 +166,27 @@ out_put:
     pci_dev_put(dev);
 out_free:
     kfree(assigned_dev);
-    return r;
+    return NULL;
 }
 
-/* REF: Linux kvm_iommu_map_pages */
+static int  _pisces_pci_ack_irq(
+        struct pisces_assigned_dev * assigned_dev, 
+        u32 vector)
+{
+    struct pci_dev * dev = assigned_dev->dev;
+    unsigned long flags;
+
+    printk("Acking IRQ vector %d\n", vector);
+
+    spin_lock_irqsave(&(assigned_dev->intx_lock), flags);
+    //printk("Enabling IRQ %d\n", dev->irq);
+    enable_irq(dev->irq);
+    assigned_dev->intx_disabled = 0;
+    spin_unlock_irqrestore(&(assigned_dev->intx_lock), flags);
+
+    return 0;
+}
+
 static int _pisces_pci_iommu_map_region(struct pisces_assigned_dev *assigned_dev, u64 start, u64 end, u64 gpa)
 {
     u64 flags = 0;
@@ -221,9 +242,114 @@ static int _pisces_pci_iommu_attach_device(struct pisces_assigned_dev *assigned_
 
     assigned_dev->dev->dev_flags |= PCI_DEV_FLAGS_ASSIGNED;
     assigned_dev->assigned = 1;
-    printk(KERN_INFO "Device %s attached to iommu domain.", assigned_dev->name);
+    printk(KERN_INFO "Device %s attached to iommu domain.\n", assigned_dev->name);
 
     return r;
+}
+
+/* forward irq through IPI */
+int _pisces_pci_raise_irq(struct pisces_assigned_dev * assigned_dev)
+{
+
+    /* For now the second parameter (cpu_id) is not used
+     * in pisces_send_ipi, and IPIs are always send to
+     * to enclave->boot_cpu 
+     */
+    if (assigned_dev->enclave == NULL) {
+        printk("Error: device %s has NULL enclave field\n", assigned_dev->name);
+        return -1;
+    }
+
+    if (assigned_dev->device_ipi_vector == 0) {
+        printk("Error: device %s ipi vector not initialized\n", assigned_dev->name);
+        return -1;
+    }
+
+    return pisces_send_ipi(
+            assigned_dev->enclave, 
+            0, 
+            assigned_dev->device_ipi_vector);
+}
+
+static irqreturn_t _host_pci_intx_irq_handler(int irq, void * priv_data) {
+    struct pisces_assigned_dev * assigned_dev = priv_data;
+
+    printk("Host PCI IRQ handler (%d)\n", irq);
+
+    spin_lock(&(assigned_dev->intx_lock));
+    disable_irq_nosync(irq);
+    assigned_dev->intx_disabled = 1;
+    spin_unlock(&(assigned_dev->intx_lock));
+
+    _pisces_pci_raise_irq(assigned_dev);
+
+    return IRQ_HANDLED;
+}
+
+
+static int _pisces_pci_cmd(
+        struct pisces_assigned_dev * assigned_dev,
+        host_pci_cmd_t cmd,
+        u64 arg)
+{
+    struct pci_dev * dev = assigned_dev->dev;
+
+    switch (cmd) {
+        case HOST_PCI_CMD_DMA_DISABLE:
+            printk("Passthrough PCI device disabling BMDMA\n");
+            pci_clear_master(dev);
+            break;
+
+        case HOST_PCI_CMD_DMA_ENABLE:
+            printk("Passthrough PCI device enabling BMDMA\n");
+            pci_set_master(dev);
+            break;
+
+        case HOST_PCI_CMD_INTX_DISABLE:
+            printk("Passthrough PCI device disabling INTx IRQ\n");
+
+            disable_irq(dev->irq);
+            free_irq(dev->irq, (void *)assigned_dev);
+
+            break;
+
+        case HOST_PCI_CMD_INTX_ENABLE:
+            printk("Passthrough PCI device enabling INTx IRQ\n");
+
+            if (request_threaded_irq(
+                        dev->irq, 
+                        NULL, 
+                        _host_pci_intx_irq_handler, 
+                        IRQF_ONESHOT, 
+                        "V3Vee_Host_PCI_INTx", 
+                        (void *)assigned_dev)) {
+                printk("ERROR assigning IRQ to assigned PCI device (%s)\n", 
+                        assigned_dev->name);
+            }
+
+            break;
+
+        case HOST_PCI_CMD_MSI_DISABLE:
+            printk(KERN_ERR "ERROR: PCI_CMD_MSI_DISABLE not supported\n");
+
+        case HOST_PCI_CMD_MSI_ENABLE:
+            printk(KERN_ERR "ERROR: PCI_CMD_MSI_ENABLE not supported\n");
+            return -1;
+
+        case HOST_PCI_CMD_MSIX_ENABLE:
+            printk(KERN_ERR "ERROR: PCI_CMD_MSIX_ENABLE not supported\n");
+            return -1;
+
+        case HOST_PCI_CMD_MSIX_DISABLE:
+            printk(KERN_ERR "ERROR: PCI_CMD_MSIX_DISABLE not supported\n");
+            return -1;
+
+        default:
+            printk("Error: unhandled passthrough PCI command: %d\n", cmd);
+            return -1;
+    }
+
+    return 0;
 }
 
 int pisces_pci_iommu_map(
@@ -231,6 +357,7 @@ int pisces_pci_iommu_map(
     struct pisces_xbuf_desc * xbuf_desc,
     struct pisces_pci_iommu_map_lcall * lcall)
 {
+    int r = 0;
     struct pisces_lcall_resp iommu_map_resp;
     struct pisces_assigned_dev *assigned_dev = NULL;
     char *name = lcall->name;
@@ -238,7 +365,6 @@ int pisces_pci_iommu_map(
     u64 end = lcall->region_end;
     u64 gpa = lcall->gpa;
     int last = lcall->last;
-    int r = 0;
 
     assigned_dev = find_dev_by_name(name);
     if (assigned_dev == NULL) {
@@ -264,8 +390,28 @@ out:
 int pisces_pci_ack_irq(
     struct pisces_enclave * enclave,
     struct pisces_xbuf_desc * xbuf_desc,
-    struct pisces_pci_ack_irq_lcall * cur_lcall)
+    struct pisces_pci_ack_irq_lcall * lcall)
 {
+    int r = 0;
+    struct pisces_lcall_resp resp;
+    struct pisces_assigned_dev *assigned_dev = NULL;
+    char *name = lcall->name;
+    u32 vector = lcall->vector;
+
+    assigned_dev = find_dev_by_name(name);
+    if (assigned_dev == NULL) {
+        printk(KERN_ERR "pci_ack_irq device %s not found.\n", name);
+        r = -1;
+        goto out;
+    }
+
+    r = _pisces_pci_ack_irq(assigned_dev, vector);
+
+out:
+    resp.status = r;
+    resp.data_len = 0;
+    pisces_xbuf_complete(xbuf_desc, (u8 *)&resp,
+            sizeof(struct pisces_lcall_resp));
     return 0;
 }
 
@@ -274,108 +420,26 @@ int pisces_pci_cmd(
     struct pisces_xbuf_desc * xbuf_desc,
     struct pisces_pci_cmd_lcall * lcall)
 {
-    return 0;
-}
-
-
-#if 0
-/*
- * Reserve a PCI device
- *  - ensures existence, non-bridge type, IOMMU enabled
- *  - enable device and add it to assigned_device_list
- */
-int pisces_device_assign(struct pisces_assigned_dev * bdf)
-{
-    struct pisces_assigned_dev * assigned_dev = NULL;
-    struct pci_dev * dev;
     int r = 0;
-    unsigned long flags;
+    struct pisces_lcall_resp resp;
+    struct pisces_assigned_dev *assigned_dev = NULL;
+    char *name = lcall->name;
+    host_pci_cmd_t pci_cmd = lcall->cmd;
+    u64 arg = lcall->arg;
 
-    if (find_dev_by_name(assigned_dev->name)) {
-        printk(KERN_ERR "Device %s already assigned.\n", assigned_dev->name);
-        return -1;
+    assigned_dev = find_dev_by_name(name);
+    if (assigned_dev == NULL) {
+        printk(KERN_ERR "pci_cmd device %s not found.\n", name);
+        r = -1;
+        goto out;
     }
 
-    assigned_dev = kmalloc(sizeof(struct pisces_assigned_dev), GFP_KERNEL);
+    r = _pisces_pci_cmd(assigned_dev, pci_cmd, arg);
 
-    if (IS_ERR(assigned_dev)) {
-        printk(KERN_ERR "Could not allocate space for assigned device\n");
-        r = -ENOMEM;
-        goto out_free;
-    }
-
-    strncpy(assigned_dev->name, bdf->name, 128);
-    assigned_dev->domain = bdf->domain;
-    assigned_dev->bus = bdf->bus;
-    //assigned_dev->devfn = PCI_DEVFN(bdf->dev, bdf->func);
-    assigned_dev->intx_disabled = 1;
-    spin_lock_init(&(assigned_dev->intx_lock));
-
-    dev = pci_get_bus_and_slot(
-
-            assigned_dev->bus,
-            assigned_dev->devfn);
-
-    if (!dev) {
-        printk(KERN_ERR "Assigned device not found\n");
-        r = -EINVAL;
-        goto out_free;
-    }
-
-    /* Don't allow bridges to be assigned */
-    if (dev->hdr_type != PCI_HEADER_TYPE_NORMAL) {
-        r = -EPERM;
-        goto out_put;
-    }
-
-    /*
-    r = probe_sysfs_permissions(dev);
-    if (r)
-        goto out_put;
-    */
-
-    if (pci_enable_device(dev)) {
-        printk(KERN_ERR "Could not enable PCI device\n");
-        r = -EBUSY;
-        goto out_put;
-    }
-
-    r = pci_request_regions(dev, "pisces_assigned_device");
-    if (r) {
-        printk(KERN_INFO "Could not get access to device regions\n");
-        goto out_disable;
-    }
-
-    pci_reset_function(dev);
-    pci_save_state(dev);
-
-    assigned_dev->dev = dev;
-    spin_lock_irqsave(&assigned_device_list_lock, flags);
-    list_add(&(assigned_dev->dev_node), &assigned_device_list);
-    spin_unlock_irqrestore(&assigned_device_list_lock, flags);
-
-
-    if (!iommu_present(&pci_bus_type)) {
-        printk(KERN_ERR "IOMMU not found\n");
-        r = -ENODEV;
-        goto out_del_list;
-    }
-    assigned_dev->iommu_enabled = 1;
-
-    printk(KERN_INFO "Device %s assigned.\n", assigned_dev->name);
-
+out:
+    resp.status = r;
+    resp.data_len = 0;
+    pisces_xbuf_complete(xbuf_desc, (u8 *)&resp,
+            sizeof(struct pisces_lcall_resp));
     return 0;
-
-out_del_list:
-    list_del(&assigned_device_list);
-    pci_release_regions(dev);
-out_disable:
-    pci_disable_device(dev);
-out_put:
-    pci_dev_put(dev);
-out_free:
-    kfree(assigned_dev);
-    return r;
 }
-#endif
-

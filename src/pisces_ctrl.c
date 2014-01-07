@@ -161,6 +161,8 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 	case ENCLAVE_CMD_ADD_V3_PCI:
 	    {
 		struct cmd_add_pci_dev cmd;
+		struct cmd_add_pci_dev * cmd_resp;
+                struct pisces_assigned_dev * assigned_dev; 
 
 		printk("Adding V3 PCI device\n");
 
@@ -174,14 +176,26 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 		    return -EFAULT;
 		}
 
-		printk("Init an offlined PCI device");
-		pisces_pci_dev_init(&cmd.device);
+		printk("Init an offlined PCI device\n");
+		assigned_dev = pisces_pci_dev_init(&cmd.device);
+
+                if (assigned_dev == NULL) {
+                    printk(KERN_ERR "Error init pci device\n");
+		    return -1;
+                }
+
+                assigned_dev->enclave = enclave;
 
 		printk(" Notifying enclave\n");
-		ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_add_pci_dev), (u8 **)&resp, &resp_len);
+		ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_add_pci_dev), (u8 **)&cmd_resp, &resp_len);
 
+                if (cmd_resp->device_ipi_vector <= 0) {
+                    printk(KERN_ERR "Error negtive device_ipi_vector\n");
+		    return -1;
+                }
+                assigned_dev->device_ipi_vector = cmd_resp->device_ipi_vector;
 
-		kfree(resp);
+		kfree(cmd_resp);
 		
 		if (ret != 0) {
 		    printk(KERN_ERR "Error adding PCI device to Enclave %d\n", enclave->id);
