@@ -274,7 +274,7 @@ int _pisces_pci_raise_irq(struct pisces_assigned_dev * assigned_dev)
 static irqreturn_t _host_pci_intx_irq_handler(int irq, void * priv_data) {
     struct pisces_assigned_dev * assigned_dev = priv_data;
 
-    printk("Host PCI IRQ handler (%d)\n", irq);
+    printk("Passthrough PCI INTX handler (irq %d)\n", irq);
 
     spin_lock(&(assigned_dev->intx_lock));
     disable_irq_nosync(irq);
@@ -286,6 +286,39 @@ static irqreturn_t _host_pci_intx_irq_handler(int irq, void * priv_data) {
     return IRQ_HANDLED;
 }
 
+
+static irqreturn_t _host_pci_msi_irq_handler(int irq, void * priv_data) {
+    struct pisces_assigned_dev * assigned_dev = priv_data;
+
+    printk("Passthrough PCI MSI handler (irq %d)\n", irq);
+
+    _pisces_pci_raise_irq(assigned_dev);
+
+    return IRQ_HANDLED;
+}
+
+#if 0
+/* MSIX NOT SUPPORTED yet*/
+static irqreturn_t _host_pci_msix_irq_handler(int irq, void * priv_data) {
+    int i;
+    struct pisces_assigned_dev * assigned_dev = priv_data;
+
+    printk("Passthrough PCI MSIX handler (irq %d)\n", irq);
+
+    _pisces_pci_raise_irq(assigned_dev);
+
+    for (i = 0; i < assigned_dev->num_msix_vecs; i++) {
+        if (irq == assigned_dev->msix_entries[i].vector) {
+            /* DO NOT SUPPORT multiple vector over IPI */
+            //_pisces_pci_raise_irq(assigned_dev, i);
+        } else {
+            printk("Error matching MSIX vector for IRQ %d\n", irq);
+        }
+    }
+
+    return IRQ_HANDLED;
+}
+#endif
 
 static int _pisces_pci_cmd(
         struct pisces_assigned_dev * assigned_dev,
@@ -330,19 +363,107 @@ static int _pisces_pci_cmd(
             break;
 
         case HOST_PCI_CMD_MSI_DISABLE:
-            printk(KERN_ERR "ERROR: PCI_CMD_MSI_DISABLE not supported\n");
+            printk("Passthrough PCI device disabling MSI\n");
+
+            disable_irq(dev->irq);
+            free_irq(dev->irq, (void *)assigned_dev);
+
+            pci_disable_msi(dev);
+
+            break;
 
         case HOST_PCI_CMD_MSI_ENABLE:
-            printk(KERN_ERR "ERROR: PCI_CMD_MSI_ENABLE not supported\n");
-            return -1;
+            printk("Passthrough PCI device enabling MSI\n");
+
+            if (!dev->msi_enabled) {
+                if (pci_enable_msi(dev) != 0) {
+                    printk(KERN_ERR "Error enabling MSI for assigned device %s\n", assigned_dev->name);
+                    return -1;
+                }
+            }
+
+            printk("  MSI enabled\n");
+
+            if (request_irq(dev->irq, 
+                        _host_pci_msi_irq_handler, 
+                        0, 
+                        "V3Vee_host_PCI_MSI", 
+                        (void *)assigned_dev)) {
+                printk("Error requesting MSI IRQ %d for assigned device %s\n", 
+                        dev->irq, assigned_dev->name);
+                pci_disable_msi(dev);
+                return -1;
+            }
+
+            printk(KERN_ERR "IRQ requested\n");
+
+            break;
 
         case HOST_PCI_CMD_MSIX_ENABLE:
-            printk(KERN_ERR "ERROR: PCI_CMD_MSIX_ENABLE not supported\n");
-            return -1;
+            printk("PCI_CMD_MSIX_ENABLE not supported\n");
+            break;
 
-        case HOST_PCI_CMD_MSIX_DISABLE:
-            printk(KERN_ERR "ERROR: PCI_CMD_MSIX_DISABLE not supported\n");
-            return -1;
+        case HOST_PCI_CMD_MSIX_DISABLE: 
+            printk("PCI_CMD_MSIX_DISABLE not supported\n");
+
+#if 0
+        case HOST_PCI_CMD_MSIX_ENABLE:
+            printk("Passthrough PCI device enabling MSIX\n");
+
+            {
+                int i = 0;
+
+                assigned_dev->num_msix_vecs = arg;
+                assigned_dev->msix_entries = kcalloc(
+                        assigned_dev->num_msix_vecs, 
+                        sizeof(struct msix_entry), GFP_KERNEL);
+
+                for (i = 0; i < assigned_dev->num_msix_vecs; i++) {
+                    assigned_dev->msix_entries[i].entry = i;
+                }
+
+                pci_enable_msix(dev, 
+                        assigned_dev->msix_entries, 
+                        assigned_dev->num_msix_vecs);
+
+                for (i = 0; i < assigned_dev->num_msix_vecs; i++) {
+                    if (request_irq(assigned_dev->msix_entries[i].vector, 
+                                _host_pci_msix_irq_handler, 
+                                0, 
+                                "V3VEE_host_PCI_MSIX", 
+                                (void *)assigned_dev)) {
+                        printk("Error requesting MSIX IRQ %d"
+                                "for passthrough device %s\n", 
+                                assigned_dev->msix_entries[i].vector,
+                                assigned_dev->name);
+                    }
+                }
+
+                break;
+            }
+
+        case HOST_PCI_CMD_MSIX_DISABLE: 
+            printk("Passthrough PCI device Disabling MSIX\n");
+
+            {
+                int i = 0;
+
+                for (i = 0; i < assigned_dev->num_msix_vecs; i++) {
+                    disable_irq(assigned_dev->msix_entries[i].vector);
+                }
+
+                for (i = 0; i < assigned_dev->num_msix_vecs; i++) {
+                    free_irq(assigned_dev->msix_entries[i].vector, (void *)assigned_dev);
+                }
+
+                assigned_dev->num_msix_vecs = 0;
+                kfree(assigned_dev->msix_entries);
+
+                pci_disable_msix(dev);
+
+                break;
+            }
+#endif
 
         default:
             printk("Error: unhandled passthrough PCI command: %d\n", cmd);
