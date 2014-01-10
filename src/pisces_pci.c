@@ -365,16 +365,17 @@ static int _pisces_pci_cmd(
         case HOST_PCI_CMD_MSI_DISABLE:
             printk("Passthrough PCI device disabling MSI\n");
 
-            disable_irq(dev->irq);
-            free_irq(dev->irq, (void *)assigned_dev);
+            //disable_irq(dev->irq);
+            //free_irq(dev->irq, (void *)assigned_dev);
 
-            pci_disable_msi(dev);
+            //pci_disable_msi(dev);
 
             break;
 
         case HOST_PCI_CMD_MSI_ENABLE:
             printk("Passthrough PCI device enabling MSI\n");
 
+#if 0
             if (!dev->msi_enabled) {
                 if (pci_enable_msi(dev) != 0) {
                     printk(KERN_ERR "Error enabling MSI for assigned device %s\n", assigned_dev->name);
@@ -396,6 +397,7 @@ static int _pisces_pci_cmd(
             }
 
             printk(KERN_ERR "IRQ requested\n");
+#endif
 
             break;
 
