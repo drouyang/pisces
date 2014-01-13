@@ -194,7 +194,7 @@ console_write(struct file * filp, const char __user * buf, size_t size, loff_t *
 	    return -EFAULT;
 	}
 	
-	 printk("Sending Scan_Code %x\n", cmd.scan_code);
+	 //printk("Sending Scan_Code %x\n", cmd.scan_code);
 
 	 pisces_xbuf_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_vm_cons_keycode));
 

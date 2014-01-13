@@ -51,6 +51,7 @@ struct pisces_boot_params {
     u64 boot_params_size;
 
     u64 cpu_id;
+    u64 apic_id;
     u64 cpu_khz;
     u64 trampoline_code_pa;
 

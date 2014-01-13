@@ -248,6 +248,7 @@ int setup_boot_params(struct pisces_enclave * enclave) {
 	
 	
 	boot_params->cpu_id = enclave->boot_cpu;
+	boot_params->apic_id = apic->cpu_present_to_apicid(enclave->boot_cpu);
 	// Record pre-calculated cpu speed
 	boot_params->cpu_khz = cpu_khz;
 

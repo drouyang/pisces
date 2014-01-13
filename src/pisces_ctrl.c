@@ -77,7 +77,7 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
                 cmd.apic_id = apic->cpu_present_to_apicid(cpu_id);
 
 
-                printk("Adding CPU %llu\n", cpu_id);
+                printk("Adding CPU %llu (APIC %llu)\n", cpu_id, cmd.apic_id);
 
                 /* Setup Linux trampoline to jump to enclave trampoline */
                 trampoline_lock();

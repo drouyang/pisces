@@ -342,7 +342,7 @@ static int _pisces_pci_cmd(
             printk("Passthrough PCI device disabling INTx IRQ\n");
 
             disable_irq(dev->irq);
-            free_irq(dev->irq, (void *)assigned_dev);
+            //free_irq(dev->irq, (void *)assigned_dev);
 
             break;
 

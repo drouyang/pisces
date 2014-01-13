@@ -39,7 +39,6 @@ struct pisces_enclave {
     struct cdev cdev;
     struct proc_dir_entry * proc_dir;
 
-    /* APIC ID of boot cpu*/
     u32 boot_cpu;
 
     u32 num_cpus;

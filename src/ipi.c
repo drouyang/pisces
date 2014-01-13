@@ -143,8 +143,6 @@ int pisces_send_ipi(struct pisces_enclave * enclave, int cpu_id, unsigned int ve
 	return -1;
     }
 
-    printk("Sending IPI %u to CPU %d (APIC=%d)\n", vector, enclave->boot_cpu, apic->cpu_present_to_apicid(enclave->boot_cpu));
-
     local_irq_save(flags);
     __default_send_IPI_dest_field(apic->cpu_present_to_apicid(enclave->boot_cpu), vector, APIC_DEST_PHYSICAL);
     local_irq_restore(flags);
