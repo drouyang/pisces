@@ -326,6 +326,7 @@ static int _pisces_pci_cmd(
         u64 arg)
 {
     struct pci_dev * dev = assigned_dev->dev;
+    int status = 0;
 
     switch (cmd) {
         case HOST_PCI_CMD_DMA_DISABLE:
@@ -336,6 +337,14 @@ static int _pisces_pci_cmd(
         case HOST_PCI_CMD_DMA_ENABLE:
             printk("Passthrough PCI device enabling BMDMA\n");
             pci_set_master(dev);
+            break;
+
+        case HOST_PCI_CMD_MEM_ENABLE:
+            printk("Passthrough PCI device enabling MEM resources\n");
+            status = pci_enable_device_mem(dev);
+            if (status)
+                return status;
+
             break;
 
         case HOST_PCI_CMD_INTX_DISABLE:
