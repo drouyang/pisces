@@ -287,6 +287,7 @@ static irqreturn_t _host_pci_intx_irq_handler(int irq, void * priv_data) {
 }
 
 
+#if 0
 static irqreturn_t _host_pci_msi_irq_handler(int irq, void * priv_data) {
     struct pisces_assigned_dev * assigned_dev = priv_data;
 
@@ -297,8 +298,6 @@ static irqreturn_t _host_pci_msi_irq_handler(int irq, void * priv_data) {
     return IRQ_HANDLED;
 }
 
-#if 0
-/* MSIX NOT SUPPORTED yet*/
 static irqreturn_t _host_pci_msix_irq_handler(int irq, void * priv_data) {
     int i;
     struct pisces_assigned_dev * assigned_dev = priv_data;
