@@ -176,7 +176,7 @@ static int  _pisces_pci_ack_irq(
     struct pci_dev * dev = assigned_dev->dev;
     unsigned long flags;
 
-    printk("Acking IRQ vector %d\n", vector);
+    //    printk("Acking IRQ vector %d\n", vector);
 
     spin_lock_irqsave(&(assigned_dev->intx_lock), flags);
     //printk("Enabling IRQ %d\n", dev->irq);
@@ -217,7 +217,7 @@ int _pisces_pci_raise_irq(struct pisces_assigned_dev * assigned_dev)
 static irqreturn_t _host_pci_intx_irq_handler(int irq, void * priv_data) {
     struct pisces_assigned_dev * assigned_dev = priv_data;
 
-    printk("Passthrough PCI INTX handler (irq %d)\n", irq);
+    //    printk("Passthrough PCI INTX handler (irq %d)\n", irq);
 
     spin_lock(&(assigned_dev->intx_lock));
     disable_irq_nosync(irq);
