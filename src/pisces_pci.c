@@ -187,6 +187,48 @@ static int  _pisces_pci_ack_irq(
     return 0;
 }
 
+
+/* forward irq through IPI */
+int _pisces_pci_raise_irq(struct pisces_assigned_dev * assigned_dev)
+{
+
+    /* For now the second parameter (cpu_id) is not used
+     * in pisces_send_ipi, and IPIs are always send to
+     * to enclave->boot_cpu 
+     */
+    if (assigned_dev->enclave == NULL) {
+        printk("Error: device %s has NULL enclave field\n", assigned_dev->name);
+        return -1;
+    }
+
+    if (assigned_dev->device_ipi_vector == 0) {
+        printk("Error: device %s ipi vector not initialized\n", assigned_dev->name);
+        return -1;
+    }
+
+    return pisces_send_ipi(
+            assigned_dev->enclave, 
+            0, 
+            assigned_dev->device_ipi_vector);
+}
+
+
+
+static irqreturn_t _host_pci_intx_irq_handler(int irq, void * priv_data) {
+    struct pisces_assigned_dev * assigned_dev = priv_data;
+
+    printk("Passthrough PCI INTX handler (irq %d)\n", irq);
+
+    spin_lock(&(assigned_dev->intx_lock));
+    disable_irq_nosync(irq);
+    assigned_dev->intx_disabled = 1;
+    spin_unlock(&(assigned_dev->intx_lock));
+
+    _pisces_pci_raise_irq(assigned_dev);
+
+    return IRQ_HANDLED;
+}
+
 static int _pisces_pci_iommu_map_region(struct pisces_assigned_dev *assigned_dev, u64 start, u64 end, u64 gpa)
 {
     u64 flags = 0;
@@ -228,6 +270,7 @@ static int _pisces_pci_iommu_map_region(struct pisces_assigned_dev *assigned_dev
 static int _pisces_pci_iommu_attach_device(struct pisces_assigned_dev *assigned_dev)
 {
     int r = 0;
+    struct pci_dev * dev = assigned_dev->dev;
 
     if (assigned_dev->assigned) {
         printk(KERN_ERR "device %s already assigned.\n", assigned_dev->name);
@@ -244,47 +287,17 @@ static int _pisces_pci_iommu_attach_device(struct pisces_assigned_dev *assigned_
     assigned_dev->assigned = 1;
     printk(KERN_INFO "Device %s attached to iommu domain.\n", assigned_dev->name);
 
+    if (request_threaded_irq(dev->irq, NULL,  _host_pci_intx_irq_handler, 
+		    IRQF_ONESHOT,  "V3Vee_Host_PCI_INTx", (void *)assigned_dev)) {
+	
+	printk("ERROR assigning IRQ to assigned PCI device (%s)\n", 
+	       assigned_dev->name);
+    }
+    
     return r;
 }
 
-/* forward irq through IPI */
-int _pisces_pci_raise_irq(struct pisces_assigned_dev * assigned_dev)
-{
 
-    /* For now the second parameter (cpu_id) is not used
-     * in pisces_send_ipi, and IPIs are always send to
-     * to enclave->boot_cpu 
-     */
-    if (assigned_dev->enclave == NULL) {
-        printk("Error: device %s has NULL enclave field\n", assigned_dev->name);
-        return -1;
-    }
-
-    if (assigned_dev->device_ipi_vector == 0) {
-        printk("Error: device %s ipi vector not initialized\n", assigned_dev->name);
-        return -1;
-    }
-
-    return pisces_send_ipi(
-            assigned_dev->enclave, 
-            0, 
-            assigned_dev->device_ipi_vector);
-}
-
-static irqreturn_t _host_pci_intx_irq_handler(int irq, void * priv_data) {
-    struct pisces_assigned_dev * assigned_dev = priv_data;
-
-    printk("Passthrough PCI INTX handler (irq %d)\n", irq);
-
-    spin_lock(&(assigned_dev->intx_lock));
-    disable_irq_nosync(irq);
-    assigned_dev->intx_disabled = 1;
-    spin_unlock(&(assigned_dev->intx_lock));
-
-    _pisces_pci_raise_irq(assigned_dev);
-
-    return IRQ_HANDLED;
-}
 
 
 #if 0
@@ -338,32 +351,35 @@ static int _pisces_pci_cmd(
             pci_set_master(dev);
             break;
 
-        case HOST_PCI_CMD_MEM_ENABLE:
+        case HOST_PCI_CMD_MEM_ENABLE: {
+	    u16 hw_cmd = 0;
             printk("Passthrough PCI device enabling MEM resources\n");
-            status = pci_enable_device_mem(dev);
+	    
+	    //            status = pci_enable_device_mem(dev);
+
+            pci_read_config_word(dev, PCI_COMMAND, &hw_cmd);
+            hw_cmd |= 0x2;
+            pci_write_config_word(dev, PCI_COMMAND, hw_cmd);
+
             if (status)
                 return status;
 
             break;
-
+	}
         case HOST_PCI_CMD_INTX_DISABLE:
             printk("Passthrough PCI device disabling INTx IRQ\n");
 
             disable_irq(dev->irq);
-            //free_irq(dev->irq, (void *)assigned_dev);
+            free_irq(dev->irq, (void *)assigned_dev);
 
             break;
 
         case HOST_PCI_CMD_INTX_ENABLE:
             printk("Passthrough PCI device enabling INTx IRQ\n");
 
-            if (request_threaded_irq(
-                        dev->irq, 
-                        NULL, 
-                        _host_pci_intx_irq_handler, 
-                        IRQF_ONESHOT, 
-                        "V3Vee_Host_PCI_INTx", 
-                        (void *)assigned_dev)) {
+            if (request_threaded_irq(dev->irq, NULL,  _host_pci_intx_irq_handler, 
+			    IRQF_ONESHOT,  "V3Vee_Host_PCI_INTx", (void *)assigned_dev)) {
+
                 printk("ERROR assigning IRQ to assigned PCI device (%s)\n", 
                         assigned_dev->name);
             }
