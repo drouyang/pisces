@@ -19,12 +19,13 @@
 #include "../src/pisces_cmds.h"
 
 static void usage() {
-    printf("Usage: pisces_ctrl <enclave_dev>"	\
-	   " [-m, --mem=blocks]"	\
-	   " [-c, --cpu=cores]"	      	\
-	   " [-n, --numa=numa_zone] "	\
-	   " [-e, --explicit] "		\
-	   "\n");
+    printf("Usage: pisces_ctrl [options] <enclave_dev>\n"	\
+	   " [-m, --mem=blocks]\n"	\
+	   " [-c, --cpu=cores]\n"	      	\
+	   " [-n, --numa=numa_zone]\n"	\
+	   " [-e, --explicit]\n"		\
+	   " [-r, --remove: remove explicitly]\n"\
+	   );
     exit(-1);
 }
 
@@ -34,6 +35,7 @@ int main(int argc, char* argv[]) {
     int ctrl_fd = 0;
 
     int explicit = 0;
+    int remove = 0;
     int numa_zone = -1;
 
     char * cpu_str = NULL;
@@ -51,10 +53,11 @@ int main(int argc, char* argv[]) {
 	    {"cpu", required_argument, 0, 'c'},
 	    {"numa", required_argument, 0, 'n'},
 	    {"explicit", no_argument, 0, 'e'},
+	    {"remove", no_argument, 0, 'r'},
 	     {0, 0, 0, 0}
 	};
 
-	while ((c = getopt_long(argc, argv, "m:c:n:e", long_options, &opt_index)) != -1) {
+	while ((c = getopt_long(argc, argv, "m:c:n:e:r", long_options, &opt_index)) != -1) {
 	    switch (c) {
 		case 'm':
 		    mem_str = optarg;
@@ -68,6 +71,10 @@ int main(int argc, char* argv[]) {
 		case 'e':
 		    explicit = 1;
 		    break;
+                case 'r':
+                    remove = 1;
+                    explicit = 1;
+                    break;
 		case '?':
 		    usage();
 		    break;
@@ -162,15 +169,22 @@ int main(int argc, char* argv[]) {
 	    while (iter_str = strsep(&cpu_str, ",")) {
 		phys_cpu_id = atoi(iter_str);
 
-		if (pet_offline_cpu(phys_cpu_id) == -1) {
-		    printf("Error: Could not offline CPU %d\n", phys_cpu_id);
-		    continue;
-		}
-       
-		if (pet_ioctl_fd(ctrl_fd, ENCLAVE_CMD_ADD_CPU, (void *)phys_cpu_id) != 0) {
-		    printf("Error: Could not add CPU %llu to enclave\n", phys_cpu_id);
-		    continue;
-		}
+                if (!remove) {
+                    if (pet_offline_cpu(phys_cpu_id) == -1) {
+                        printf("Error: Could not offline CPU %d\n", phys_cpu_id);
+                        continue;
+                    }
+           
+                    if (pet_ioctl_fd(ctrl_fd, ENCLAVE_CMD_ADD_CPU, (void *)phys_cpu_id) != 0) {
+                        printf("Error: Could not add CPU %llu to enclave\n", phys_cpu_id);
+                        continue;
+                    }
+                } else {
+                    if (pet_ioctl_fd(ctrl_fd, ENCLAVE_CMD_REMOVE_CPU, (void *)phys_cpu_id) != 0) {
+                        printf("Error: Could not remove CPU %llu from enclave\n", phys_cpu_id);
+                        continue;
+                    }
+                }
 	    }
 
 	} else {

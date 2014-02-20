@@ -101,6 +101,40 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 
                 break;
             }
+        case ENCLAVE_CMD_REMOVE_CPU:
+            {
+                struct cmd_cpu_add  cmd;
+                u64 cpu_id = (u64)arg;
+
+                memset(&cmd, 0, sizeof(struct cmd_cpu_add));
+
+                /*
+                if (pisces_enclave_test_cpu(enclave, cpu_id) != 0) {
+                    printk(KERN_ERR "Error adding CPU to enclave %d\n", enclave->id);
+                    return -1;
+                }
+                */
+
+                cmd.hdr.cmd = ENCLAVE_CMD_REMOVE_CPU;
+                cmd.hdr.data_len = (sizeof(struct cmd_cpu_add) - sizeof(struct pisces_cmd));
+                cmd.phys_cpu_id = cpu_id;
+                cmd.apic_id = apic->cpu_present_to_apicid(cpu_id);
+
+
+                printk("Offlining CPU %llu (APIC %llu)\n", cpu_id, cmd.apic_id);
+
+                ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_cpu_add),  (u8 **)&resp, &resp_len);
+
+                kfree(resp);
+
+                if (ret != 0) {
+                    return -1;
+                }
+
+                //pisces_enclave_remove_cpu(enclave, cpu_id);
+
+                break;
+            }
 
         case ENCLAVE_CMD_ADD_MEM:
             {
