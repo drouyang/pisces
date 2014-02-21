@@ -124,14 +124,26 @@ int main(int argc, char* argv[]) {
 
 	} else {
 	    struct mem_block * block_arr = NULL;
-	    int cnt = atoi(mem_str);
+	    int cnt = 0;
 	    int i = 0;
 	    int ret = 0;
+	    int numa_num_blocks = pet_num_blocks(numa_zone);
+
+	    if (strcmp(mem_str, "all") == 0) {
+		cnt = numa_num_blocks;
+	    } else {
+		cnt = atoi(mem_str);
+	    }
 
 	    block_arr = malloc(sizeof(struct mem_block) * cnt);
 	    memset(block_arr, 0, sizeof(struct mem_block) * cnt);
 
-	    ret = pet_offline_blocks(cnt, numa_zone, block_arr);
+	    if ((cnt == numa_num_blocks) && (strcmp(mem_str, "all") == 0)) {
+		ret = pet_offline_node(numa_zone, block_arr);
+		cnt = ret;
+	    } else {
+		ret = pet_offline_blocks(cnt, numa_zone, block_arr);
+	    }
 
 	    if (ret != cnt) {
 		printf("Error: Could not allocate %d memory blocks\n", cnt);
