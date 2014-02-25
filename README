@@ -1,43 +1,89 @@
-= The PISCES Kernel Module =
-== Run Pisces ==
-* load
-modins
-cpurm 1
-sudo $PISCES_PATH/pisces/linux_usr/mem_reserve 1
-sudo $PISCES_PATH/pisces/linux_usr/pisces_load $PISCES_PATH/kitten/vmlwk.bin $PISCES_PATH/kitten/user/pisces_daemon/pisces_daemon "console=pisces" 
+******** Clone Repositories *********
 
-* launch
-sudo $PISCES_PATH/pisces/linux_usr/pisces_launch /dev/pisces-enclave0
+-- Clone Palacios --
+git clone http://essex.cs.pitt.edu/git/palacios.git
 
-* console output
-sudo $PISCES_PATH/pisces/linux_usr/pisces_cons /dev/pisces-enclave0
+-- Clone Pisces --
+git clone http://essex.cs.pitt.edu/git/pisces.git
 
-* controll
-sudo $PISCES_PATH/pisces/linux_usr/pisces_ctrl /dev/pisces-enclave0
+-- Clone Pisces submodule
+cd pisces;
+git submodule init
+git submodule update
 
-== design ==
-* trampoline
-offlined cpu uses trampoline code from linux
-we modified the init_code to pointer to our gemini_trampoline, such that
-linux jumps to gemini_trampoline right after init the cpu to 64 bit mode.
-we then load kernel image, initrd and shared_info into offlined memory.  
-A 4M identity mapping page table is setup for the guest kernel. Then we jump
-to first instruction of the guest kernel binary, the kernel is position independent
-code (PIC), thus can execute on any physical memory given a pre-setup ident mapping
+-- Clone Kitten --
+hg clone https://code.google.com/p/kitten/ 
 
-* loader memory map
-kernel (2M aligned)
-2M gap, because kernel clears __bss section after kernel binary
-initrd
-shared_info
+-- Clone Kitten patchset
+cd kitten/.hg;
+hg clone http://essex.cs.pitt.edu/hg/patches-pisces
+cd ..;
+hg qqueue -c pisces
 
-* gemini console
-shared memory based console, the shared memory is organized as a circular queue
-We implemented a shared memory based console driver in kitten, which pollutes 
-the circular queue. In host OS, we move the produced output to a dedicated buffer
-area.
 
-* boot params 
-available physical memory map
-address/size of kernel, initrd and shared_info
-SMP table in the future
+
+******** Set Configs *********
+
+-- Kitten configuration parameters --
+Target Configuration -->System Architecture -->  Multi-instance environment
+CONFIG_PISCES=y
+
+Virtualization --> Include Palacios virtual machine monitor -->
+    Internal/External Palacios libirary --> Link in Palacios as a self contained module
+CONFIG_PALACIOS=y
+# CONFIG_PALACIOS_INTERNAL is not set
+CONFIG_PALACIOS_EXTERNAL=y
+CONFIG_PALACIOS_PATH="/path/to/palacios"
+
+
+-- Palacios configuration parameters --
+V3_CONFIG_KITTEN=y
+V3_CONFIG_KITTEN_KERN="/path/to/kitten"
+
+
+
+******** Building *********
+
+-- Building Environment -
+(1) Build Kitten
+(2) Build Palacios
+(3) Build Kitten again to link Palacios lib
+(4) Build Pisces
+
+
+******** Pisces Enclave Control *********
+
+-- Launching Pisces Enclave --
+(In pisces/)
+insmod pisces.ko
+
+(In pisces/linux_usr)
+./pisces_load /path/to/vmlwk.bin /path/to/pisces_init_task 'console=pisces'
+./pisces_launch [-n <numa_node>] [-c <cpu_id>] /dev/pisces-enclave0
+
+
+-- Add memory/cpus to enclave --
+./pisces_ctrl [-n <numa_node>] -m <num memory blocks> /dev/pisces-enclave0
+./pisces_ctrl [-n <numa_node>] -c <num cpus> /dev/pisces-enclave0
+
+
+-- Add PCI devices to enclave --
+./v3_pci /dev/pisces-enclave0 <device name> <bus> <dev> <fn>
+
+
+-- Connecting to Pisces console --
+./pisces_cons /dev/pisces-enclave0
+
+
+******** Palacios VM Control *********
+
+-- Create Palacios VM --
+./v3_create /dev/pisces-enclave0 -b /path/to/vm/config <vm name> /dev/pisces-enclave0
+
+
+-- Launch Palacios VM
+./v3_launch /dev/pisces-enclave0 0
+
+
+-- Connecting to Palacios VM Console --
+./v3_cons_sc /dev/pisces-enclave0 0
