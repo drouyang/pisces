@@ -372,7 +372,7 @@ int setup_boot_params(struct pisces_enclave * enclave) {
      * Lets just pad some space here for the kernel's BSS...
      *    JRL TODO: How do we deal with this permanently???
      */
-    offset += PAGE_SIZE_2MB;
+    offset += 4 * PAGE_SIZE_2MB;
 
 
 
