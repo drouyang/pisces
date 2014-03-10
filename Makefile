@@ -1,5 +1,5 @@
-KERN_PATH=/usr/src/kernels/`uname -r`
-#KERN_PATH=../linux/
+#KERN_PATH=/usr/src/kernels/`uname -r`
+KERN_PATH=/home/ouyang/linux-3.9.10-100.fc17.x86_64/
 #KERN_PATH=/home/jarusl/linux-3.11.8-200.fc19.x86_64.debug
 
 obj-m += pisces.o
@@ -26,6 +26,7 @@ pisces-objs :=  src/main.o \
 		src/pisces_portals.o \
 		src/pagemap.o \
 		src/pisces_pci.o \
+		src/pisces_ahci.o \
 
 
 all:
