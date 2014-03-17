@@ -25,7 +25,6 @@
 #include "ipi.h"
 #include "boot.h"
 #include "pisces_boot_params.h"
-#include "pisces_ahci.h"
 
 int pisces_major_num = 0;
 struct class * pisces_class = NULL;
@@ -34,6 +33,7 @@ static struct cdev pisces_cdev;
 struct proc_dir_entry * pisces_proc_dir = NULL;
 
 extern struct pisces_enclave * enclave_map[MAX_ENCLAVES];
+
 
 
 static int device_open(struct inode *inode, struct file *file)
@@ -168,18 +168,11 @@ int pisces_init(void) {
         return -1;
     }
 
-#ifdef DEBUG_AHCI
-    if (pisces_ahci_init(NULL) < 0) {
-        printk(KERN_ERR "Could not initialize Pisces AHCI proxy\n");
-        return -1;
-    }
-#endif
 
     if (alloc_chrdev_region(&dev_num, 0, MAX_ENCLAVES + 1, "pisces") < 0) {
         printk(KERN_ERR "Error allocating Pisces Char device region\n");
         return -1;
     }
-
 
     pisces_major_num = MAJOR(dev_num);
     dev_num = MKDEV(pisces_major_num, MAX_ENCLAVES + 1);
