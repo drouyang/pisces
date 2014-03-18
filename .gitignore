@@ -15,4 +15,10 @@ linux_usr/pisces_cons
 linux_usr/pisces_mgr
 linux_usr/pisces_enclave_add_cpu
 linux_usr/pisces_lcall_test
+linux_usr/v3_cons_nosc
+linux_usr/v3_cons_sc
+linux_usr/v3_create
+linux_usr/v3_dbg
+linux_usr/v3_launch
+linux_usr/v3_pci
 tags
