@@ -183,7 +183,7 @@ unsigned long long file_size(struct file * file_ptr) {
     struct kstat s;
     int ret;
     
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,9,10)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,9,5)
     ret = vfs_getattr(file_ptr->f_path.mnt, file_ptr->f_path.dentry, &s);
 #else
     ret = vfs_getattr(&file_ptr->f_path, &s);
