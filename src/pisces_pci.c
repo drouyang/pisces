@@ -10,7 +10,6 @@
 #include <linux/interrupt.h>
 #include <linux/fs.h>
 #include <linux/iommu.h>
-#include <linux/pci.h>
 
 #include "pisces_cmds.h"
 #include "pisces_pci.h"

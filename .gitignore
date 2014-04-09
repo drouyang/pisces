@@ -21,4 +21,5 @@ linux_usr/v3_create
 linux_usr/v3_dbg
 linux_usr/v3_launch
 linux_usr/v3_pci
+linux_usr/v3_sata
 tags

@@ -41,6 +41,7 @@ struct pisces_resp {
 #define ENCLAVE_CMD_VM_CONS_DISCONNECT 123
 #define ENCLAVE_CMD_VM_CONS_KEYCODE 124
 #define ENCLAVE_CMD_ADD_V3_PCI 125
+#define ENCLAVE_CMD_ADD_V3_SATA 126
 
 #define ENCLAVE_CMD_VM_DBG 169
 
@@ -63,6 +64,13 @@ struct pisces_pci_dev {
 } __attribute__((packed));
 
 
+struct pisces_sata_dev {
+    u8 name[128];
+    u32 bus;
+    u32 dev;
+    u32 func;
+    u32 port;
+} __attribute__((packed));
 
 /* Kernel Space command Structures */
 #ifdef __KERNEL__

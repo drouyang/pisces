@@ -26,6 +26,7 @@ pisces-objs :=  src/main.o \
 		src/pisces_portals.o \
 		src/pagemap.o \
 		src/pisces_pci.o \
+		src/pisces_sata.o \
 
 
 all:

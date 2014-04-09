@@ -15,6 +15,7 @@
 #include "pisces_cmds.h"
 #include "pisces_xbuf.h"
 #include "pisces_pci.h"
+#include "pisces_sata.h"
 
 #include "v3_console.h"
 
@@ -238,6 +239,34 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 
 		break;
 	    }
+
+	case ENCLAVE_CMD_ADD_V3_SATA:
+            {
+                struct pisces_sata_dev sata_dev;
+                struct assigned_sata_dev * assigned_dev; 
+
+                printk("Adding V3 SATA device\n");
+
+                if (copy_from_user(&sata_dev, argp, sizeof(struct pisces_sata_dev))) {
+                    printk(KERN_ERR "Could not copy sata device structure from user space\n");
+                    return -EFAULT;
+                }
+
+                printk("Init an offlined SATR device\n");
+                assigned_dev = pisces_sata_init(&sata_dev);
+
+                if (assigned_dev == NULL) {
+                    printk(KERN_ERR "Error init pci device\n");
+                    return -1;
+                }
+
+                assigned_dev->enclave = enclave;
+
+                pisces_sata_iommu_map(assigned_dev);
+                pisces_sata_iommu_attach(assigned_dev);
+
+                break;
+            }
 
         case ENCLAVE_CMD_CREATE_VM:
             {
