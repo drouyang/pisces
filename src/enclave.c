@@ -27,14 +27,17 @@
 
 
 extern struct proc_dir_entry * pisces_proc_dir;
-extern struct class * pisces_class;
-extern int pisces_major_num;
+extern struct class          * pisces_class;
+extern int                     pisces_major_num;
 
 
 struct pisces_enclave * enclave_map[MAX_ENCLAVES] = {[0 ... MAX_ENCLAVES - 1] = 0};
 
-static int alloc_enclave_index(struct pisces_enclave * enclave) {
+static int 
+alloc_enclave_index(struct pisces_enclave * enclave) 
+{
     int i = 0;
+
     for (i = 0; i < MAX_ENCLAVES; i++) {
         if (enclave_map[i] == NULL) {
             enclave_map[i] = enclave;
@@ -45,7 +48,10 @@ static int alloc_enclave_index(struct pisces_enclave * enclave) {
     return -1;
 }
 
-static void free_enclave_index(int idx) {
+
+static void 
+free_enclave_index(int idx) 
+{
     enclave_map[idx] = NULL;
 }
 
@@ -57,38 +63,47 @@ static void pisces_enclave_free(struct pisces_enclave * enclave);
 
 
 
-static int enclave_open(struct inode * inode, struct file * filp) {
+static int 
+enclave_open(struct inode * inode, 
+	     struct file  * filp) 
+{
     struct pisces_enclave * enclave = container_of(inode->i_cdev, struct pisces_enclave, cdev);
     filp->private_data = enclave;
     return 0;
 }
 
 
-static ssize_t enclave_read(struct file *filp, char __user *buffer,
-        size_t length, loff_t *offset) {
-
-
+static ssize_t 
+enclave_read(struct file  * filp, 
+	     char __user  * buffer,
+	     size_t         length, 
+	     loff_t       * offset) 
+{
     return 0;
 }
 
 
-static ssize_t enclave_write(struct file *filp, const char __user *buffer,
-        size_t length, loff_t *offset) {
-
-
+static ssize_t 
+enclave_write(struct file        * filp,
+	      const char __user  * buffer,
+	      size_t               length, 
+	      loff_t             * offset) 
+{
     return 0;
 }
 
 
 
-static long enclave_ioctl(struct file * filp,
-        unsigned int ioctl, unsigned long arg) {
-    void __user * argp = (void __user *)arg;
+static long 
+enclave_ioctl(struct file  * filp,
+	      unsigned int   ioctl,
+	      unsigned long  arg) 
+{
+    void __user           * argp    = (void __user *)arg;
     struct pisces_enclave * enclave = (struct pisces_enclave *)filp->private_data;
     int ret = 0;
 
     switch (ioctl) {
-
 
         case PISCES_ENCLAVE_LAUNCH:
             {
@@ -103,8 +118,8 @@ static long enclave_ioctl(struct file * filp,
 
 		/* We need to check that these values are legit */
 		enclave->bootmem_addr_pa = boot_env.base_addr;
-		enclave->bootmem_size = (boot_env.pages * PAGE_SIZE);
-		enclave->boot_cpu = boot_env.cpu_id;
+		enclave->bootmem_size    = (boot_env.pages * PAGE_SIZE);
+		enclave->boot_cpu        = boot_env.cpu_id;
 
 		pisces_enclave_add_cpu(enclave, boot_env.cpu_id);
 		pisces_enclave_add_mem(enclave, boot_env.base_addr, boot_env.pages);
@@ -114,7 +129,8 @@ static long enclave_ioctl(struct file * filp,
 //}
 
                 printk(KERN_DEBUG "Launch Pisces Enclave (cpu=%d) (bootmem=%p)\n", 
-		       enclave->boot_cpu, (void *)enclave->bootmem_addr_pa);
+		       enclave->boot_cpu, 
+		       (void *)enclave->bootmem_addr_pa);
 
                 ret = pisces_enclave_launch(enclave);
 
@@ -149,20 +165,23 @@ static long enclave_ioctl(struct file * filp,
 
 
 static int 
-proc_mem_show(struct seq_file * s, void * v) {
-    struct pisces_enclave * enclave = s->private;
-    struct enclave_mem_block * iter = NULL;
+proc_mem_show(struct seq_file * file, 
+	      void            * priv_data)
+ {
+    struct pisces_enclave    * enclave = file->private;
+    struct enclave_mem_block * iter    = NULL;
     int i = 0;
 
     if (IS_ERR(enclave)) {
-	seq_printf(s, "NULL ENCLAVE\n");
+	seq_printf(file, "NULL ENCLAVE\n");
 	return 0;
     }
 
-    seq_printf(s, "Num Memory Blocks: %d\n", enclave->memdesc_num);
+    seq_printf(file, "Num Memory Blocks: %d\n", enclave->memdesc_num);
 
-    list_for_each_entry(iter, &(enclave->memdesc_list), node) {
-	seq_printf(s, "%d: %p - %p\n", i, 
+    list_for_each_entry(iter, &(enclave->memdesc_list), node) 
+    {
+	seq_printf(file, "%d: %p - %p\n", i, 
 		   (void *)iter->base_addr,
 		   (void *)(iter->base_addr + (iter->pages * 4096)));
 	i++;
@@ -171,8 +190,11 @@ proc_mem_show(struct seq_file * s, void * v) {
     return 0;
 }
 
+
 static int 
-proc_mem_open(struct inode * inode, struct file * filp) {
+proc_mem_open(struct inode * inode, 
+	      struct file  * filp) 
+{
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
     void * data = PDE(inode)->data;
 #else 
@@ -183,26 +205,30 @@ proc_mem_open(struct inode * inode, struct file * filp) {
 }
 
 static int 
-proc_cpu_show(struct seq_file * s, void * v) {
-    struct pisces_enclave * enclave = s->private;
+proc_cpu_show(struct seq_file * file, 
+	      void            * priv_data)
+{
+    struct pisces_enclave * enclave = file->private;
     int cpu_iter;
 
     if (IS_ERR(enclave)) {
-	seq_printf(s, "NULL ENCLAVE\n");
+	seq_printf(file, "NULL ENCLAVE\n");
 	return 0;
     }
 
-    seq_printf(s, "Num CPUs: %d\n", enclave->num_cpus);
+    seq_printf(file, "Num CPUs: %d\n", enclave->num_cpus);
 
     for_each_cpu(cpu_iter, &(enclave->assigned_cpus)) {
-	seq_printf(s, "CPU %d\n", cpu_iter);
+	seq_printf(file, "CPU %d\n", cpu_iter);
     }
  
     return 0;
 }
 
 static int 
-proc_cpu_open(struct inode * inode, struct file * filp) {
+proc_cpu_open(struct inode * inode, 
+	      struct file  * filp) 
+{
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
     void * data = PDE(inode)->data;
 #else 
@@ -215,34 +241,36 @@ proc_cpu_open(struct inode * inode, struct file * filp) {
 
 
 static struct file_operations enclave_fops = {
-    .owner = THIS_MODULE,
+    .owner          = THIS_MODULE,
     .unlocked_ioctl = enclave_ioctl,
-    .compat_ioctl = enclave_ioctl,
-    .open = enclave_open,
-    .read = enclave_read, 
-    .write = enclave_write,
+    .compat_ioctl   = enclave_ioctl,
+    .open           = enclave_open,
+    .read           = enclave_read, 
+    .write          = enclave_write,
 };
 
 
 static struct file_operations proc_mem_fops = {
-    .owner = THIS_MODULE, 
-    .open = proc_mem_open,
-    .read = seq_read,
-    .llseek = seq_lseek,
+    .owner   = THIS_MODULE, 
+    .open    = proc_mem_open,
+    .read    = seq_read,
+    .llseek  = seq_lseek,
     .release = single_release,
 };
 
 
 static struct file_operations proc_cpu_fops = {
-    .owner = THIS_MODULE, 
-    .open = proc_cpu_open,
-    .read = seq_read,
-    .llseek = seq_lseek,
+    .owner   = THIS_MODULE, 
+    .open    = proc_cpu_open,
+    .read    = seq_read,
+    .llseek  = seq_lseek,
     .release = single_release,
 };
 
 
-int pisces_enclave_create(struct pisces_image * img) {
+int 
+pisces_enclave_create(struct pisces_image * img) 
+{
 
     struct pisces_enclave * enclave = NULL;
     int enclave_idx = -1;
@@ -266,29 +294,29 @@ int pisces_enclave_create(struct pisces_image * img) {
         return -1;
     }
 
-    enclave->state = ENCLAVE_LOADED;
+    enclave->state        = ENCLAVE_LOADED;
 
-    enclave->kern_path = img->kern_path;
-    enclave->initrd_path = img->initrd_path;
+    enclave->kern_path    = img->kern_path;
+    enclave->initrd_path  = img->initrd_path;
     enclave->kern_cmdline = img->cmd_line;
 
-    enclave->id = enclave_idx;
+    enclave->id           = enclave_idx;
     
     INIT_LIST_HEAD(&(enclave->memdesc_list));
 
     init_enclave_fs(enclave);
     pisces_portals_init(enclave);
 
-    enclave->dev = MKDEV(pisces_major_num, enclave_idx);
-    enclave->memdesc_num = 0;
+    enclave->dev          = MKDEV(pisces_major_num, enclave_idx);
+    enclave->memdesc_num  = 0;
 
     cpumask_clear(&(enclave->assigned_cpus));
-    enclave->num_cpus = 0;
+    enclave->num_cpus     = 0;
 
     cdev_init(&(enclave->cdev), &enclave_fops);
 
-    enclave->cdev.owner = THIS_MODULE;
-    enclave->cdev.ops = &enclave_fops;
+    enclave->cdev.owner   = THIS_MODULE;
+    enclave->cdev.ops     = &enclave_fops;
 
     
 
@@ -320,17 +348,17 @@ int pisces_enclave_create(struct pisces_image * img) {
 	mem_entry = create_proc_entry("memory", 0444, enclave->proc_dir);
 	if (mem_entry) {
 	    mem_entry->proc_fops = &proc_mem_fops;
-	    mem_entry->data = enclave;
+	    mem_entry->data      = enclave;
 	}
 	
 	cpu_entry = create_proc_entry("cpus", 0444, enclave->proc_dir);
 	if (cpu_entry) {
 	    cpu_entry->proc_fops = &proc_cpu_fops;
-	    cpu_entry->data = enclave;
+	    cpu_entry->data      = enclave;
 	}
 #else
 	mem_entry = proc_create_data("memory", 0444, enclave->proc_dir, &proc_mem_fops, enclave);
-	cpu_entry = proc_create_data("cpus", 0444, enclave->proc_dir, &proc_cpu_fops, enclave);
+	cpu_entry = proc_create_data("cpus",   0444, enclave->proc_dir, &proc_cpu_fops, enclave);
 
 #endif
 
@@ -343,7 +371,9 @@ int pisces_enclave_create(struct pisces_image * img) {
 }
 
 
-static int pisces_enclave_launch(struct pisces_enclave * enclave) {
+static int 
+pisces_enclave_launch(struct pisces_enclave * enclave) 
+{
 
     if (setup_boot_params(enclave) == -1) {
         printk(KERN_ERR "Error setting up boot environment\n");
@@ -363,7 +393,9 @@ static int pisces_enclave_launch(struct pisces_enclave * enclave) {
 
 
 
-static void pisces_enclave_free(struct pisces_enclave * enclave) {
+static void 
+pisces_enclave_free(struct pisces_enclave * enclave) 
+{
 
     free_enclave_index(enclave->id);
     kfree(enclave);
@@ -373,7 +405,10 @@ static void pisces_enclave_free(struct pisces_enclave * enclave) {
 
 
 
-int pisces_enclave_add_cpu(struct pisces_enclave * enclave, u32 cpu_id) {
+int 
+pisces_enclave_add_cpu(struct pisces_enclave * enclave, 
+		       u32                     cpu_id) 
+{
 
     if (cpumask_test_and_set_cpu(cpu_id, &(enclave->assigned_cpus))) {
 	// CPU already present
@@ -386,7 +421,11 @@ int pisces_enclave_add_cpu(struct pisces_enclave * enclave, u32 cpu_id) {
     return 0;
 }
 
-int pisces_enclave_add_mem(struct pisces_enclave * enclave, u64 base_addr, u32 pages) {
+int 
+pisces_enclave_add_mem(struct pisces_enclave * enclave, 
+		       u64                     base_addr, 
+		       u32                     pages) 
+{
     struct enclave_mem_block * memdesc = kmalloc(sizeof(struct enclave_mem_block), GFP_KERNEL);
     struct enclave_mem_block * iter = NULL;
 
@@ -396,7 +435,7 @@ int pisces_enclave_add_mem(struct pisces_enclave * enclave, u64 base_addr, u32 p
     }
 
     memdesc->base_addr = base_addr;
-    memdesc->pages = pages;
+    memdesc->pages     = pages;
 
     if (enclave->memdesc_num == 0) {
 	list_add(&(memdesc->node), &(enclave->memdesc_list));
@@ -414,5 +453,33 @@ int pisces_enclave_add_mem(struct pisces_enclave * enclave, u64 base_addr, u32 p
     }
 
     enclave->memdesc_num++;
+
+    return 0;
+}
+
+
+
+int 
+pisces_enclave_add_pcidev(struct pisces_enclave * enclave,
+			  u32                     bus, 
+			  u32                     dev,
+			  u32                     fn)
+{
+
+
+    return 0;
+}
+
+
+
+int 
+pisces_enclave_add_v3_pcidev(struct pisces_enclave * enclave,
+			     char                  * name,
+			     u32                     bus, 
+			     u32                     dev,
+			     u32                     fn)
+{
+
+
     return 0;
 }

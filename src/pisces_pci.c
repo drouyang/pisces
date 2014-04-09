@@ -26,7 +26,6 @@
 */
 
 #define PCI_HDR_SIZE 256
-
 static LIST_HEAD(assigned_device_list);
 static DEFINE_SPINLOCK(assigned_device_list_lock);
 
@@ -83,13 +82,13 @@ pisces_pci_dev_init(struct pisces_pci_dev *device)
     }
 
     strncpy(assigned_dev->name, device->name, 128);
-    assigned_dev->domain = 0;
-    assigned_dev->bus = device->bus;
-    assigned_dev->devfn = PCI_DEVFN(device->dev, device->func);
+    assigned_dev->domain            = 0;
+    assigned_dev->bus               = device->bus;
+    assigned_dev->devfn             = PCI_DEVFN(device->dev, device->func);
     assigned_dev->device_ipi_vector = 0;
-    assigned_dev->intx_disabled = 1;
-    assigned_dev->assigned = 0;
-    assigned_dev->enclave = NULL;
+    assigned_dev->intx_disabled     = 1;
+    assigned_dev->assigned          = 0;
+    assigned_dev->enclave           = NULL;
     spin_lock_init(&(assigned_dev->intx_lock));
 
     /* equivilent pci_pci_get_domain_bus_and_slot(0, bus, devfn) */

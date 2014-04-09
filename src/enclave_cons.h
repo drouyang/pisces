@@ -18,7 +18,7 @@ struct pisces_cons_ringbuf {
     u64 read_idx;
     u64 write_idx;
     u64 cur_len;
-    u8 buf[(64 * 1024) - 32];
+    u8  buf[(64 * 1024) - 32];
 } __attribute__((packed));
 
 
@@ -32,10 +32,12 @@ struct pisces_cons {
 
 
 
-int pisces_cons_init(struct pisces_enclave * enclave, 
-                     struct pisces_cons_ringbuf * ringbuf);
+int 
+pisces_cons_init(struct pisces_enclave      * enclave, 
+		 struct pisces_cons_ringbuf * ringbuf);
 
-int pisces_cons_connect(struct pisces_enclave * enclave);
+int 
+pisces_cons_connect(struct pisces_enclave * enclave);
 
 
 

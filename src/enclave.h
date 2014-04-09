@@ -35,35 +35,68 @@ struct pisces_enclave {
     char * initrd_path;
     char * kern_cmdline;
 
-    dev_t dev; 
+    dev_t       dev; 
     struct cdev cdev;
     struct proc_dir_entry * proc_dir;
 
-    u32 boot_cpu;
-
-    u32 num_cpus;
+    u32       boot_cpu;
+    u32       num_cpus;
     cpumask_t assigned_cpus;
 
-    struct pisces_cons cons;
-    struct pisces_ctrl ctrl;
-    struct pisces_portals portals;
-    struct pisces_lcall_state lcall_state;
-
-    struct enclave_fs fs_state;
+    struct pisces_cons          cons;
+    struct pisces_ctrl          ctrl;
+    struct pisces_portals       portals;
+    struct pisces_lcall_state   lcall_state;
+    struct enclave_fs           fs_state;
 
     uintptr_t bootmem_addr_pa;
-    u64 bootmem_size;
+    u64       bootmem_size;
+
+    spinlock_t enclave_lock;
 
     // This is what we will want eventually.....
     struct list_head memdesc_list;
-    u32 memdesc_num;
+    u32              memdesc_num;
+
+    struct list_head pcidev_list;
+    u32              pcidev_num;
+    
+    struct list_head v3_pcidev_list;
+    u32              v3_pcidev_num;
 };
 
 
 
-int pisces_enclave_create(struct pisces_image * img);
 
-int pisces_enclave_add_mem(struct pisces_enclave * enclave, u64 base_addr, u32 pages);
-int pisces_enclave_add_cpu(struct pisces_enclave * enclave, u32 cpu_id);
+int 
+pisces_enclave_create(struct pisces_image * img);
+
+
+int 
+pisces_enclave_add_mem(struct pisces_enclave * enclave, 
+		       u64                     base_addr, 
+		       u32                     pages);
+
+
+int 
+pisces_enclave_add_cpu(struct pisces_enclave * enclave, 
+		       u32                     cpu_id);
+
+
+int 
+pisces_enclave_add_v3_pcidev(struct pisces_enclave * enclave,
+			     char                  * name,
+			     u32                     bus, 
+			     u32                     dev,
+			     u32                     fn);
+
+int 
+pisces_enclave_add_pcidev(struct pisces_enclave * enclave,
+			  u32                     bus, 
+			  u32                     dev,
+			  u32                     fn);
+
+
+
 
 #endif

@@ -23,7 +23,9 @@
 extern int wakeup_secondary_cpu_via_init(int, unsigned long);
 extern u64 linux_level3_ident_pgt_pa;
 
-static inline u32 sizeof_boot_params(struct pisces_enclave * enclave) {
+static inline u32 
+sizeof_boot_params(struct pisces_enclave * enclave) 
+{
     return sizeof(struct pisces_boot_params);
 }
 
@@ -32,46 +34,45 @@ static inline u32 sizeof_boot_params(struct pisces_enclave * enclave) {
 // 1G identity mapping start from 0
 // and 1G mapping start from enclave->bootmem_addr_pa higher than 1G
 #define MEM_ADDR_1G 0x40000000
-static int setup_ident_pts(struct pisces_enclave * enclave,
-        struct pisces_boot_params * boot_params, 
-        uintptr_t target_addr) {
-    struct pisces_ident_pgt * ident_pgt 
-        = (struct pisces_ident_pgt *)target_addr;
-    u64 start_pa = 0;
+
+static int 
+setup_ident_pts(struct pisces_enclave     * enclave,
+		struct pisces_boot_params * boot_params, 
+		uintptr_t                   target_addr) 
+{
+    struct pisces_ident_pgt * ident_pgt = (struct pisces_ident_pgt *)target_addr;
 
     memset(ident_pgt, 0, sizeof(struct pisces_ident_pgt));
 
-    boot_params->ident_pml4e64.pdp_base_addr
-        = PAGE_TO_BASE_ADDR(__pa(ident_pgt->pdp));
-    boot_params->ident_pml4e64.present = 1;
-    boot_params->ident_pml4e64.writable = 1;
-    boot_params->ident_pml4e64.accessed = 1;
+    boot_params->ident_pml4e64.pdp_base_addr = PAGE_TO_BASE_ADDR(__pa(ident_pgt->pdp));
+    boot_params->ident_pml4e64.present       = 1;
+    boot_params->ident_pml4e64.writable      = 1;
+    boot_params->ident_pml4e64.accessed      = 1;
 
     printk(KERN_INFO "  ident_pml4e64 entry: %p", 
-            (void *) *(u64 *) &boot_params->ident_pml4e64);
+	   (void *) *(u64 *) &boot_params->ident_pml4e64);
 
     /* 1G ident mapping start from 0 for trampoline code
      * and enclave boot memory lower than 1G
      */
-    start_pa = 0;
+
     {
-        u64 i = 0;
         int index = 0;
-        u64 addr = 0;
+        u64 addr  = 0;
+        u64 i     = 0;
 
-        index = PDPE64_INDEX(start_pa);
-        ident_pgt->pdp[index].pd_base_addr
-            =  PAGE_TO_BASE_ADDR(__pa(ident_pgt->pd0));
-        ident_pgt->pdp[index].present   = 1;
-        ident_pgt->pdp[index].writable  = 1;
-        ident_pgt->pdp[index].accessed  = 1;
+        index = PDPE64_INDEX(addr);
 
-        printk(KERN_INFO "  pdp[%d]: %p\n", index, 
+        ident_pgt->pdp[index].pd_base_addr = PAGE_TO_BASE_ADDR(__pa(ident_pgt->pd0));
+        ident_pgt->pdp[index].present      = 1;
+        ident_pgt->pdp[index].writable     = 1;
+        ident_pgt->pdp[index].accessed     = 1;
+
+        printk(KERN_INFO "  pdp[%d]: %p\n", 
+	       index, 
                 (void *) *(u64 *) &ident_pgt->pdp[index]);
 
-        for (i = 0, addr = start_pa;
-                i < MAX_PDE64_ENTRIES;
-                i++, addr += PAGE_SIZE_2MB) {
+        for (i = 0; i < MAX_PDE64_ENTRIES; i++) {
 
             index = PDE64_INDEX(addr);
 
@@ -82,31 +83,31 @@ static int setup_ident_pts(struct pisces_enclave * enclave,
             ident_pgt->pd0[index].dirty           = 1;
             ident_pgt->pd0[index].accessed        = 1;
             ident_pgt->pd0[index].global_page     = 1;
+
+	    addr += PAGE_SIZE_2MB;
         }
     }
 
     /* 1G ident mapping start from bootmem_addr
      * for enclave loaded higher than 1G
      */
-    start_pa = enclave-> bootmem_addr_pa;
-    if (start_pa > MEM_ADDR_1G) {
-        u64 i = 0;
+    if (enclave->bootmem_addr_pa  > MEM_ADDR_1G) {
         int index = 0;
-        u64 addr = 0;
+        u64 addr  = enclave->bootmem_addr_pa;
+        u64 i     = 0;
 
-        index = PDPE64_INDEX(start_pa);
-        ident_pgt->pdp[index].pd_base_addr
-            =  PAGE_TO_BASE_ADDR(__pa(ident_pgt->pd1));
-        ident_pgt->pdp[index].present   = 1;
-        ident_pgt->pdp[index].writable  = 1;
-        ident_pgt->pdp[index].accessed  = 1;
+        index = PDPE64_INDEX(addr);
 
-        printk(KERN_INFO "  pdp[%d]: %p\n", index, 
-                (void *) *(u64 *) &ident_pgt->pdp[index]);
+        ident_pgt->pdp[index].pd_base_addr  = PAGE_TO_BASE_ADDR(__pa(ident_pgt->pd1));
+        ident_pgt->pdp[index].present       = 1;
+        ident_pgt->pdp[index].writable      = 1;
+        ident_pgt->pdp[index].accessed      = 1;
 
-        for (i = 0, addr = start_pa;
-                i < MAX_PDE64_ENTRIES;
-                i++, addr += PAGE_SIZE_2MB) {
+        printk(KERN_INFO "  pdp[%d]: %p\n", 
+	       index, 
+	       (void *) *(u64 *) &ident_pgt->pdp[index]);
+
+        for (i = 0; i < MAX_PDE64_ENTRIES; i++) {
 
             index = PDE64_INDEX(addr);
 
@@ -117,6 +118,8 @@ static int setup_ident_pts(struct pisces_enclave * enclave,
             ident_pgt->pd1[index].dirty           = 1;
             ident_pgt->pd1[index].accessed        = 1;
             ident_pgt->pd1[index].global_page     = 1;
+
+	    addr += PAGE_SIZE_2MB;
         }
     }
 
@@ -125,12 +128,14 @@ static int setup_ident_pts(struct pisces_enclave * enclave,
 
 
 
-static int load_kernel(struct pisces_enclave * enclave, 
-		       struct pisces_boot_params * boot_params, 
-		       uintptr_t target_addr) {
+static int 
+load_kernel(struct pisces_enclave     * enclave, 
+	    struct pisces_boot_params * boot_params, 
+	    uintptr_t                   target_addr) 
+{
 
     struct file * kern_image = file_open(enclave->kern_path, O_RDONLY);
-    u64 bytes_read = 0;
+    u64           bytes_read = 0;
     
     if (kern_image == NULL) {
 	printk(KERN_ERR "Error opening kernel image (%s)\n", enclave->kern_path);
@@ -143,10 +148,11 @@ static int load_kernel(struct pisces_enclave * enclave,
     while (bytes_read < boot_params->kernel_size) {
 	u64 ret = 0;
 
-	ret = file_read(kern_image, (void *)(target_addr + bytes_read), 
+	ret = file_read(kern_image, 
+			(void *)(target_addr + bytes_read), 
 			(boot_params->kernel_size - bytes_read), 
 			bytes_read);
-
+	
 	if (ret == 0) {
 	    printk(KERN_ERR "Error reading kernel image. Only read %llu bytes.\n", bytes_read);
 	    file_close(kern_image);
@@ -162,13 +168,15 @@ static int load_kernel(struct pisces_enclave * enclave,
 }
 
 
-static int load_initrd(struct pisces_enclave * enclave, 
-		       struct pisces_boot_params * boot_params,
-		       uintptr_t target_addr) {
+static int 
+load_initrd(struct pisces_enclave     * enclave, 
+	    struct pisces_boot_params * boot_params,
+	    uintptr_t                   target_addr) 
+{
 
 
     struct file * initrd_image = file_open(enclave->initrd_path, O_RDONLY);
-    u64 bytes_read = 0;
+    u64           bytes_read   = 0;
     
     if (initrd_image == NULL) {
 	printk(KERN_ERR "Error opening initrd (%s)\n", enclave->initrd_path);
@@ -181,7 +189,8 @@ static int load_initrd(struct pisces_enclave * enclave,
     while (bytes_read < boot_params->initrd_size) {
 	u64 ret = 0;
 
-	ret = file_read(initrd_image, (void *)(target_addr + bytes_read), 
+	ret = file_read(initrd_image, 
+			(void *)(target_addr + bytes_read), 
 			(boot_params->initrd_size - bytes_read), 
 			bytes_read);
 
@@ -195,7 +204,7 @@ static int load_initrd(struct pisces_enclave * enclave,
     }
     
     printk("Loaded INITRD %s (bytes_read = %llu)\n", enclave->initrd_path, bytes_read);
-    printk("INITRD bytes (at %p) = %x\n", (void *)target_addr, *(unsigned int*)target_addr); 
+    printk("INITRD bytes (at %p) = %x\n",            (void *)target_addr, *(unsigned int*)target_addr); 
 	   
 	
 
@@ -207,12 +216,14 @@ static int load_initrd(struct pisces_enclave * enclave,
 }
 
 
-int setup_boot_params(struct pisces_enclave * enclave) {
+int 
+setup_boot_params(struct pisces_enclave * enclave) 
+{
     uintptr_t offset = 0;
     uintptr_t base_addr = 0;
     struct pisces_boot_params * boot_params = NULL;
 
-    base_addr = (uintptr_t)__va(enclave->bootmem_addr_pa);
+    base_addr   = (uintptr_t)__va(enclave->bootmem_addr_pa);
     boot_params = (struct pisces_boot_params *)base_addr;
 
     memset((void *)base_addr, 0, enclave->bootmem_size);
@@ -247,7 +258,7 @@ int setup_boot_params(struct pisces_enclave * enclave) {
 	strncpy(boot_params->cmd_line, enclave->kern_cmdline, 1024);
 	
 	
-	boot_params->cpu_id = enclave->boot_cpu;
+	boot_params->cpu_id  = enclave->boot_cpu;
 	boot_params->apic_id = apic->cpu_present_to_apicid(enclave->boot_cpu);
 	// Record pre-calculated cpu speed
 	boot_params->cpu_khz = cpu_khz;
@@ -257,7 +268,7 @@ int setup_boot_params(struct pisces_enclave * enclave) {
 	printk("Linux trampoline at %p\n", (void *)linux_trampoline_startip);
 
 	boot_params->base_mem_paddr = enclave->bootmem_addr_pa;
-	boot_params->base_mem_size = enclave->bootmem_size;
+	boot_params->base_mem_size  = enclave->bootmem_size;
 
 	offset += sizeof_boot_params(enclave);
 	printk("boot params initialized. Offset at %p\n", (void *)(base_addr + offset));
@@ -270,6 +281,7 @@ int setup_boot_params(struct pisces_enclave * enclave) {
     {
 	offset = ALIGN(offset, PAGE_SIZE_4KB);
 	//    boot_params->console_ring_addr
+
 	if (pisces_cons_init(enclave, (struct pisces_cons_ringbuf *)(base_addr + offset)) == -1) {
 	    printk(KERN_ERR "Error initializing Pisces Console\n");
 	    return -1;
@@ -344,6 +356,7 @@ int setup_boot_params(struct pisces_enclave * enclave) {
             printk(KERN_ERR "Error configuring identity mapped page tables\n");
             return -1;
         }
+
         offset += sizeof(struct pisces_ident_pgt);
 
         printk("\t Ident PTS done. Offset at %p\n", (void *)(base_addr + offset));
@@ -363,6 +376,7 @@ int setup_boot_params(struct pisces_enclave * enclave) {
 	}
 	
 	offset += boot_params->kernel_size;
+
 	printk("\t kernel loaded. Offset at %p\n", (void *)(base_addr + offset));
     }
 
@@ -398,7 +412,7 @@ int setup_boot_params(struct pisces_enclave * enclave) {
     printk(KERN_INFO "  kernel:        [%p, %p), size %llu\n",
 	   (void *)boot_params->kernel_addr,
 	   (void *)(boot_params->kernel_addr + boot_params->kernel_size),
-            boot_params->kernel_size);
+	   boot_params->kernel_size);
     printk(KERN_INFO "  initrd:        [%p, %p), size %llu\n",
 	   (void *)boot_params->initrd_addr, 
 	   (void *)(boot_params->initrd_addr + boot_params->initrd_size),
@@ -413,42 +427,42 @@ int setup_boot_params(struct pisces_enclave * enclave) {
  * Update Pisces trampoline data
  */
 static void
-set_enclave_trampoline(
-        struct pisces_enclave *enclave, 
-        u64 target_addr, 
-        u64 esi)
+set_enclave_trampoline(struct pisces_enclave * enclave, 
+		       u64                     target_addr, 
+		       u64                     esi)
 {
-    extern u8 launch_code_start;
-
+    extern u8  launch_code_start;
     extern u64 launch_code_target_addr;
     extern u64 launch_code_esi;
 
     u64 * target_addr_ptr = NULL;
-    u64 * esi_ptr = NULL;
-    struct pisces_boot_params * boot_params = 
-        (struct pisces_boot_params *)__va(enclave->bootmem_addr_pa);
+    u64 * esi_ptr         = NULL;
+
+    struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->bootmem_addr_pa);
 
     printk("Setup Enclave trampoline\n");
 
-    target_addr_ptr =  (u64 *)((u8 *)&boot_params->launch_code 
-            + ((u8 *)&launch_code_target_addr - (u8 *)&launch_code_start));
-    esi_ptr =  (u64 *)((u8 *)&boot_params->launch_code 
-            + ((u8 *)&launch_code_esi - (u8 *)&launch_code_start));
+    target_addr_ptr =  (u64 *)((u8 *)&boot_params->launch_code  +
+			       ((u8 *)&launch_code_target_addr - (u8 *)&launch_code_start));
 
+    esi_ptr =  (u64 *)((u8 *)&boot_params->launch_code + 
+		       ((u8 *)&launch_code_esi - (u8 *)&launch_code_start));
+    
     *target_addr_ptr = target_addr;
-    *esi_ptr = esi;
+    *esi_ptr         = esi;
 
     printk(KERN_DEBUG "  set target address at %p to %p\n", 
-            (void *) __pa(target_addr_ptr), (void *) *target_addr_ptr);
+	   (void *) __pa(target_addr_ptr), (void *) *target_addr_ptr);
     printk(KERN_DEBUG "  set esi value at %p to %p\n", 
-            (void *) __pa(esi_ptr), (void *) *esi_ptr);
+	   (void *) __pa(esi_ptr), (void *) *esi_ptr);
 }
 
 
 /*
  * Reset CPU with INIT/INIT/SINIT IPIs
  */
-inline void reset_cpu(int apicid)
+inline void 
+reset_cpu(int apicid)
 {
     printk(KERN_INFO "Reset APIC %d from APIC %d (CPU=%d)\n", 
 	   apicid,
@@ -466,34 +480,36 @@ static u64 linux_trampoline_pgd_buf;
 static u64 linux_trampoline_target_buf;
 
 
-void set_linux_trampoline(struct pisces_enclave * enclave)
+void 
+set_linux_trampoline(struct pisces_enclave * enclave)
 {
-    //u64 start_addr = enclave->bootmem_addr_pa;
-    u64 start_addr = 0;
     struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->bootmem_addr_pa);
-    int index = PML4E64_INDEX(start_addr);
 
-    memcpy(&linux_trampoline_pgd_buf, &linux_trampoline_pgd[index],
-            sizeof(pml4e64_t));
-    memcpy(&linux_trampoline_pgd[index], &boot_params->ident_pml4e64,
-            sizeof(pml4e64_t));
+    u64 start_addr  = 0;
+    //u64 start_addr = enclave->bootmem_addr_pa;
+
+    int index       = PML4E64_INDEX(start_addr);
+
+    memcpy(&linux_trampoline_pgd_buf,    &linux_trampoline_pgd[index], sizeof(pml4e64_t));
+    memcpy(&linux_trampoline_pgd[index], &boot_params->ident_pml4e64,  sizeof(pml4e64_t));
 
     printk("Set trampoline_pgd[%d]: %p -> %p\n", index, 
             (void *) linux_trampoline_pgd_buf, 
             (void *) *(u64 *) &linux_trampoline_pgd[index]);
 
     linux_trampoline_target_buf = *linux_trampoline_target;
-    *linux_trampoline_target = enclave->bootmem_addr_pa;
+    *linux_trampoline_target    = enclave->bootmem_addr_pa;
 
     printk(KERN_DEBUG "Set linux trampoline target: %p -> %p\n", 
             (void *) linux_trampoline_target_buf, (void *)enclave->bootmem_addr_pa);
 }
 
-void restore_linux_trampoline(struct pisces_enclave * enclave)
+void 
+restore_linux_trampoline(struct pisces_enclave * enclave)
 {
     //u64 target_addr = enclave->bootmem_addr_pa;
     u64 target_addr = 0;
-    int index = PML4E64_INDEX(target_addr);
+    int index       = PML4E64_INDEX(target_addr);
 
     memcpy(&linux_trampoline_pgd[index], &linux_trampoline_pgd_buf,
             sizeof(pml4e64_t));
@@ -507,19 +523,25 @@ void restore_linux_trampoline(struct pisces_enclave * enclave)
 	   (void *) linux_trampoline_target_buf);
 }
 
-void trampoline_lock(void) {
+void 
+trampoline_lock(void) 
+{
     mutex_lock(linux_trampoline_lock);
 }
 
-void trampoline_unlock(void) {
+void 
+trampoline_unlock(void) 
+{
     mutex_unlock(linux_trampoline_lock);
 }
 
-int boot_enclave(struct pisces_enclave * enclave) 
+int 
+boot_enclave(struct pisces_enclave * enclave) 
 {
-    int ret = 0;
-    int apicid = apic->cpu_present_to_apicid(enclave->boot_cpu);
     struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->bootmem_addr_pa);
+
+    int apicid = apic->cpu_present_to_apicid(enclave->boot_cpu);
+    int ret    = 0;
 
     printk(KERN_DEBUG "Boot Enclave on CPU %d (APIC=%d)...\n", 
 	   enclave->boot_cpu, apicid);

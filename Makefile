@@ -1,6 +1,6 @@
-KERN_PATH=/usr/src/kernels/`uname -r`
+#KERN_PATH=/usr/src/kernels/`uname -r`
 #KERN_PATH=../linux/
-#KERN_PATH=/home/jarusl/linux-3.11.8-200.fc19.x86_64.debug
+KERN_PATH=/home/jarusl/linux-3.11.8-200.fc19.x86_64
 
 obj-m += pisces.o
 
@@ -23,9 +23,9 @@ pisces-objs :=  src/main.o \
 		src/util-hashtable.o \
 		src/util-queue.o \
 		src/v3_console.o \
+		src/pisces_pci.o \
 		src/pisces_portals.o \
 		src/pagemap.o \
-		src/pisces_pci.o \
 		src/pisces_sata.o \
 
 
