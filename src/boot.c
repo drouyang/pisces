@@ -343,6 +343,28 @@ setup_boot_params(struct pisces_enclave * enclave)
                 boot_params->longcall_buf_size);
     }
 
+    /*
+     * Initialize XPMEM buffer (4KB)
+     */
+    {
+        offset = ALIGN(offset, PAGE_SIZE_4KB);
+
+        boot_params->xpmem_buf_addr = __pa(base_addr + offset);
+        boot_params->xpmem_buf_size = PAGE_SIZE_4KB;
+
+        if (pisces_xpmem_init(enclave) == -1) {
+            printk(KERN_ERR "Error initializing Longcall channel\n");
+            return -1;
+        }
+
+        offset += PAGE_SIZE_4KB;
+
+        printk("Longcall buffer initialized. Offset at %p (target_addr=%p, size=%llu)\n", 
+                (void *)(base_addr + offset),
+                (void *)boot_params->xpmem_buf_addr, 
+                boot_params->xpmem_buf_size);
+    }
+
 
     /*
      * Identity mapped page tables

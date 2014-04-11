@@ -55,16 +55,16 @@ static int lcall_kern_thread(void * arg) {
         wait_event_interruptible(lcall_state->kern_waitq, 
 				 (lcall_state->active_lcall == 1));
 
-	//	printk("kernel thread is awake\n");
+        //	printk("kernel thread is awake\n");
 
-	lcall_state->active_lcall = 0;
-	mb();
+        lcall_state->active_lcall = 0;
+        mb();
 
-	// grab the lcall from the xbuf
-	ret = pisces_xbuf_recv(xbuf_desc, (u8 **)&cur_lcall, &lcall_size);
-	
+        // grab the lcall from the xbuf
+        ret = pisces_xbuf_recv(xbuf_desc, (u8 **)&cur_lcall, &lcall_size);
+        
 
-	//	printk("Xbuf data received (ret==%d) (%u byte)\n", ret, lcall_size);
+        //	printk("Xbuf data received (ret==%d) (%u byte)\n", ret, lcall_size);
 
         switch (cur_lcall->lcall) {
             case PISCES_LCALL_VFS_READ:
@@ -82,9 +82,12 @@ static int lcall_kern_thread(void * arg) {
             case PISCES_LCALL_VFS_SIZE:
                 enclave_vfs_size_lcall(enclave, xbuf_desc, (struct vfs_size_lcall *)cur_lcall);
                 break;
-	    case PISCES_LCALL_PPE_MESSAGE:
-		pisces_portals_ppe_message(enclave, xbuf_desc, cur_lcall);
-		break;
+            case PISCES_LCALL_PPE_MESSAGE:
+                pisces_portals_ppe_message(enclave, xbuf_desc, cur_lcall);
+                break;
+            case PISCES_LCALL_XPMEM_CMD_EX:
+                pisces_xpmem_cmd_lcall(enclave, xbuf_desc, cur_lcall);
+                break;
             case PISCES_LCALL_XPMEM_VERSION:
                 pisces_portals_xpmem_version(enclave, xbuf_desc, cur_lcall);
                 break;
@@ -123,15 +126,12 @@ static int lcall_kern_thread(void * arg) {
                 printk(KERN_ERR "Enclave requested unimplemented LCALL %llu\n", cur_lcall->lcall);
                 resp.status = -1;
                 resp.data_len = 0;
-		pisces_xbuf_complete(xbuf_desc, (u8*)&resp, sizeof(struct pisces_lcall_resp));
+                pisces_xbuf_complete(xbuf_desc, (u8*)&resp, sizeof(struct pisces_lcall_resp));
                 break;
         }
-	
-	kfree(cur_lcall);
-
-
+        
+        kfree(cur_lcall);
     }
-
 
     return 0;
 }

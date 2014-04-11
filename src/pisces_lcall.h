@@ -37,6 +37,7 @@
 
 /* USER LCALLS (20000 - 29999) */
 #define PISCES_LCALL_PPE_MESSAGE        (USER_LCALL_START + 0)
+#define PISCES_LCALL_XPMEM_CMD_EX       (USER_LCALL_START + 200)
 
 
 struct pisces_lcall {

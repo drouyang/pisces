@@ -19,6 +19,7 @@ cd kitten/.hg;
 hg clone http://essex.cs.pitt.edu/hg/patches-pisces
 cd ..;
 hg qqueue -c pisces
+hg qpush -a
 
 
 

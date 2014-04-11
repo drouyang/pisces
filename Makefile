@@ -25,6 +25,7 @@ pisces-objs :=  src/main.o \
 		src/v3_console.o \
 		src/pisces_pci.o \
 		src/pisces_portals.o \
+		src/pisces_xpmem.o \
 		src/pagemap.o \
 		src/pisces_sata.o \
 

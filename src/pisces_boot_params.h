@@ -85,6 +85,10 @@ struct pisces_boot_params {
     u64 longcall_buf_addr;
     u64 longcall_buf_size;
 
+    // Address and size of the enclave->linux XPMEM channel
+    u64 xpmem_buf_addr;
+    u64 xpmem_buf_size;
+
     // 1G ident mapping pml entry
     pml4e64_t ident_pml4e64;
 

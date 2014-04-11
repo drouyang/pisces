@@ -45,6 +45,7 @@ struct pisces_resp {
 
 #define ENCLAVE_CMD_VM_DBG 169
 
+#define ENCLAVE_CMD_XPMEM_CMD_EX 300
 
 struct memory_range {
     u64 base_addr;
@@ -128,7 +129,6 @@ struct cmd_add_pci_dev {
     struct pisces_pci_dev device;
     u32 device_ipi_vector;
 } __attribute__((packed));
-
 
 #endif
 
