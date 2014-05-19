@@ -130,7 +130,10 @@ xpmem_write(struct file * filp, const char __user * buffer, size_t size, loff_t 
             ctrl->xpmem_cmd = cmd_ex;
 
             if (cmd_ex.type == XPMEM_ATTACH_COMPLETE) {
-                memcpy(ctrl->pfn_list, cmd_ex.attach.pfns, cmd_ex.attach.num_pfns * sizeof(u64));
+                if (pfn_len > 0) { 
+                    memcpy(ctrl->pfn_list, cmd_ex.attach.pfns, cmd_ex.attach.num_pfns * sizeof(u64));
+                    kfree(cmd_ex.attach.pfns);
+                }
             }
 
             status = pisces_xpmem_cmd_ctrl(enclave, ctrl, sizeof(struct pisces_xpmem_cmd_ctrl) + pfn_len);
