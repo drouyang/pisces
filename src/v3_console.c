@@ -23,10 +23,10 @@
 #include "pisces_xbuf.h"
 #include "pisces_ctrl.h"
 
-typedef enum { CONSOLE_CURS_SET = 1,
-	       CONSOLE_CHAR_SET = 2,
-	       CONSOLE_SCROLL = 3,
-	       CONSOLE_UPDATE = 4,
+typedef enum { CONSOLE_CURS_SET   = 1,
+	       CONSOLE_CHAR_SET   = 2,
+	       CONSOLE_SCROLL     = 3,
+	       CONSOLE_UPDATE     = 4,
                CONSOLE_RESOLUTION = 5} console_op_t;
 
 
@@ -57,9 +57,9 @@ struct resolution_msg {
 struct cons_msg {
     unsigned char op;
     union {
-	struct cursor_msg cursor;
+	struct cursor_msg     cursor;
 	struct character_msg  character;
-	struct scroll_msg scroll;
+	struct scroll_msg     scroll;
 	struct resolution_msg resolution;
     };
 } __attribute__((packed)); 
@@ -93,16 +93,8 @@ struct palacios_console {
 static void cons_kick(void * arg) {
     struct palacios_console * cons = arg;
     u32 entries = 0;
-    //    unsigned long flags;
 
-    // We double lock here to prevent local IPI preemption, as well as cross enclave contention
-
-    //    printk("Console Kick\n");
-    //   spin_lock_irqsave(&(cons->irq_lock), flags);
-    // pisces_spin_lock(&(cons->ring_buf->lock));
     entries = cons->ring_buf->cur_entries;
-    // pisces_spin_unlock(&(cons->ring_buf->lock));
-    //spin_unlock_irqrestore(&(cons->irq_lock), flags);
 
     if (entries > 0) {
 	wake_up_interruptible(&(cons->intr_queue));
@@ -176,17 +168,17 @@ console_read(struct file * filp, char __user * buf, size_t size, loff_t * offset
 
 static ssize_t 
 console_write(struct file * filp, const char __user * buf, size_t size, loff_t * offset) {
-    struct palacios_console * cons = filp->private_data;
-    struct pisces_xbuf_desc * xbuf_desc = cons->enclave->ctrl.xbuf_desc;
-    struct cmd_vm_cons_keycode cmd;
+    struct palacios_console    * cons      = filp->private_data;
+    struct pisces_xbuf_desc    * xbuf_desc = cons->enclave->ctrl.xbuf_desc;
+    struct cmd_vm_cons_keycode   cmd;
     int i = 0;
 
     memset(&cmd, 0, sizeof(struct cmd_vm_cons_keycode));
 
 
-    cmd.hdr.cmd = ENCLAVE_CMD_VM_CONS_KEYCODE;
+    cmd.hdr.cmd      = ENCLAVE_CMD_VM_CONS_KEYCODE;
     cmd.hdr.data_len = (sizeof(struct cmd_vm_cons_keycode) - sizeof(struct pisces_cmd));
-    cmd.vm_id = cons->vm_id;
+    cmd.vm_id        = cons->vm_id;
   
     for (i = 0; i < size; i++) {
 	if (copy_from_user(&(cmd.scan_code), buf + i, 1)) {
@@ -215,7 +207,9 @@ console_poll(struct file * filp, struct poll_table_struct * poll_tb) {
     poll_wait(filp, &(cons->intr_queue), poll_tb);
 
     pisces_spin_lock(&(cons->ring_buf->lock));
-    entries = cons->ring_buf->cur_entries;
+    {
+	entries = cons->ring_buf->cur_entries;
+    }
     pisces_spin_unlock(&(cons->ring_buf->lock));
 
     if (entries > 0) {
@@ -228,8 +222,8 @@ console_poll(struct file * filp, struct poll_table_struct * poll_tb) {
 
 
 static int console_release(struct inode * i, struct file * filp) {
-    struct palacios_console * cons = filp->private_data;
-    struct pisces_enclave * enclave = cons->enclave;
+    struct palacios_console * cons      = filp->private_data;
+    struct pisces_enclave   * enclave   = cons->enclave;
     struct pisces_xbuf_desc * xbuf_desc = enclave->ctrl.xbuf_desc;
     struct cmd_vm_cons_disconnect cmd;
     int ret = 0;
@@ -238,9 +232,9 @@ static int console_release(struct inode * i, struct file * filp) {
 
     memset(&cmd, 0, sizeof(struct cmd_vm_cons_disconnect));
     
-    cmd.hdr.cmd = ENCLAVE_CMD_VM_CONS_DISCONNECT;
+    cmd.hdr.cmd      = ENCLAVE_CMD_VM_CONS_DISCONNECT;
     cmd.hdr.data_len = (sizeof(struct cmd_vm_cons_disconnect) - sizeof(struct pisces_cmd));
-    cmd.vm_id = cons->vm_id;
+    cmd.vm_id        = cons->vm_id;
  
     // disconnect console
     ret = pisces_xbuf_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_vm_cons_disconnect));
@@ -284,7 +278,7 @@ int v3_console_connect(struct pisces_enclave * enclave, u32 vm_id, uintptr_t con
     
     init_waitqueue_head(&(cons->intr_queue));
     cons->enclave = enclave;
-    cons->vm_id = vm_id;
+    cons->vm_id   = vm_id;
     
     cons->ring_buf = __va(cons_buf_pa);
     spin_lock_init(&(cons->irq_lock));
