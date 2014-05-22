@@ -195,43 +195,34 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 
 	case ENCLAVE_CMD_ADD_V3_PCI:
 	    {
-		struct cmd_add_pci_dev cmd;
-		struct cmd_add_pci_dev * cmd_resp;
-                struct pisces_assigned_dev * assigned_dev; 
+		struct cmd_add_pci_dev   cmd;
 
 		printk("Adding V3 PCI device\n");
 
 		memset(&cmd, 0, sizeof(struct cmd_add_pci_dev));
 
-		cmd.hdr.cmd = ENCLAVE_CMD_ADD_V3_PCI;
+		cmd.hdr.cmd      = ENCLAVE_CMD_ADD_V3_PCI;
 		cmd.hdr.data_len = (sizeof(struct cmd_add_pci_dev) - sizeof(struct pisces_cmd));
 
-		if (copy_from_user(&(cmd.device), argp, sizeof(struct pisces_pci_dev))) {
+		if (copy_from_user(&(cmd.spec), argp, sizeof(struct pisces_pci_spec))) {
 		    printk(KERN_ERR "Could not copy pci device structure from user space\n");
 		    return -EFAULT;
 		}
 
 		printk("Init an offlined PCI device\n");
-		assigned_dev = pisces_pci_dev_init(&cmd.device);
 
-                if (assigned_dev == NULL) {
-                    printk(KERN_ERR "Error init pci device\n");
-		    return -1;
-                }
+		ret = pisces_pci_dev_init(enclave, &cmd.spec);
 
-                assigned_dev->enclave = enclave;
+		if (ret != 0) {
+		    printk(KERN_ERR "Could not initailize PCI device\n");
+		    return ret;
+		}
 
 		printk(" Notifying enclave\n");
-		ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_add_pci_dev), (u8 **)&cmd_resp, &resp_len);
+		ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_add_pci_dev), (u8 **)resp, &resp_len);
 
-                if (cmd_resp->device_ipi_vector <= 0) {
-                    printk(KERN_ERR "Error negtive device_ipi_vector\n");
-		    return -1;
-                }
-                assigned_dev->device_ipi_vector = cmd_resp->device_ipi_vector;
+		kfree(resp);
 
-		kfree(cmd_resp);
-		
 		if (ret != 0) {
 		    printk(KERN_ERR "Error adding PCI device to Enclave %d\n", enclave->id);
 		    return -1;

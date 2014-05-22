@@ -15,17 +15,18 @@
 #define USER_LCALL_START 20000
 
 /* KERNEL LCALLS (10000 - 19999) */
-#define PISCES_LCALL_VFS_READ      (KERN_LCALL_START + 0)
-#define PISCES_LCALL_VFS_WRITE     (KERN_LCALL_START + 1)
-#define PISCES_LCALL_VFS_OPEN      (KERN_LCALL_START + 2)
-#define PISCES_LCALL_VFS_CLOSE     (KERN_LCALL_START + 3)
-#define PISCES_LCALL_VFS_SIZE      (KERN_LCALL_START + 4)
-#define PISCES_LCALL_VFS_MKDIR     (KERN_LCALL_START + 5)
-#define PISCES_LCALL_VFS_READDIR   (KERN_LCALL_START + 6)
+#define PISCES_LCALL_VFS_READ           (KERN_LCALL_START + 0)
+#define PISCES_LCALL_VFS_WRITE          (KERN_LCALL_START + 1)
+#define PISCES_LCALL_VFS_OPEN           (KERN_LCALL_START + 2)
+#define PISCES_LCALL_VFS_CLOSE          (KERN_LCALL_START + 3)
+#define PISCES_LCALL_VFS_SIZE           (KERN_LCALL_START + 4)
+#define PISCES_LCALL_VFS_MKDIR          (KERN_LCALL_START + 5)
+#define PISCES_LCALL_VFS_READDIR        (KERN_LCALL_START + 6)
 
-#define PISCES_LCALL_PCI_ACK_IRQ   (KERN_LCALL_START + 100)
-#define PISCES_LCALL_PCI_CMD       (KERN_LCALL_START + 101)
-#define PISCES_LCALL_PCI_IOMMU_MAP (KERN_LCALL_START + 102)
+#define PISCES_LCALL_PCI_ACK_IRQ        (KERN_LCALL_START + 100)
+#define PISCES_LCALL_PCI_CMD            (KERN_LCALL_START + 101)
+#define PISCES_LCALL_PCI_IOMMU_MAP      (KERN_LCALL_START + 102)
+#define PISCES_LCALL_PCI_ATTACH         (KERN_LCALL_START + 103)
 
 #define PISCES_LCALL_XPMEM_VERSION      (KERN_LCALL_START + 200)
 #define PISCES_LCALL_XPMEM_MAKE         (KERN_LCALL_START + 201)
@@ -57,7 +58,7 @@ struct pisces_lcall_resp {
 
 
 struct pisces_lcall_state {
-    wait_queue_head_t kern_waitq;
+    wait_queue_head_t    kern_waitq;
     struct task_struct * kern_thread;
     int active_lcall;
 

@@ -42,13 +42,13 @@ static void lcall_handler(struct pisces_enclave * enclave, struct pisces_xbuf_de
 }
 
 static int lcall_kern_thread(void * arg) {
-    struct pisces_enclave * enclave = arg;
+    struct pisces_enclave     * enclave     = arg;
     struct pisces_lcall_state * lcall_state = &(enclave->lcall_state);
-    struct pisces_xbuf_desc * xbuf_desc = lcall_state->xbuf_desc;
-    struct pisces_lcall_resp resp;
-    struct pisces_lcall * cur_lcall = NULL;
+    struct pisces_xbuf_desc   * xbuf_desc   = lcall_state->xbuf_desc;
+    struct pisces_lcall       * cur_lcall   = NULL;
+    struct pisces_lcall_resp    resp;
     u32 lcall_size = 0;
-    int ret = 0;
+    int ret        = 0;
     
     while (1) {
         //  printk("LCALL Kernel thread going to sleep on cmd buf\n");
@@ -68,19 +68,19 @@ static int lcall_kern_thread(void * arg) {
 
         switch (cur_lcall->lcall) {
             case PISCES_LCALL_VFS_READ:
-                enclave_vfs_read_lcall(enclave, xbuf_desc, (struct vfs_read_lcall *)cur_lcall);
+                enclave_vfs_read_lcall(enclave, xbuf_desc, (struct vfs_read_lcall   *)cur_lcall);
                 break;
             case PISCES_LCALL_VFS_WRITE:
                 enclave_vfs_write_lcall(enclave, xbuf_desc, (struct vfs_write_lcall *)cur_lcall);
                 break;
             case PISCES_LCALL_VFS_OPEN: 
-                enclave_vfs_open_lcall(enclave, xbuf_desc, (struct vfs_open_lcall *)cur_lcall);
+                enclave_vfs_open_lcall(enclave, xbuf_desc, (struct vfs_open_lcall   *)cur_lcall);
                 break;
             case PISCES_LCALL_VFS_CLOSE:
                 enclave_vfs_close_lcall(enclave, xbuf_desc, (struct vfs_close_lcall *)cur_lcall);
                 break;
             case PISCES_LCALL_VFS_SIZE:
-                enclave_vfs_size_lcall(enclave, xbuf_desc, (struct vfs_size_lcall *)cur_lcall);
+                enclave_vfs_size_lcall(enclave, xbuf_desc, (struct vfs_size_lcall   *)cur_lcall);
                 break;
             case PISCES_LCALL_PPE_MESSAGE:
                 pisces_portals_ppe_message(enclave, xbuf_desc, cur_lcall);
@@ -111,15 +111,19 @@ static int lcall_kern_thread(void * arg) {
                 break;
             case PISCES_LCALL_PCI_IOMMU_MAP:
                 pisces_pci_iommu_map(enclave, xbuf_desc, 
-                        (struct pisces_pci_iommu_map_lcall *)cur_lcall);
+                        (struct pci_iommu_map_lcall *)cur_lcall);
+                break;
+            case PISCES_LCALL_PCI_ATTACH:
+                pisces_pci_attach(enclave, xbuf_desc, 
+                        (struct pci_attach_lcall *)cur_lcall);
                 break;
             case PISCES_LCALL_PCI_ACK_IRQ:
                 pisces_pci_ack_irq(enclave, xbuf_desc, 
-                        (struct pisces_pci_ack_irq_lcall *) cur_lcall);
+                        (struct pci_ack_irq_lcall *) cur_lcall);
                 break;
             case PISCES_LCALL_PCI_CMD:
                 pisces_pci_cmd(enclave, xbuf_desc, 
-                        (struct pisces_pci_cmd_lcall *) cur_lcall);
+                        (struct pci_cmd_lcall *) cur_lcall);
                 break;
             case PISCES_LCALL_VFS_READDIR:
             default:
