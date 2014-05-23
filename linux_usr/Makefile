@@ -20,7 +20,6 @@ execs := 	pisces_load \
 		v3_dbg \
 		v3_pci \
 		v3_sata \
-		#pisces_assign_device \
 
 
 build = \
