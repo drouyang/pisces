@@ -211,7 +211,7 @@ static long ctrl_ioctl(struct file * filp, unsigned int ioctl, unsigned long arg
 
 		printk("Init an offlined PCI device\n");
 
-		ret = pisces_pci_dev_init(enclave, &cmd.spec);
+		ret = pisces_pci_add_dev(enclave, &cmd.spec);
 
 		if (ret != 0) {
 		    printk(KERN_ERR "Could not initailize PCI device\n");

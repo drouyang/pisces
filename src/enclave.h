@@ -17,6 +17,7 @@
 #include "pisces_xpmem.h"
 #include "pisces_lcall.h"
 #include "enclave_fs.h"
+#include "pisces_pci.h"
 
 #define ENCLAVE_LOADED      1
 #define ENCLAVE_RUNNING     2
@@ -50,6 +51,7 @@ struct pisces_enclave {
     struct pisces_xpmem         xpmem;
     struct pisces_lcall_state   lcall_state;
     struct enclave_fs           fs_state;
+    struct pisces_pci_state     pci_state;
 
     uintptr_t bootmem_addr_pa;
     u64       bootmem_size;
@@ -60,11 +62,6 @@ struct pisces_enclave {
     struct list_head memdesc_list;
     u32              memdesc_num;
 
-    struct list_head pcidev_list;
-    u32              pcidev_num;
-    
-    struct list_head v3_pcidev_list;
-    u32              v3_pcidev_num;
 };
 
 
@@ -85,18 +82,6 @@ pisces_enclave_add_cpu(struct pisces_enclave * enclave,
 		       u32                     cpu_id);
 
 
-int 
-pisces_enclave_add_v3_pcidev(struct pisces_enclave * enclave,
-			     char                  * name,
-			     u32                     bus, 
-			     u32                     dev,
-			     u32                     fn);
-
-int 
-pisces_enclave_add_pcidev(struct pisces_enclave * enclave,
-			  u32                     bus, 
-			  u32                     dev,
-			  u32                     fn);
 
 
 

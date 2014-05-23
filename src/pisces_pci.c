@@ -13,43 +13,116 @@
 
 #include "pisces_cmds.h"
 #include "pisces_pci.h"
+#include "pisces_lcall.h"
+#include "enclave.h"
 #include "ipi.h"
 
-/*
-#define PCI_BUS_MAX  7
-#define PCI_DEV_MAX 32
-#define PCI_FN_MAX   7
+struct pisces_pci_dev {
+    char name[128];
+    u32  domain;
+    u32  bus;
+    u32  devfn;
+    
+    struct pisces_enclave * enclave;
+    
+    u8 in_use;
+    u8 assigned;
 
-#define PCI_DEVICE 0x0
-#define PCI_PCI_BRIDGE 0x1
-#define PCI_CARDBUS_BRIDGE 0x2
-*/
+    u8 iommu_enabled;
+    struct iommu_domain * iommu_domain;
+    
+    u32 device_ipi_vector; /* for irq forwarding */
+    
+    spinlock_t intx_lock;
+    u8         intx_disabled;
+    
+    struct pci_dev    * dev;
 
-#define PCI_HDR_SIZE 256
-static LIST_HEAD(pci_device_list);
-static DEFINE_SPINLOCK(pci_device_list_lock);
+
+    struct list_head dev_node;
+};
+
+
+
+/** 
+ * LCALL formats for PCI operations 
+ */
+
+struct pci_iommu_map_lcall {
+    struct pisces_lcall      lcall;
+
+    char name[128];
+    u64  region_start;
+    u64  region_end;
+    u64  gpa;
+} __attribute__((packed));
+
+
+struct pci_attach_lcall {
+    struct pisces_lcall      lcall;
+
+    char name[128];
+    u32  ipi_vector;
+} __attribute__((packed));
+
+
+
+struct pci_ack_irq_lcall {
+    struct pisces_lcall      lcall;
+
+    char name[128];
+    u32  vector;
+} __attribute__((packed));
+
+
+typedef enum {
+    HOST_PCI_CMD_DMA_DISABLE  = 1,
+    HOST_PCI_CMD_DMA_ENABLE   = 2,
+    HOST_PCI_CMD_MEM_ENABLE   = 3,
+    HOST_PCI_CMD_INTX_DISABLE = 4,
+    HOST_PCI_CMD_INTX_ENABLE  = 5,
+} host_pci_cmd_t;
+
+
+
+struct pci_cmd_lcall {
+    struct pisces_lcall      lcall;
+
+    char           name[128];
+    host_pci_cmd_t cmd;
+    u64            arg;
+} __attribute__((packed));
+
+
+/** 
+ * End LCALL definitions 
+ */
+
+
 
 static struct pisces_pci_dev * 
-find_dev_by_name(char * name) 
+find_dev_by_name(struct pisces_enclave * enclave,
+		 char                  * name) 
 {
-    struct pisces_pci_dev * dev = NULL;
+    struct pisces_pci_state * pci_state = &(enclave->pci_state);
+    struct pisces_pci_dev   * dev       = NULL;
     unsigned long flags;
 
-    spin_lock_irqsave(&pci_device_list_lock, flags);
+    spin_lock_irqsave(&(pci_state->lock), flags);
     {
-	if (list_empty(&pci_device_list)) {
-	    spin_unlock_irqrestore(&pci_device_list_lock, flags);
+	if (list_empty(&(pci_state->dev_list))) {
+	    spin_unlock_irqrestore(&(pci_state->lock), flags);
 	    return NULL;
 	}
 
-	list_for_each_entry(dev, &pci_device_list, dev_node) {
+	list_for_each_entry(dev, &(pci_state->dev_list), dev_node) {
 	    if (strncmp(dev->name, name, 128) == 0) {
-		spin_unlock_irqrestore(&pci_device_list_lock, flags);
+		spin_unlock_irqrestore(&(pci_state->lock), flags);
 		return dev;
 	    }
 	}
     }
-    spin_unlock_irqrestore(&pci_device_list_lock, flags);
+    spin_unlock_irqrestore(&(pci_state->lock), flags);
 
     return NULL;
 }
@@ -78,15 +151,16 @@ send_resp(struct pisces_xbuf_desc * xbuf_desc,
  * REF: linux: virt/kvm/assigned-dev.c
  */
 int
-pisces_pci_dev_init(struct pisces_enclave      * enclave,
-		    struct pisces_pci_spec * spec)
+pisces_pci_add_dev(struct pisces_enclave  * enclave,
+		   struct pisces_pci_spec * spec)
 {
-    struct pisces_pci_dev * pci_dev = NULL;
-    struct pci_dev        * dev;
+    struct pisces_pci_state * pci_state = &(enclave->pci_state);
+    struct pisces_pci_dev   * pci_dev   = NULL;
+    struct pci_dev          * dev       = NULL;
     unsigned long flags;
     int ret = 0;
 
-    if (find_dev_by_name(spec->name)) {
+    if (find_dev_by_name(enclave, spec->name)) {
         printk(KERN_ERR "Device %s already assigned.\n", pci_dev->name);
         return -EINVAL;
     }
@@ -153,11 +227,11 @@ pisces_pci_dev_init(struct pisces_enclave      * enclave,
     pci_dev->dev = dev;
 
 
-    spin_lock_irqsave(&pci_device_list_lock, flags);
+    spin_lock_irqsave(&(pci_state->lock), flags);
     {
-	list_add(&(pci_dev->dev_node), &pci_device_list);
+	list_add(&(pci_dev->dev_node), &(pci_state->dev_list));
     }
-    spin_unlock_irqrestore(&pci_device_list_lock, flags);
+    spin_unlock_irqrestore(&(pci_state->lock), flags);
 
 
     /* iommu init */
@@ -182,7 +256,7 @@ pisces_pci_dev_init(struct pisces_enclave      * enclave,
     return 0;
 
 out_del_list:
-    list_del(&pci_device_list);
+    list_del(&(pci_dev->dev_node));
     pci_release_regions(dev);
 out_disable:
     pci_disable_device(dev);
@@ -294,7 +368,7 @@ pisces_pci_iommu_map(struct pisces_enclave      * enclave,
 
     int r = 0;
 
-    pci_dev = find_dev_by_name(name);
+    pci_dev = find_dev_by_name(enclave, name);
 
     if (pci_dev == NULL) {
         printk(KERN_ERR "iommu_map device %s not found.\n", name);
@@ -315,7 +389,7 @@ pisces_pci_attach(struct pisces_enclave   * enclave,
 		  struct pisces_xbuf_desc * xbuf_desc,
 		  struct pci_attach_lcall * lcall)
 {
-    struct pisces_pci_dev * pci_dev =  find_dev_by_name(lcall->name);
+    struct pisces_pci_dev * pci_dev =  find_dev_by_name(enclave, lcall->name);
     int ret = 0;
 
      if (pci_dev == NULL) {
@@ -365,7 +439,7 @@ pisces_pci_ack_irq(struct pisces_enclave    * enclave,
 
     unsigned long flags;
  
-    pci_dev = find_dev_by_name(name);
+    pci_dev = find_dev_by_name(enclave, name);
 
     if (pci_dev == NULL) {
         printk(KERN_ERR "pci_ack_irq device %s not found.\n", name);
@@ -397,7 +471,7 @@ pisces_pci_cmd(struct pisces_enclave   * enclave,
     host_pci_cmd_t  cmd  = lcall->cmd;
     char          * name = lcall->name;
 
-    pci_dev = find_dev_by_name(name);
+    pci_dev = find_dev_by_name(enclave, name);
 
     if (pci_dev == NULL) {
         printk(KERN_ERR "pci_cmd device %s not found.\n", name);
@@ -435,5 +509,20 @@ pisces_pci_cmd(struct pisces_enclave   * enclave,
 
     send_resp(xbuf_desc, 0);
 
+    return 0;
+}
+
+
+
+
+int
+pisces_pci_init(struct pisces_enclave * enclave) 
+{
+    struct pisces_pci_state * pci_state = &(enclave->pci_state);
+
+    spin_lock_init(&(pci_state->lock));
+    INIT_LIST_HEAD(&(pci_state->dev_list));
+    pci_state->dev_num = 0;
+    
     return 0;
 }

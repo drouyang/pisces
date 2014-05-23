@@ -22,7 +22,7 @@
 int main(int argc, char ** argv) {
     int ctrl_fd;
     char * enclave_path = argv[1];
-    struct pisces_pci_dev dev_info;
+    struct pisces_pci_spec dev_info;
     unsigned int bus = 0;
     unsigned int dev = 0;
     unsigned int func = 0;

@@ -315,6 +315,7 @@ pisces_enclave_create(struct pisces_image * img)
     init_enclave_fs(enclave);
     pisces_portals_init(enclave);
     pisces_xpmem_init(enclave);
+    pisces_pci_init(enclave);
 
     enclave->dev          = MKDEV(pisces_major_num, enclave_idx);
     enclave->memdesc_num  = 0;
@@ -360,14 +361,14 @@ pisces_enclave_create(struct pisces_image * img)
 	    mem_entry->data      = enclave;
 	}
 	
-	cpu_entry = create_proc_entry("cpus", 0444, enclave->proc_dir);
+	cpu_entry = create_proc_entry("cpus",   0444, enclave->proc_dir);
 	if (cpu_entry) {
 	    cpu_entry->proc_fops = &proc_cpu_fops;
 	    cpu_entry->data      = enclave;
 	}
 #else
-	mem_entry = proc_create_data("memory", 0444, enclave->proc_dir, &proc_mem_fops, enclave);
-	cpu_entry = proc_create_data("cpus",   0444, enclave->proc_dir, &proc_cpu_fops, enclave);
+	mem_entry = proc_create_data("memory",  0444, enclave->proc_dir, &proc_mem_fops, enclave);
+	cpu_entry = proc_create_data("cpus",    0444, enclave->proc_dir, &proc_cpu_fops, enclave);
 
 #endif
 
@@ -466,29 +467,3 @@ pisces_enclave_add_mem(struct pisces_enclave * enclave,
     return 0;
 }
 
-
-
-int 
-pisces_enclave_add_pcidev(struct pisces_enclave * enclave,
-			  u32                     bus, 
-			  u32                     dev,
-			  u32                     fn)
-{
-
-
-    return 0;
-}
-
-
-
-int 
-pisces_enclave_add_v3_pcidev(struct pisces_enclave * enclave,
-			     char                  * name,
-			     u32                     bus, 
-			     u32                     dev,
-			     u32                     fn)
-{
-
-
-    return 0;
-}
