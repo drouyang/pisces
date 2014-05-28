@@ -4,10 +4,9 @@
 #include "pisces_xbuf.h"
 
 
-typedef enum {
-    LOCAL,
-    VM,
-    ENCLAVE,
+typedef enum { LOCAL,
+	       VM,
+	       ENCLAVE
 } xpmem_endpoint_t;
 
 struct xpmem_dom {
@@ -35,11 +34,11 @@ struct xpmem_cmd_remove_ex {
 };
 
 struct xpmem_cmd_get_ex {
-    int64_t segid;
+    int64_t  segid;
     uint32_t flags;
     uint32_t permit_type;
     uint64_t permit_value;
-    int64_t apid; /* Output */
+    int64_t  apid; /* Output */
 };
 
 struct xpmem_cmd_release_ex {
@@ -47,10 +46,10 @@ struct xpmem_cmd_release_ex {
 };
 
 struct xpmem_cmd_attach_ex {
-    int64_t apid;
-    uint64_t off;
-    uint64_t size;
-    uint64_t num_pfns;
+    int64_t    apid;
+    uint64_t   off;
+    uint64_t   size;
+    uint64_t   num_pfns;
     uint64_t * pfns;
 };
 
@@ -79,28 +78,29 @@ struct xpmem_cmd_ex {
     xpmem_op_t type;
 
     union {
-        struct xpmem_cmd_make_ex make;
-        struct xpmem_cmd_remove_ex remove;
-        struct xpmem_cmd_get_ex get;
+        struct xpmem_cmd_make_ex    make;
+        struct xpmem_cmd_remove_ex  remove;
+        struct xpmem_cmd_get_ex     get;
         struct xpmem_cmd_release_ex release;
-        struct xpmem_cmd_attach_ex attach;
-        struct xpmem_cmd_detach_ex detach;
+        struct xpmem_cmd_attach_ex  attach;
+        struct xpmem_cmd_detach_ex  detach;
     };  
 };
 
 struct xpmem_cmd_iter {
     struct xpmem_cmd_ex * cmd;
-    struct list_head node;
+    struct list_head      node;
 };
 
 struct pisces_xpmem {
     int initialized;
     int fd; 
+
     spinlock_t state_lock;
 
     /* Incoming lcall cmds */
     struct list_head in_cmds;
-    spinlock_t in_lock;
+    spinlock_t       in_lock;
 
     /* waitqs */
     wait_queue_head_t user_waitq;
@@ -112,10 +112,8 @@ struct pisces_xpmem {
 
 /* Longcall structures */
 struct pisces_xpmem_cmd_lcall {
-    union {
-        struct pisces_lcall lcall;
-        struct pisces_lcall_resp lcall_resp;
-    } __attribute__((packed));
+    struct pisces_lcall lcall;
+    
     struct xpmem_cmd_ex xpmem_cmd;
     u8 pfn_list[0];
 } __attribute__((packed));

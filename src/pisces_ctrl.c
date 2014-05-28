@@ -111,13 +111,6 @@ ctrl_ioctl(struct file   * filp,
 
 	    memset(&cmd, 0, sizeof(struct cmd_cpu_add));
 
-	    /*
-	      if (pisces_enclave_test_cpu(enclave, cpu_id) != 0) {
-	      printk(KERN_ERR "Error adding CPU to enclave %d\n", enclave->id);
-	      return -1;
-	      }
-	    */
-
 	    cmd.hdr.cmd      = ENCLAVE_CMD_REMOVE_CPU;
 	    cmd.hdr.data_len = (sizeof(struct cmd_cpu_add) - sizeof(struct pisces_cmd));
 	    cmd.phys_cpu_id  = cpu_id;
@@ -323,7 +316,8 @@ ctrl_ioctl(struct file   * filp,
 	    memset(&cmd, 0, sizeof(struct cmd_vm_cons_keycode));
 
 	    cmd.hdr.cmd      = ENCLAVE_CMD_VM_CONS_KEYCODE;
-	    cmd.hdr.data_len = (sizeof(struct cmd_vm_cons_keycode) - sizeof(struct pisces_cmd));
+	    cmd.hdr.data_len = ( sizeof(struct cmd_vm_cons_keycode) - 
+				 sizeof(struct pisces_cmd) );
 	    cmd.vm_id        = 0;
 	    cmd.scan_code    = (u8)arg;
 
@@ -334,7 +328,7 @@ ctrl_ioctl(struct file   * filp,
 	    break;
 
 	}
-	case ENCLAVE_CMD_VM_DBG {
+	case ENCLAVE_CMD_VM_DBG: {
 	    printk("Sending Debug IPI to palacios\n");
 	    pisces_send_ipi(enclave, 0, 169);
 	    break;

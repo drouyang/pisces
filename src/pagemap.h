@@ -23,24 +23,24 @@ struct pisces_xpmem_make;
 struct pisces_xpmem_attach;
 
 int pisces_get_xpmem_map(
-        struct pisces_xpmem_make * src_addr, 
+        struct pisces_xpmem_make   * src_addr, 
         struct pisces_xpmem_attach * dest_addr,
-        struct mm_struct * mm,
-        u64 * num_pfns, 
-        struct xpmem_pfn ** pfns
+        struct mm_struct           * mm,
+        u64                        * num_pfns, 
+        struct xpmem_pfn          ** pfns
 );
 
 int pisces_get_enclave_xpmem_map(
-        struct pisces_xpmem_make * src_addr, 
+        struct pisces_xpmem_make   * src_addr, 
         struct pisces_xpmem_attach * dest_addr,
-        struct enclave_aspace * aspace,
-        u64 * num_pfns, 
-        struct xpmem_pfn ** pfns
+        struct enclave_aspace      * aspace,
+        u64                        * num_pfns, 
+        struct xpmem_pfn          ** pfns
 );
 
 unsigned long pisces_map_xpmem_pfn_range(
     struct xpmem_pfn * pfns,
-    u64 num_pfns
+    u64                num_pfns
 );
 
 

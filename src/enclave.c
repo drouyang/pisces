@@ -124,10 +124,7 @@ enclave_ioctl(struct file  * filp,
 
 		pisces_enclave_add_cpu(enclave, boot_env.cpu_id);
 		pisces_enclave_add_mem(enclave, boot_env.base_addr, boot_env.pages);
-//{
-//extern void pisces_enclave_add_disk(struct pisces_enclave * enclave);
-//		pisces_enclave_add_disk(enclave);
-//}
+
 
                 printk(KERN_DEBUG "Launch Pisces Enclave (cpu=%d) (bootmem=%p)\n", 
 		       enclave->boot_cpu, 

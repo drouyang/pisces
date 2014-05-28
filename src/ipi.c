@@ -30,13 +30,18 @@ struct ipi_callback {
 
 static LIST_HEAD(ipi_callbacks);
 static DEFINE_SPINLOCK(ipi_lock);
-static wait_queue_head_t notifier_waitq;
+
+static wait_queue_head_t    notifier_waitq;
 static struct task_struct * notifier_thread = NULL;
-static u64 ipis_recvd = 0;
+
+static u64 ipis_recvd    = 0;
 static u64 notifications = 0;
 
 
-int pisces_register_ipi_callback(void (*callback)(void *), void * private_data) {
+int 
+pisces_register_ipi_callback(void (*callback)(void *),
+			     void * private_data) 
+{
     struct ipi_callback * new_cb = NULL;
     unsigned long flags;
 
@@ -47,39 +52,47 @@ int pisces_register_ipi_callback(void (*callback)(void *), void * private_data) 
 	return -1;
     }
 
-    new_cb->callback = callback;
+    new_cb->callback     = callback;
     new_cb->private_data = private_data;
 
     spin_lock_irqsave(&ipi_lock, flags);
-    list_add_tail(&(new_cb->node), &ipi_callbacks);
+    {
+	list_add_tail(&(new_cb->node), &ipi_callbacks);
+    }
     spin_unlock_irqrestore(&ipi_lock, flags);
 
     return 0;
 }
 
 
-int pisces_remove_ipi_callback(void (*callback)(void *), void * private_data) {
+int 
+pisces_remove_ipi_callback(void (*callback)(void *), 
+			   void * private_data) 
+{
     struct ipi_callback * cb = NULL;
     struct ipi_callback * tmp = NULL;
     unsigned long flags;
 
     spin_lock_irqsave(&ipi_lock, flags);
+    {
 
-    list_for_each_entry_safe(cb, tmp, &ipi_callbacks, node) {
-	if ((cb->callback == callback) && 
-	    (cb->private_data == private_data)) {
-	    list_del(&(cb->node));
-	    kfree(cb);
+	list_for_each_entry_safe(cb, tmp, &ipi_callbacks, node) {
+	    if ((cb->callback == callback) && 
+		(cb->private_data == private_data)) {
+		list_del(&(cb->node));
+		kfree(cb);
+	    }
 	}
     }
-
     spin_unlock_irqrestore(&ipi_lock, flags);
 
     return 0;
 }
 
 
-int notifier_thread_fn(void * arg) {
+int 
+notifier_thread_fn(void * arg) 
+{
     struct ipi_callback * iter = NULL;
 //    printk("Handling IPI callbacks\n");
 
@@ -91,11 +104,11 @@ int notifier_thread_fn(void * arg) {
 	    notifications = ipis_recvd;
 
 	    spin_lock(&ipi_lock);
-	
-	    list_for_each_entry(iter, &(ipi_callbacks), node) {
-		iter->callback(iter->private_data);
+	    {
+		list_for_each_entry(iter, &(ipi_callbacks), node) {
+		    iter->callback(iter->private_data);
+		}
 	    }
-	    
 	    spin_unlock(&ipi_lock);
 	}
     }
@@ -105,15 +118,19 @@ int notifier_thread_fn(void * arg) {
 
 
 static void 
-platform_ipi_handler(void) {
+platform_ipi_handler(void) 
+{
     ipis_recvd++;
+
     mb();
     wake_up_interruptible(&notifier_waitq);
+
     return;
 }
 
 
-int pisces_ipi_init(void)
+int 
+pisces_ipi_init(void)
 {
 
     if (linux_x86_platform_ipi_callback == NULL) {
@@ -134,7 +151,10 @@ int pisces_ipi_init(void)
 
 
 
-int pisces_send_ipi(struct pisces_enclave * enclave, int cpu_id, unsigned int vector)
+int 
+pisces_send_ipi(struct pisces_enclave * enclave,
+		int                     cpu_id, 
+		unsigned int            vector)
 {
     unsigned long flags;
 
@@ -144,7 +164,9 @@ int pisces_send_ipi(struct pisces_enclave * enclave, int cpu_id, unsigned int ve
     }
 
     local_irq_save(flags);
-    __default_send_IPI_dest_field(apic->cpu_present_to_apicid(enclave->boot_cpu), vector, APIC_DEST_PHYSICAL);
+    {
+	__default_send_IPI_dest_field(apic->cpu_present_to_apicid(enclave->boot_cpu), vector, APIC_DEST_PHYSICAL);
+    }
     local_irq_restore(flags);
 
     return 0;

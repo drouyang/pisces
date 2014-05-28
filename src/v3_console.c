@@ -38,8 +38,8 @@ struct cursor_msg {
 } __attribute__((packed));
 
 struct character_msg {
-    int x;
-    int y;
+    int  x;
+    int  y;
     char c;
     unsigned char style;
 } __attribute__((packed));
@@ -104,28 +104,31 @@ static void cons_kick(void * arg) {
 }
 
 
-static int cons_dequeue(struct cons_ring_buf * ringbuf, struct cons_msg * msg) {
+static int 
+cons_dequeue(struct cons_ring_buf * ringbuf, 
+	     struct cons_msg      * msg) 
+{
+    int ret = -1;
 
     pisces_spin_lock(&(ringbuf->lock));
+    {
+	if (ringbuf->cur_entries > 0) {	    
+	    memcpy(msg, &(ringbuf->msgs[ringbuf->read_idx]), sizeof(struct cons_msg));
+	    
+	    __asm__ __volatile__ ("lock decw %1;"
+				  : "+m"(ringbuf->cur_entries)
+				  :
+				  : "memory");
+	    
+	    ringbuf->read_idx += 1;
+	    ringbuf->read_idx %= ringbuf->total_entries;
 
-    if (ringbuf->cur_entries <= 0) {
-	pisces_spin_unlock(&(ringbuf->lock));
-	return -1;
+	    ret = 0;
+	}
     }
-
-    memcpy(msg, &(ringbuf->msgs[ringbuf->read_idx]), sizeof(struct cons_msg));
-    
-    __asm__ __volatile__ ("lock decw %1;"
-			  : "+m"(ringbuf->cur_entries)
-			  :
-			  : "memory");
-    ringbuf->read_idx++;
-    ringbuf->read_idx %= ringbuf->total_entries;
-
-
     pisces_spin_unlock(&(ringbuf->lock));
     
-    return 0;
+    return ret;
 }
 
 
@@ -133,7 +136,11 @@ static int cons_dequeue(struct cons_ring_buf * ringbuf, struct cons_msg * msg) {
 
 
 static ssize_t 
-console_read(struct file * filp, char __user * buf, size_t size, loff_t * offset) {
+console_read(struct file * filp, 
+	     char __user * buf, 
+	     size_t        size, 
+	     loff_t      * offset) 
+{
     struct palacios_console * cons = filp->private_data;
     struct cons_msg msg;
     int ret = 0;
@@ -167,7 +174,11 @@ console_read(struct file * filp, char __user * buf, size_t size, loff_t * offset
 
 
 static ssize_t 
-console_write(struct file * filp, const char __user * buf, size_t size, loff_t * offset) {
+console_write(struct file       * filp,
+	      const char __user * buf, 
+	      size_t              size, 
+	      loff_t            * offset) 
+{
     struct palacios_console    * cons      = filp->private_data;
     struct pisces_xbuf_desc    * xbuf_desc = cons->enclave->ctrl.xbuf_desc;
     struct cmd_vm_cons_keycode   cmd;
@@ -196,9 +207,11 @@ console_write(struct file * filp, const char __user * buf, size_t size, loff_t *
 }
 
 static unsigned int 
-console_poll(struct file * filp, struct poll_table_struct * poll_tb) {
+console_poll(struct file              * filp,
+	     struct poll_table_struct * poll_tb) 
+{
     struct palacios_console * cons = filp->private_data;
-    unsigned int mask = POLLIN | POLLRDNORM;
+    unsigned int              mask = POLLIN | POLLRDNORM;
     u32 entries = 0;
 
     //    printk(KERN_DEBUG "Console=%p (guest=%s)\n", cons, cons->guest->name);
@@ -221,7 +234,10 @@ console_poll(struct file * filp, struct poll_table_struct * poll_tb) {
 }
 
 
-static int console_release(struct inode * i, struct file * filp) {
+static int 
+console_release(struct inode * i, 
+		struct file  * filp) 
+{
     struct palacios_console * cons      = filp->private_data;
     struct pisces_enclave   * enclave   = cons->enclave;
     struct pisces_xbuf_desc * xbuf_desc = enclave->ctrl.xbuf_desc;
@@ -265,7 +281,11 @@ static struct file_operations cons_fops = {
 
 
 
-int v3_console_connect(struct pisces_enclave * enclave, u32 vm_id, uintptr_t cons_buf_pa) {
+int 
+v3_console_connect(struct pisces_enclave * enclave,
+		   u32                     vm_id, 
+		   uintptr_t               cons_buf_pa) 
+{
     struct palacios_console * cons = NULL;
     int cons_fd = 0;
 
@@ -275,16 +295,16 @@ int v3_console_connect(struct pisces_enclave * enclave, u32 vm_id, uintptr_t con
 	printk(KERN_ERR "Error allocating pisces VM  console state\n");
 	return -1;
     }
-    
+
+    cons->enclave                = enclave;
+    cons->vm_id                  = vm_id;
+    cons->ring_buf               = __va(cons_buf_pa);
+    cons->ring_buf->kick_ipi_vec = STUPID_LINUX_IRQ;
+    cons->ring_buf->kick_apic    = 0;
+
     init_waitqueue_head(&(cons->intr_queue));
-    cons->enclave = enclave;
-    cons->vm_id   = vm_id;
-    
-    cons->ring_buf = __va(cons_buf_pa);
     spin_lock_init(&(cons->irq_lock));
 
-    cons->ring_buf->kick_ipi_vec = STUPID_LINUX_IRQ;
-    cons->ring_buf->kick_apic = 0;
     pisces_register_ipi_callback(cons_kick, cons);
 
     cons_fd = anon_inode_getfd("v3-cons", &cons_fops, cons, O_RDWR);

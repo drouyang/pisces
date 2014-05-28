@@ -20,8 +20,12 @@
 
 
 /* We use the XPMEM control channel to send requests/responses */
-static int pisces_xpmem_cmd_ctrl(struct pisces_enclave * enclave, struct pisces_xpmem_cmd_ctrl * xpmem_ctrl, u64 size) {
-    struct pisces_xpmem * xpmem = &(enclave->xpmem);
+static int 
+pisces_xpmem_cmd_ctrl(struct pisces_enclave        * enclave, 
+		      struct pisces_xpmem_cmd_ctrl * xpmem_ctrl, 
+		      u64                            size) 
+{
+    struct pisces_xpmem     * xpmem     = &(enclave->xpmem);
     struct pisces_xbuf_desc * xbuf_desc = xpmem->xbuf_desc;
 
     return pisces_xbuf_send(xbuf_desc, (u8 *)xpmem_ctrl, size);
@@ -29,14 +33,19 @@ static int pisces_xpmem_cmd_ctrl(struct pisces_enclave * enclave, struct pisces_
 
 
 static int
-xpmem_open(struct inode * inodep, struct file * filp) {
+xpmem_open(struct inode * inodep, 
+	   struct file  * filp) 
+{
     return 0;
 }
 
 static int
-xpmem_release(struct inode * inodep, struct file * filp) {
+xpmem_release(struct inode * inodep, 
+	      struct file  * filp) 
+{
     struct pisces_enclave * enclave = (struct pisces_enclave *)filp->private_data;
-    struct pisces_xpmem * xpmem = &(enclave->xpmem);
+    struct pisces_xpmem   * xpmem   = &(enclave->xpmem);
+
     unsigned long flags;
 
     if (!xpmem->initialized) {
@@ -44,17 +53,23 @@ xpmem_release(struct inode * inodep, struct file * filp) {
     }
 
     spin_lock_irqsave(&(xpmem->state_lock), flags);
-    xpmem->fd = -1;
+    {
+	xpmem->fd = -1;
+    }
     spin_unlock_irqrestore(&(xpmem->state_lock), flags);
 
     return 0;
 }
 
 static ssize_t
-xpmem_read(struct file * filp, char __user * buffer, size_t size, loff_t * offp) {
+xpmem_read(struct file * filp,
+	   char __user * buffer,
+	   size_t        size, 
+	   loff_t      * offp) 
+{
     struct pisces_enclave * enclave = (struct pisces_enclave *)filp->private_data;
-    struct pisces_xpmem * xpmem = &(enclave->xpmem);
-    struct xpmem_cmd_iter * iter = NULL;
+    struct pisces_xpmem   * xpmem   = &(enclave->xpmem);
+    struct xpmem_cmd_iter * iter    = NULL;
     ssize_t ret = size;
     unsigned long flags;
 
@@ -67,15 +82,20 @@ xpmem_read(struct file * filp, char __user * buffer, size_t size, loff_t * offp)
     }
 
     spin_lock_irqsave(&(xpmem->in_lock), flags);
-    if (list_empty(&(xpmem->in_cmds))) {
-        spin_unlock_irqrestore(&(xpmem->in_lock), flags);
-        return 0;
+    {
+	if (!list_empty(&(xpmem->in_cmds))) {
+	    iter = list_first_entry(&(xpmem->in_cmds), struct xpmem_cmd_iter, node);
+	    list_del(&(iter->node));
+	}
+	
     }
-
-    iter = list_first_entry(&(xpmem->in_cmds), struct xpmem_cmd_iter, node);
-    list_del(&(iter->node));
     spin_unlock_irqrestore(&(xpmem->in_lock), flags);
 
+    if (iter == NULL) {
+	/* List was empty */
+	return 0;
+    }
+    
     if (copy_to_user(buffer, (void *)(iter->cmd), size)) {
         ret = -EFAULT;
     }
@@ -86,14 +106,19 @@ xpmem_read(struct file * filp, char __user * buffer, size_t size, loff_t * offp)
 }
 
 static ssize_t 
-xpmem_write(struct file * filp, const char __user * buffer, size_t size, loff_t * offp) {
-    struct pisces_enclave * enclave = (struct pisces_enclave *)filp->private_data;
-    struct pisces_xpmem * xpmem = &(enclave->xpmem);
-    struct pisces_xpmem_cmd_ctrl * ctrl=  NULL;
-    struct xpmem_cmd_ex cmd_ex;
-    ssize_t ret = size;
-    int status = 0;
-    u64 pfn_len = 0;
+xpmem_write(struct file       * filp, 
+	    const char __user * buffer, 
+	    size_t              size, 
+	    loff_t            * offp) 
+{
+    struct pisces_enclave        * enclave = (struct pisces_enclave *)filp->private_data;
+    struct pisces_xpmem          * xpmem   = &(enclave->xpmem);
+    struct pisces_xpmem_cmd_ctrl * ctrl    =  NULL;
+    struct xpmem_cmd_ex            cmd_ex;
+
+    int     status  = 0;
+    u64     pfn_len = 0;
+    ssize_t ret     = size;
 
     if (!xpmem->initialized) {
         return -EBADF;
@@ -123,6 +148,7 @@ xpmem_write(struct file * filp, const char __user * buffer, size_t size, loff_t 
         case XPMEM_ATTACH_COMPLETE: 
         case XPMEM_DETACH_COMPLETE: {
             ctrl = kmalloc(sizeof(struct pisces_xpmem_cmd_ctrl) + pfn_len, GFP_KERNEL);
+
             if (!ctrl) {
                 return -ENOMEM;
             }
@@ -137,6 +163,7 @@ xpmem_write(struct file * filp, const char __user * buffer, size_t size, loff_t 
             }
 
             status = pisces_xpmem_cmd_ctrl(enclave, ctrl, sizeof(struct pisces_xpmem_cmd_ctrl) + pfn_len);
+
             if (status) {
                 ret = -EFAULT;
             }
@@ -153,10 +180,12 @@ xpmem_write(struct file * filp, const char __user * buffer, size_t size, loff_t 
 }
 
 static unsigned int
-xpmem_poll(struct file * filp, struct poll_table_struct * pollp) {
+xpmem_poll(struct file              * filp,
+	   struct poll_table_struct * pollp)
+{
     struct pisces_enclave * enclave = (struct pisces_enclave *)filp->private_data;
-    struct pisces_xpmem * xpmem = &(enclave->xpmem);
-    unsigned int ret = 0;
+    struct pisces_xpmem   * xpmem   = &(enclave->xpmem);
+    unsigned int  ret = 0;
     unsigned long flags;
 
     if (!xpmem->initialized) {
@@ -168,8 +197,10 @@ xpmem_poll(struct file * filp, struct poll_table_struct * pollp) {
     poll_wait(filp, &(xpmem->user_waitq), pollp);
 
     spin_lock_irqsave(&(xpmem->in_lock), flags);
-    if (!(list_empty(&(xpmem->in_cmds)))) {
-        ret |= (POLLIN | POLLRDNORM);
+    {
+	if (!(list_empty(&(xpmem->in_cmds)))) {
+	    ret |= (POLLIN | POLLRDNORM);
+	}
     }
     spin_unlock_irqrestore(&(xpmem->in_lock), flags);
 
@@ -185,14 +216,18 @@ static struct file_operations xpmem_fops = {
     .poll       = xpmem_poll,
 };
 
-int pisces_xpmem_init(struct pisces_enclave * enclave) {
-    struct pisces_xpmem * xpmem = &(enclave->xpmem);
+int 
+pisces_xpmem_init(struct pisces_enclave * enclave)
+{
+    struct pisces_xpmem       * xpmem       = &(enclave->xpmem);
     struct pisces_boot_params * boot_params = NULL;
 
     memset(xpmem, 0, sizeof(struct pisces_xpmem));
 
     boot_params = __va(enclave->bootmem_addr_pa);
+
     xpmem->xbuf_desc = pisces_xbuf_client_init(enclave, (uintptr_t)__va(boot_params->xpmem_buf_addr), 0, 0);
+
     if (!xpmem->xbuf_desc) {
         return -1;
     }
@@ -202,74 +237,94 @@ int pisces_xpmem_init(struct pisces_enclave * enclave) {
     spin_lock_init(&(xpmem->in_lock));
     spin_lock_init(&(xpmem->state_lock));
 
-    xpmem->fd = -1;
+    xpmem->fd          = -1;
     xpmem->initialized = 1;
 
     return 0;
 }
 
 
-int pisces_xpmem_connect(struct pisces_enclave * enclave) {
+int 
+pisces_xpmem_connect(struct pisces_enclave * enclave) 
+{
     struct pisces_xpmem * xpmem = &(enclave->xpmem);
-    unsigned long flags = 0;
+    unsigned long flags         = 0;
+    int connected               = 0;
 
     spin_lock_irqsave(&(xpmem->state_lock), flags);
-    if (xpmem->fd != -1) {
-        printk(KERN_ERR "Pisces XPMEM channel already connected\n");
-        goto out;
-    }   
-
-    xpmem->fd = anon_inode_getfd("enclave-xpmem", &xpmem_fops, enclave, O_RDWR);
-
-    if (xpmem->fd < 0) {
-        printk(KERN_ERR "Error creating Pisces XPMEM inode\n");
-    }   
-
-out:
+    {
+	if (xpmem->fd == -1) {
+	    xpmem->fd = anon_inode_getfd("enclave-xpmem", &xpmem_fops, enclave, O_RDWR);
+	    
+	    if (xpmem->fd < 0) {
+		printk(KERN_ERR "Error creating Pisces XPMEM inode\n");
+	    } else {
+		connected = 1;
+	    }
+	}   
+	
+    }
     spin_unlock_irqrestore(&(xpmem->state_lock), flags);
+
+    if (connected == 0) {
+	printk("Could not connect to Pisces XPMEM control channel\n");
+	return -1;
+    }
+
     return xpmem->fd;
 }
 
 
 /* Incoming lcall - add to list and wake up user waitq */
-int pisces_xpmem_cmd_lcall(struct pisces_enclave * enclave, struct pisces_xbuf_desc * xbuf_desc, struct pisces_lcall * lcall) {
-    struct pisces_xpmem * xpmem = &(enclave->xpmem);
-    struct pisces_xpmem_cmd_lcall * xpmem_lcall = (struct pisces_xpmem_cmd_lcall *)lcall;
-    struct pisces_xpmem_cmd_lcall * xpmem_lcall_resp = NULL;
-    struct xpmem_cmd_ex * xpmem_cmd = NULL;
-    struct xpmem_cmd_iter * iter = NULL;
+int 
+pisces_xpmem_cmd_lcall(struct pisces_enclave   * enclave, 
+		       struct pisces_xbuf_desc * xbuf_desc, 
+		       struct pisces_lcall     * lcall) 
+{
+    struct pisces_xpmem           * xpmem            = &(enclave->xpmem);
+    struct pisces_xpmem_cmd_lcall * xpmem_lcall      = (struct pisces_xpmem_cmd_lcall *)lcall;
+    struct pisces_lcall_resp        lcall_resp;
+    struct xpmem_cmd_ex           * xpmem_cmd        = NULL;
+    struct xpmem_cmd_iter         * iter             = NULL;
     unsigned long flags = 0;
+
+    lcall_resp.status   = 0;
+    lcall_resp.data_len = 0;
 
     if (!xpmem->initialized) {
         printk(KERN_ERR "Cannot handle enclave XPMEM request - channel not initialized\n");
-        goto err;
+
+	lcall_resp.status = -1;
+        goto out;
     }
 
-    xpmem_lcall_resp = xpmem_lcall;
-    xpmem_cmd = &(xpmem_lcall->xpmem_cmd);
+    xpmem_cmd        = &(xpmem_lcall->xpmem_cmd);
 
     iter = kmalloc(sizeof(struct xpmem_cmd_iter), GFP_KERNEL);
+
     if (!iter) {
         return -ENOMEM;
     }
 
     iter->cmd = kmalloc(sizeof(struct xpmem_cmd_ex), GFP_KERNEL);
+
     if (!iter->cmd) {
         kfree(iter);
         return -ENOMEM;
     }
 
     printk("Received %d data bytes in LCALL (xpmem_cmd_ex size: %d)\n",
-        (int)xpmem_lcall->lcall.data_len,
-        (int)sizeof(struct xpmem_cmd_ex));
+	   (int)xpmem_lcall->lcall.data_len,
+	   (int)sizeof(struct xpmem_cmd_ex));
 
     *(iter->cmd) = *(xpmem_cmd);
 
     if (iter->cmd->type == XPMEM_ATTACH_COMPLETE) {
-        struct xpmem_cmd_attach_ex * cmd_attach = &(xpmem_cmd->attach);
+        struct xpmem_cmd_attach_ex * cmd_attach  = &(xpmem_cmd->attach);
         struct xpmem_cmd_attach_ex * iter_attach = &(iter->cmd->attach);
 
         iter_attach->pfns = kmalloc(cmd_attach->num_pfns * sizeof(u64), GFP_KERNEL);
+
         if (!iter_attach->pfns) {
             kfree(iter->cmd);
             kfree(iter);
@@ -280,30 +335,20 @@ int pisces_xpmem_cmd_lcall(struct pisces_enclave * enclave, struct pisces_xbuf_d
     }
     
     spin_lock_irqsave(&(xpmem->in_lock), flags);
-    list_add_tail(&(iter->node), &(xpmem->in_cmds));
+    {
+	list_add_tail(&(iter->node), &(xpmem->in_cmds));
+    }
     spin_unlock_irqrestore(&(xpmem->in_lock), flags);
 
     __asm__ __volatile__("":::"memory");
     wake_up_interruptible(&(xpmem->user_waitq));
 
-    xpmem_lcall_resp->lcall_resp.status = 0;
-    xpmem_lcall_resp->lcall_resp.data_len =
-            sizeof(struct pisces_xpmem_cmd_lcall) -
-            sizeof(struct pisces_lcall);
 
-    pisces_xbuf_complete(xbuf_desc, (u8 *)xpmem_lcall_resp,
-            sizeof(struct pisces_xpmem_cmd_lcall));
+ out:
+    pisces_xbuf_complete(xbuf_desc, 
+			 (u8 *)&lcall_resp,
+			 sizeof(struct pisces_lcall_resp));
 
     return 0;
 
-err:
-    {
-        struct pisces_lcall_resp pisces_resp;
-        memset(&(pisces_resp), 0, sizeof(struct pisces_lcall_resp));
-        pisces_resp.status = -1;
-        pisces_resp.data_len = 0;
-        pisces_xbuf_complete(xbuf_desc, (u8 *)&(pisces_resp),
-                sizeof(struct pisces_lcall_resp));
-        return -1;
-    }
 }
