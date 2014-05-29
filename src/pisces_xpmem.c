@@ -300,13 +300,13 @@ pisces_xpmem_cmd_lcall(struct pisces_enclave   * enclave,
 
     xpmem_cmd        = &(xpmem_lcall->xpmem_cmd);
 
-    iter = kmalloc(sizeof(struct xpmem_cmd_iter), GFP_KERNEL);
+    iter             = kmalloc(sizeof(struct xpmem_cmd_iter), GFP_KERNEL);
 
     if (!iter) {
         return -ENOMEM;
     }
 
-    iter->cmd = kmalloc(sizeof(struct xpmem_cmd_ex), GFP_KERNEL);
+    iter->cmd        = kmalloc(sizeof(struct xpmem_cmd_ex),   GFP_KERNEL);
 
     if (!iter->cmd) {
         kfree(iter);

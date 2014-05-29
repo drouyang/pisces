@@ -4,9 +4,10 @@
 #include "pisces_xbuf.h"
 
 
-typedef enum { LOCAL,
-	       VM,
-	       ENCLAVE
+typedef enum { 
+    LOCAL,
+    VM,
+    ENCLAVE
 } xpmem_endpoint_t;
 
 struct xpmem_dom {
