@@ -359,7 +359,7 @@ setup_boot_params(struct pisces_enclave * enclave)
 
         offset += PAGE_SIZE_4KB;
 
-        printk("Longcall buffer initialized. Offset at %p (target_addr=%p, size=%llu)\n", 
+        printk("XPMEM buffer initialized. Offset at %p (target_addr=%p, size=%llu)\n", 
                 (void *)(base_addr + offset),
                 (void *)boot_params->xpmem_buf_addr, 
                 boot_params->xpmem_buf_size);
