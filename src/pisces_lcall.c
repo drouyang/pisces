@@ -109,21 +109,23 @@ static int lcall_kern_thread(void * arg) {
             case PISCES_LCALL_XPMEM_DETACH:
                 pisces_portals_xpmem_detach(enclave, xbuf_desc, cur_lcall);
                 break;
-            case PISCES_LCALL_PCI_IOMMU_MAP:
-                pisces_pci_iommu_map(enclave, xbuf_desc, 
-                        (struct pci_iommu_map_lcall *)cur_lcall);
+            case PISCES_LCALL_IOMMU_MAP:
+                pisces_pci_iommu_map(enclave, xbuf_desc, (struct pci_iommu_map_lcall *)cur_lcall);
+                break;
+            case PISCES_LCALL_IOMMU_UNMAP:
+                pisces_pci_iommu_unmap(enclave, xbuf_desc, (struct pci_iommu_unmap_lcall *)cur_lcall);
                 break;
             case PISCES_LCALL_PCI_ATTACH:
-                pisces_pci_attach(enclave, xbuf_desc, 
-                        (struct pci_attach_lcall *)cur_lcall);
+                pisces_pci_attach(enclave, xbuf_desc, (struct pci_attach_lcall *)cur_lcall);
+                break;
+            case PISCES_LCALL_PCI_DETACH:
+                pisces_pci_detach(enclave, xbuf_desc, (struct pci_detach_lcall *)cur_lcall);
                 break;
             case PISCES_LCALL_PCI_ACK_IRQ:
-                pisces_pci_ack_irq(enclave, xbuf_desc, 
-                        (struct pci_ack_irq_lcall *) cur_lcall);
+                pisces_pci_ack_irq(enclave, xbuf_desc, (struct pci_ack_irq_lcall *)cur_lcall);
                 break;
             case PISCES_LCALL_PCI_CMD:
-                pisces_pci_cmd(enclave, xbuf_desc, 
-                        (struct pci_cmd_lcall *) cur_lcall);
+                pisces_pci_cmd(enclave, xbuf_desc, (struct pci_cmd_lcall *)cur_lcall);
                 break;
             case PISCES_LCALL_VFS_READDIR:
             default:

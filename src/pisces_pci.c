@@ -57,6 +57,15 @@ struct pci_iommu_map_lcall {
     u64  gpa;
 } __attribute__((packed));
 
+struct pci_iommu_unmap_lcall {
+	struct pisces_lcall lcall;
+
+	char name[128];
+	u64 region_start;
+	u64 region_end;
+	u64 gpa;
+} __attribute__((packed));
+
 
 struct pci_attach_lcall {
     struct pisces_lcall      lcall;
@@ -65,7 +74,11 @@ struct pci_attach_lcall {
     u32  ipi_vector;
 } __attribute__((packed));
 
+struct pci_detach_lcall {
+	struct pisces_lcall lcall;
 
+	char name[128];
+} __attribute__((packed));
 
 struct pci_ack_irq_lcall {
     struct pisces_lcall      lcall;
@@ -282,7 +295,6 @@ _host_pci_intx_irq_handler(int    irq,
     spin_lock(&(pci_dev->intx_lock));
     {
 	disable_irq_nosync(irq);
-	pci_dev->intx_disabled = 1;
     }
     spin_unlock(&(pci_dev->intx_lock));
 
@@ -308,48 +320,6 @@ _host_pci_intx_irq_handler(int    irq,
     return IRQ_HANDLED;
 }
 
-static int 
-_pisces_pci_iommu_map_region(struct pisces_pci_dev * pci_dev, 
-			     u64                     start, 
-			     u64                     end, 
-			     u64                     gpa)
-{
-    u64 size      = end - start;
-    u32 page_size = 512 * 4096; // assume large 64bit pages (2MB)
-    u64 hpa       = start;
-    u64 flags     = IOMMU_READ | IOMMU_WRITE;
-    int ret       = 0;
-
-    /* not sure if we need IOMMU_CACHE */
-    //if (iommu_domain_has_cap(pci_dev->iommu_domain, IOMMU_CAP_CACHE_COHERENCY)) {
-    //    flags |= IOMMU_CACHE;
-    //}
-
-    printk("Memory region: GPA=%p, HPA=%p, size=%p\n", (void *)gpa, (void *)hpa, (void *)size);
-
-    do {
-        if (size < page_size) {
-            // less than a 2MB granularity, so we switch to small pages (4KB)
-            page_size = 4096;
-        }
-
-        ret = iommu_map(pci_dev->iommu_domain, gpa, hpa, page_size, flags);
-
-        if (ret) {
-            printk(KERN_ERR "iommu_map failed for device %s at gpa=%llx, hpa=%llx\n", pci_dev->name, gpa, hpa);
-            return ret;
-        }
-
-        hpa  += page_size;
-        gpa  += page_size;
-        size -= page_size;
-
-    } while (size > 0);
-
-
-
-    return ret;
-}
 
 
 
@@ -359,28 +329,111 @@ pisces_pci_iommu_map(struct pisces_enclave      * enclave,
 		     struct pci_iommu_map_lcall * lcall)
 {
     struct pisces_pci_dev * pci_dev = NULL;
+    int ret  = 0;
 
-    char * name   = lcall->name;
-    u64    start  = lcall->region_start;
-    u64    end    = lcall->region_end;
-    u64    gpa    = lcall->gpa;
-
-
-    int r = 0;
-
-    pci_dev = find_dev_by_name(enclave, name);
+    pci_dev = find_dev_by_name(enclave, lcall->name);
 
     if (pci_dev == NULL) {
-        printk(KERN_ERR "iommu_map device %s not found.\n", name);
+        printk(KERN_ERR "iommu_map device %s not found.\n", lcall->name);
 	send_resp(xbuf_desc, -1);
 	return 0;
     }
 
-    
-    r = _pisces_pci_iommu_map_region(pci_dev, start, end, gpa);
+    {
+	u64 size      = lcall->region_end - lcall->region_start;
+	u32 page_size = 512 * 4096; // assume large 64bit pages (2MB)
+	u64 hpa       = lcall->region_start;
+	u64 gpa       = lcall->gpa;
+	u64 flags     = IOMMU_READ | IOMMU_WRITE;
 
+	/* not sure if we need IOMMU_CACHE */
+	//if (iommu_domain_has_cap(pci_dev->iommu_domain, IOMMU_CAP_CACHE_COHERENCY)) {
+	//    flags |= IOMMU_CACHE;
+	//}
+
+	printk("Memory region: GPA=%p, HPA=%p, size=%p\n", (void *)gpa, (void *)hpa, (void *)size);
+
+	do {
+	    if (size < page_size) {
+		// less than a 2MB granularity, so we switch to small pages (4KB)
+		page_size = 4096;
+	    }
+
+	    ret = iommu_map(pci_dev->iommu_domain, gpa, hpa, page_size, flags);
+
+	    if (ret) {
+		printk(KERN_ERR "iommu_map failed for device %s at gpa=%llx, hpa=%llx\n", pci_dev->name, gpa, hpa);
+		break;
+	    }
+
+	    hpa  += page_size;
+	    gpa  += page_size;
+	    size -= page_size;
+
+	} while (size > 0);
+
+    }
     
-    send_resp(xbuf_desc, r);
+    send_resp(xbuf_desc, ret);
+    return 0;
+}
+
+
+int
+pisces_pci_iommu_unmap(struct pisces_enclave      * enclave,
+		       struct pisces_xbuf_desc    * xbuf_desc,
+		       struct pci_iommu_unmap_lcall * lcall)
+{
+    struct pisces_pci_dev * pci_dev = NULL;
+    int ret  = 0;
+
+    pci_dev = find_dev_by_name(enclave, lcall->name);
+
+    if (pci_dev == NULL) {
+        printk(KERN_ERR "iommu_map device %s not found.\n", lcall->name);
+	send_resp(xbuf_desc, -1);
+	return 0;
+    }
+
+    {
+	u64 size       = lcall->region_end - lcall->region_start;
+	u32 page_size  = 512 * 4096; // assume large 64bit pages (2MB)
+	u64 gpa        = lcall->gpa;
+	u64 unmap_size = 0;
+
+	/* not sure if we need IOMMU_CACHE */
+	//if (iommu_domain_has_cap(pci_dev->iommu_domain, IOMMU_CAP_CACHE_COHERENCY)) {
+	//    flags |= IOMMU_CACHE;
+	//}
+
+	printk("Memory region: GPA=%p, size=%p\n", (void *)gpa, (void *)size);
+
+	do {
+	    if (size < page_size) {
+		// less than a 2MB granularity, so we switch to small pages (4KB)
+		page_size = 4096;
+	    }
+
+	    unmap_size = iommu_unmap(pci_dev->iommu_domain, gpa, page_size);
+
+	    /* We should NOT have any holes in our mappings
+	     *    We might in the future, in which case this would need to change
+	     */
+	    if (unmap_size != page_size) {
+		printk(KERN_ERR "iommu_unmap failed for device %s at gpa=%llx\n", pci_dev->name, gpa);
+		ret = -1;
+		break;
+	    }
+
+	    gpa  += page_size;
+	    size -= page_size;
+
+	} while (size > 0);
+
+    }
+    
+    send_resp(xbuf_desc, ret);
+
     return 0;
 }
 
@@ -417,16 +470,59 @@ pisces_pci_attach(struct pisces_enclave   * enclave,
 
     printk(KERN_INFO "Device %s attached to iommu domain.\n", pci_dev->name);
 
-    if (request_threaded_irq(pci_dev->dev->irq, NULL, _host_pci_intx_irq_handler, 
-			     IRQF_ONESHOT, "V3Vee_Host_PCI_INTx", (void *)pci_dev)) {
+    /* Request the IRQ at attach, in case the driver forgets to enable it (?) */
+    {
+	if (request_threaded_irq(pci_dev->dev->irq, NULL, _host_pci_intx_irq_handler, 
+				 IRQF_ONESHOT, "V3Vee_Host_PCI_INTx", (void *)pci_dev)) {
+	    
+	    printk("ERROR assigning IRQ to assigned PCI device (%s)\n", 
+		   pci_dev->name);
+	}
 	
-	printk("ERROR assigning IRQ to assigned PCI device (%s)\n", 
-	       pci_dev->name);
+	pci_dev->intx_disabled = 0;
     }
     
     send_resp(xbuf_desc, 0);
     return 0;
 }
+
+
+int pisces_pci_detach(struct pisces_enclave   * enclave,
+		      struct pisces_xbuf_desc * xbuf_desc,
+		      struct pci_attach_lcall * lcall)
+{
+    struct pisces_pci_dev * pci_dev =  find_dev_by_name(enclave, lcall->name);
+    int ret = 0;
+
+     if (pci_dev == NULL) {
+        printk(KERN_ERR "iommu_map device %s not found.\n", lcall->name);
+	send_resp(xbuf_desc, -1);
+	return 0;
+    }
+    
+    if (!pci_dev->assigned) {
+        printk(KERN_ERR "device %s has not been assigned.\n", pci_dev->name);
+        send_resp(xbuf_desc, -1);
+	return 0;
+    }
+
+    ret = iommu_detach_device(pci_dev->iommu_domain, &pci_dev->dev->dev);
+
+    if (ret) {
+        printk(KERN_ERR "iommu_attach_device failed errno=%d\n", ret);
+        return ret;
+    }
+
+    pci_dev->dev->dev_flags   &= ~PCI_DEV_FLAGS_ASSIGNED;
+    pci_dev->assigned          =  0;
+    pci_dev->device_ipi_vector =  0;
+
+    printk(KERN_INFO "Device %s detached from iommu domain.\n", pci_dev->name);
+   
+    send_resp(xbuf_desc, 0);
+    return 0;
+}
+
 
 int 
 pisces_pci_ack_irq(struct pisces_enclave    * enclave,
@@ -453,7 +549,6 @@ pisces_pci_ack_irq(struct pisces_enclave    * enclave,
     {
 	//printk("Enabling IRQ %d\n", dev->irq);
 	enable_irq(pci_dev->dev->irq);
-	pci_dev->intx_disabled = 0;
     }
     spin_unlock_irqrestore(&(pci_dev->intx_lock), flags);
 
@@ -484,20 +579,33 @@ pisces_pci_cmd(struct pisces_enclave   * enclave,
           case HOST_PCI_CMD_INTX_DISABLE:
             printk("Passthrough PCI device disabling INTx IRQ\n");
 
-            disable_irq(pci_dev->dev->irq);
-            free_irq(pci_dev->dev->irq, (void *)pci_dev);
+	    if (pci_dev->intx_disabled == 1) {
+		printk("INTx already disabled for Host PCI Device (%s)\n", name);
+		break;
+	    }
+	    
+	    disable_irq(pci_dev->dev->irq);
+	    free_irq(pci_dev->dev->irq, (void *)pci_dev);
+	    pci_dev->intx_disabled = 1;
 
             break;
 
         case HOST_PCI_CMD_INTX_ENABLE:
             printk("Passthrough PCI device enabling INTx IRQ\n");
+	    
+	    if (pci_dev->intx_disabled == 0) {
+		printk("INTx already enabled for Host PCI Device (%s)\n", name);
+		break;
+	    }
 
-            if (request_threaded_irq(pci_dev->dev->irq, NULL,  _host_pci_intx_irq_handler, 
-			    IRQF_ONESHOT,  "V3Vee_Host_PCI_INTx", (void *)pci_dev)) {
-
-                printk("ERROR assigning IRQ to assigned PCI device (%s)\n", 
-                        pci_dev->name);
-            }
+	    if (request_threaded_irq(pci_dev->dev->irq, NULL,  _host_pci_intx_irq_handler, 
+				     IRQF_ONESHOT,  "V3Vee_Host_PCI_INTx", (void *)pci_dev)) {
+		
+		printk("ERROR assigning IRQ to assigned PCI device (%s)\n", 
+		       pci_dev->name);
+	    }
+	    
+	    pci_dev->intx_disabled = 0;
 
             break;
         default:

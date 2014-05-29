@@ -1,4 +1,4 @@
-/* 
+pi/* 
  * Remote system call implementation 
  * (c) Jack Lange, 2013 (jacklange@cs.pitt.edu)
  */
@@ -25,8 +25,10 @@
 
 #define PISCES_LCALL_PCI_ACK_IRQ        (KERN_LCALL_START + 100)
 #define PISCES_LCALL_PCI_CMD            (KERN_LCALL_START + 101)
-#define PISCES_LCALL_PCI_IOMMU_MAP      (KERN_LCALL_START + 102)
-#define PISCES_LCALL_PCI_ATTACH         (KERN_LCALL_START + 103)
+#define PISCES_LCALL_PCI_ATTACH         (KERN_LCALL_START + 102)
+#define PISCES_LCALL_PCI_DETACH         (KERN_LCALL_START + 103)
+#define PISCES_LCALL_IOMMU_MAP          (KERN_LCALL_START + 104)
+#define PISCES_LCALL_IOMMU_UNMAP        (KERN_LCALL_START + 105)
 
 #define PISCES_LCALL_XPMEM_VERSION      (KERN_LCALL_START + 200)
 #define PISCES_LCALL_XPMEM_MAKE         (KERN_LCALL_START + 201)
