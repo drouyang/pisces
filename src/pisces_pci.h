@@ -20,7 +20,9 @@ struct pisces_enclave;
 struct pisces_xbuf_desc;
 
 struct pci_iommu_map_lcall;
+struct pci_iommu_unmap_lcall;
 struct pci_attach_lcall;
+struct pci_detach_lcall;
 struct pci_ack_irq_lcall;
 struct pci_cmd_lcall;
 
@@ -39,10 +41,21 @@ int
 pisces_pci_iommu_map(struct pisces_enclave      * enclave,
 		     struct pisces_xbuf_desc    * xbuf_desc,
 		     struct pci_iommu_map_lcall * lcall);
+
+int 
+pisces_pci_iommu_unmap(struct pisces_enclave        * enclave,
+		       struct pisces_xbuf_desc      * xbuf_desc,
+		       struct pci_iommu_unmap_lcall * lcall);
+
 int 
 pisces_pci_attach(struct pisces_enclave   * enclave,
 		  struct pisces_xbuf_desc * xbuf_desc,
 		  struct pci_attach_lcall * lcall);
+
+int 
+pisces_pci_detach(struct pisces_enclave   * enclave,
+		  struct pisces_xbuf_desc * xbuf_desc,
+		  struct pci_detach_lcall * lcall);
 
 int 
 pisces_pci_ack_irq(struct pisces_enclave    * enclave,

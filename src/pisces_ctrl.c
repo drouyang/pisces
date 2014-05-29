@@ -47,6 +47,38 @@ static ssize_t ctrl_write(struct file * filp, const char __user * buffer, size_t
 
 
 
+static long long 
+send_vm_cmd(struct pisces_xbuf_desc * xbuf_desc, 
+	    u64                       cmd_id, 
+	    u64                       vm_id) 
+{
+    struct cmd_vm_ctrl   cmd;
+    struct pisces_resp * resp = NULL;
+    long long status   = 0;
+    u32       resp_len = 0;
+    int       ret      = 0;
+
+    memset(&cmd, 0, sizeof(struct cmd_cpu_add));
+
+    cmd.hdr.cmd      = cmd_id;
+    cmd.hdr.data_len = (sizeof(struct cmd_cpu_add) - sizeof(struct pisces_cmd));
+    cmd.vm_id        = vm_id;
+
+    printk("Sending VM CMD (%llu) to VM (%llu)\n", cmd_id, vm_id);
+
+    ret    = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_cpu_add),  (u8 **)&resp, &resp_len);
+    status = resp->status;
+
+    kfree(resp);
+
+    if (ret != 0) {
+	return -1;
+    }
+
+    return status;
+}
+
+
 // Allow high level control commands over ioctl
 static long 
 ctrl_ioctl(struct file   * filp, 
@@ -59,7 +91,8 @@ ctrl_ioctl(struct file   * filp,
     struct pisces_resp      * resp      = NULL;
     void __user             * argp      = (void __user *)arg;
     u32 resp_len = 0;
-    int ret = 0;
+    int ret      = 0;
+    int status   = 0;
 
     printk("CTRL IOCTL (%d)\n", ioctl);
 
@@ -89,7 +122,8 @@ ctrl_ioctl(struct file   * filp,
 
 	    printk("Sending Command\n");
 
-	    ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_cpu_add),  (u8 **)&resp, &resp_len);
+	    ret    = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_cpu_add),  (u8 **)&resp, &resp_len);
+	    status = resp->status;
 
 	    kfree(resp);
 
@@ -98,7 +132,7 @@ ctrl_ioctl(struct file   * filp,
 
 	    printk("\tDone\n");
 
-	    if (ret != 0) {
+	    if ((ret != 0) || (status != 0)) {
 		// remove CPU from enclave
 		return -1;
 	    }
@@ -119,11 +153,12 @@ ctrl_ioctl(struct file   * filp,
 
 	    printk("Offlining CPU %llu (APIC %llu)\n", cpu_id, cmd.apic_id);
 
-	    ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_cpu_add),  (u8 **)&resp, &resp_len);
+	    ret    = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_cpu_add),  (u8 **)&resp, &resp_len);
+	    status = resp->status;
 
 	    kfree(resp);
 
-	    if (ret != 0) {
+	    if ((ret != 0) || (status != 0)) {
 		return -1;
 	    }
 
@@ -165,27 +200,14 @@ ctrl_ioctl(struct file   * filp,
 		return -1;
 	    }
 
-
 	    break;
 	}
+	case ENCLAVE_CMD_REMOVE_MEM: {
 
-        case ENCLAVE_CMD_TEST_LCALL: {
-	    struct pisces_cmd cmd;
+	    printk("Removing memory is not supported\n");
+	    return -1;
 
-	    memset(&cmd, 0, sizeof(struct pisces_cmd));
-
-	    cmd.cmd      = ENCLAVE_CMD_TEST_LCALL;
-	    cmd.data_len = 0;
-
-
-	    ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_mem_add),  (u8 **)&resp, &resp_len);
-
-	    kfree(resp);
-
-	    printk("Sent LCALL test CMD\n");
-	    break;
 	}
-
 	case ENCLAVE_CMD_ADD_V3_PCI: {
 	    struct cmd_add_pci_dev   cmd;
 
@@ -222,9 +244,14 @@ ctrl_ioctl(struct file   * filp,
 
 	    break;
 	}
+	case ENCLAVE_CMD_FREE_V3_PCI: {
+	    
+	    /* Send Free xbuf Call */
 
+	    /* Free Linux resources */
 
-
+	    break;
+	}
         case ENCLAVE_CMD_CREATE_VM: {
 	    struct cmd_create_vm cmd;
 
@@ -249,64 +276,33 @@ ctrl_ioctl(struct file   * filp,
 
 	    break;
 	}
-        case ENCLAVE_CMD_LAUNCH_VM: {
-	    struct cmd_launch_vm cmd;
+        case ENCLAVE_CMD_LAUNCH_VM:
+	case ENCLAVE_CMD_STOP_VM:
+	case ENCLAVE_CMD_FREE_VM:
+	case ENCLAVE_CMD_PAUSE_VM:
+	case ENCLAVE_CMD_CONTINUE_VM: {
 
-	    memset(&cmd, 0, sizeof(struct cmd_launch_vm));
-
-	    cmd.hdr.cmd      = ENCLAVE_CMD_LAUNCH_VM;
-	    cmd.hdr.data_len = (sizeof(struct cmd_launch_vm) - sizeof(struct pisces_cmd));
-	    cmd.vm_id        = arg;
-
-	    ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_launch_vm),  (u8 **)&resp, &resp_len);
-	    kfree(resp);
-
-	    if (ret != 0) {
-		printk("Error Launch VM %d\n", cmd.vm_id);
+	    if (send_vm_cmd(xbuf_desc, ioctl, arg) != 0) {
+		printk("Error Stopping VM (%lu)\n", arg);
 		return -1;
 	    }
 
 	    break;
 	}
+
 	case ENCLAVE_CMD_VM_CONS_CONNECT: {
-	    struct cmd_vm_cons_connect cmd;
-	    uintptr_t cons_pa = 0;
-	    u32       vm_id   = arg;
+	    long long cons_pa = 0;
 
-	    memset(&cmd, 0, sizeof(struct cmd_vm_cons_connect));
+	    cons_pa = send_vm_cmd(xbuf_desc, ENCLAVE_CMD_VM_CONS_CONNECT, arg);
 
-	    cmd.hdr.cmd      = ENCLAVE_CMD_VM_CONS_CONNECT;
-	    cmd.hdr.data_len = (sizeof(struct cmd_vm_cons_connect) - sizeof(struct pisces_cmd));
-	    cmd.vm_id        = vm_id;
-
-	    printk("Connecting to VM Console in Kitten (&resp=%p)\n", &resp);
-
-	    ret = pisces_xbuf_sync_send(xbuf_desc, 
-					(u8 *)&cmd, sizeof(struct cmd_vm_cons_connect), 
-					(u8 **)&resp, &resp_len);
-		
-
-
-	    if ( (ret != 0) || (resp == NULL) ) {
-		printk("Error connecting to VM (%d) console\n", cmd.vm_id);
-		return -1;
-	    }
-
-	    printk("Getting Console PAddr (resp=%p)\n", resp);
-
-	    cons_pa = (uintptr_t)(resp->status);
-
-
-	    printk("Console found at %p\n", (void *)cons_pa);
-
-	    kfree(resp);
-
-	    if (cons_pa == 0) {
+	    if (cons_pa <= 0) {
 		printk("Could not acquire console ring buffer\n");
 		return -1;
 	    }
 
-	    return v3_console_connect(enclave, vm_id, cons_pa);
+	    printk("Console found at %p\n", (void *)cons_pa);
+
+	    return v3_console_connect(enclave, arg, cons_pa);
 	    break;
 	}
 

@@ -241,19 +241,19 @@ console_release(struct inode * i,
     struct palacios_console * cons      = filp->private_data;
     struct pisces_enclave   * enclave   = cons->enclave;
     struct pisces_xbuf_desc * xbuf_desc = enclave->ctrl.xbuf_desc;
-    struct cmd_vm_cons_disconnect cmd;
+    struct cmd_vm_ctrl        cmd;
     int ret = 0;
 
     printk(KERN_DEBUG "Releasing the Console File desc\n");
 
-    memset(&cmd, 0, sizeof(struct cmd_vm_cons_disconnect));
+    memset(&cmd, 0, sizeof(struct cmd_vm_ctrl));
     
     cmd.hdr.cmd      = ENCLAVE_CMD_VM_CONS_DISCONNECT;
-    cmd.hdr.data_len = (sizeof(struct cmd_vm_cons_disconnect) - sizeof(struct pisces_cmd));
+    cmd.hdr.data_len = (sizeof(struct cmd_vm_ctrl) - sizeof(struct pisces_cmd));
     cmd.vm_id        = cons->vm_id;
  
     // disconnect console
-    ret = pisces_xbuf_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_vm_cons_disconnect));
+    ret = pisces_xbuf_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_vm_ctrl));
 
     pisces_remove_ipi_callback(cons_kick, cons);
 

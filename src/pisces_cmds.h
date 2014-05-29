@@ -31,21 +31,36 @@ struct pisces_resp {
 
 /* User space ioctl structures */
 
-#define ENCLAVE_CMD_ADD_CPU 100
-#define ENCLAVE_CMD_ADD_MEM 101
-#define ENCLAVE_CMD_TEST_LCALL 102
-#define ENCLAVE_CMD_REMOVE_CPU 103
-#define ENCLAVE_CMD_CREATE_VM 120
-#define ENCLAVE_CMD_LAUNCH_VM 121
-#define ENCLAVE_CMD_VM_CONS_CONNECT 122
-#define ENCLAVE_CMD_VM_CONS_DISCONNECT 123
-#define ENCLAVE_CMD_VM_CONS_KEYCODE 124
-#define ENCLAVE_CMD_ADD_V3_PCI 125
-#define ENCLAVE_CMD_ADD_V3_SATA 126
+#define ENCLAVE_CMD_ADD_CPU            100
+#define ENCLAVE_CMD_ADD_MEM            102
 
-#define ENCLAVE_CMD_VM_DBG 169
+#define ENCLAVE_CMD_REMOVE_CPU         110
+#define ENCLAVE_CMD_REMOVE_MEM         111
 
-#define ENCLAVE_CMD_XPMEM_CMD_EX 300
+
+#define ENCLAVE_CMD_CREATE_VM          120
+#define ENCLAVE_CMD_FREE_VM            121
+#define ENCLAVE_CMD_LAUNCH_VM          122
+#define ENCLAVE_CMD_STOP_VM            123
+#define ENCLAVE_CMD_PAUSE_VM           124
+#define ENCLAVE_CMD_CONTINUE_VM        125
+#define ENCLAVE_CMD_SIMULATE_VM        126
+
+#define ENCLAVE_CMD_VM_MOVE_CORE       140
+#define ENCLAVE_CMD_VM_DBG             141
+
+
+#define ENCLAVE_CMD_VM_CONS_CONNECT    150
+#define ENCLAVE_CMD_VM_CONS_DISCONNECT 151
+#define ENCLAVE_CMD_VM_CONS_KEYCODE    152
+
+#define ENCLAVE_CMD_ADD_V3_PCI         180
+#define ENCLAVE_CMD_ADD_V3_SATA        181
+
+#define ENCLAVE_CMD_FREE_V3_PCI        190
+
+
+#define ENCLAVE_CMD_XPMEM_CMD_EX       300
 
 struct memory_range {
     u64 base_addr;
@@ -99,25 +114,12 @@ struct cmd_create_vm {
 } __attribute__((packed));
 
 
-struct cmd_launch_vm {
+struct cmd_vm_ctrl {
     struct pisces_cmd hdr;
 
     u32 vm_id;
 } __attribute__((packed));
 
-
-struct cmd_vm_cons_connect {
-    struct pisces_cmd hdr;
-
-    u32 vm_id;
-} __attribute__((packed));
-
-
-struct cmd_vm_cons_disconnect {
-    struct pisces_cmd hdr;
-
-    u32 vm_id;
-} __attribute__((packed));
 
 
 struct cmd_vm_cons_keycode {

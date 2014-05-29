@@ -489,12 +489,11 @@ pisces_pci_attach(struct pisces_enclave   * enclave,
 
 int pisces_pci_detach(struct pisces_enclave   * enclave,
 		      struct pisces_xbuf_desc * xbuf_desc,
-		      struct pci_attach_lcall * lcall)
+		      struct pci_detach_lcall * lcall)
 {
     struct pisces_pci_dev * pci_dev =  find_dev_by_name(enclave, lcall->name);
-    int ret = 0;
 
-     if (pci_dev == NULL) {
+    if (pci_dev == NULL) {
         printk(KERN_ERR "iommu_map device %s not found.\n", lcall->name);
 	send_resp(xbuf_desc, -1);
 	return 0;
@@ -506,13 +505,9 @@ int pisces_pci_detach(struct pisces_enclave   * enclave,
 	return 0;
     }
 
-    ret = iommu_detach_device(pci_dev->iommu_domain, &pci_dev->dev->dev);
+    iommu_detach_device(pci_dev->iommu_domain, &pci_dev->dev->dev);
 
-    if (ret) {
-        printk(KERN_ERR "iommu_attach_device failed errno=%d\n", ret);
-        return ret;
-    }
-
+    
     pci_dev->dev->dev_flags   &= ~PCI_DEV_FLAGS_ASSIGNED;
     pci_dev->assigned          =  0;
     pci_dev->device_ipi_vector =  0;
