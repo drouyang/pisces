@@ -300,7 +300,9 @@ ctrl_ioctl(struct file   * filp,
 	    kfree(resp);
 
 	    if ((ret != 0) || (status < 0)) {
-		printk("Error creating VM %s (%s)\n", cmd.path.vm_name, cmd.path.file_name);
+		printk("Error creating VM %s (%s) [ret=%d, status=%d]\n", 
+		       cmd.path.vm_name, cmd.path.file_name, 
+		       ret, status);
 		return -1;
 	    }
 

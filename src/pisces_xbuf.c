@@ -10,9 +10,10 @@
 #include "pisces_xbuf.h"
 #include "ipi.h"
 
+#define DEBUG
 #ifdef DEBUG
 static u64 xbuf_op_idx = 0;
-#define debug(fmt, args...) printk(fmt, args)
+#define debug(fmt, args...) printk(fmt, ##args)
 #else 
 #define debug(fmt, args...)
 #endif
