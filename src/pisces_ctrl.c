@@ -109,7 +109,8 @@ ctrl_ioctl(struct file   * filp,
 	    }
 
 	    cmd.hdr.cmd      = ENCLAVE_CMD_ADD_CPU;
-	    cmd.hdr.data_len = (sizeof(struct cmd_cpu_add) - sizeof(struct pisces_cmd));
+	    cmd.hdr.data_len = ( sizeof(struct cmd_cpu_add) - 
+				 sizeof(struct pisces_cmd));
 	    cmd.phys_cpu_id  = cpu_id;
 	    cmd.apic_id      = apic->cpu_present_to_apicid(cpu_id);
 
@@ -146,7 +147,8 @@ ctrl_ioctl(struct file   * filp,
 	    memset(&cmd, 0, sizeof(struct cmd_cpu_add));
 
 	    cmd.hdr.cmd      = ENCLAVE_CMD_REMOVE_CPU;
-	    cmd.hdr.data_len = (sizeof(struct cmd_cpu_add) - sizeof(struct pisces_cmd));
+	    cmd.hdr.data_len = ( sizeof(struct cmd_cpu_add) -
+				 sizeof(struct pisces_cmd));
 	    cmd.phys_cpu_id  = cpu_id;
 	    cmd.apic_id      = apic->cpu_present_to_apicid(cpu_id);
 
@@ -175,7 +177,8 @@ ctrl_ioctl(struct file   * filp,
 	    memset(&reg, 0, sizeof(struct memory_range));
 
 	    cmd.hdr.cmd      = ENCLAVE_CMD_ADD_MEM;
-	    cmd.hdr.data_len = (sizeof(struct cmd_mem_add) - sizeof(struct pisces_cmd));
+	    cmd.hdr.data_len = ( sizeof(struct cmd_mem_add) - 
+				 sizeof(struct pisces_cmd));
 
 	    if (copy_from_user(&reg, argp, sizeof(struct memory_range))) {
 		printk(KERN_ERR "Could not copy memory region from user space\n");
@@ -216,7 +219,8 @@ ctrl_ioctl(struct file   * filp,
 	    memset(&cmd, 0, sizeof(struct cmd_add_pci_dev));
 
 	    cmd.hdr.cmd      = ENCLAVE_CMD_ADD_V3_PCI;
-	    cmd.hdr.data_len = (sizeof(struct cmd_add_pci_dev) - sizeof(struct pisces_cmd));
+	    cmd.hdr.data_len = ( sizeof(struct cmd_add_pci_dev) - 
+				 sizeof(struct pisces_cmd));
 
 	    if (copy_from_user(&(cmd.spec), argp, sizeof(struct pisces_pci_spec))) {
 		printk(KERN_ERR "Could not copy pci device structure from user space\n");
@@ -233,22 +237,46 @@ ctrl_ioctl(struct file   * filp,
 	    }
 
 	    printk(" Notifying enclave\n");
-	    ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_add_pci_dev), (u8 **)resp, &resp_len);
+	    ret    = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_add_pci_dev), (u8 **)&resp, &resp_len);
+	    status = resp->status;
 
 	    kfree(resp);
 
-	    if (ret != 0) {
+	    if ((ret != 0) || (status != 0)) {
 		printk(KERN_ERR "Error adding PCI device to Enclave %d\n", enclave->id);
+		pisces_pci_remove_dev(enclave, &cmd.spec);
 		return -1;
 	    }
 
 	    break;
 	}
 	case ENCLAVE_CMD_FREE_V3_PCI: {
-	    
-	    /* Send Free xbuf Call */
+	    struct cmd_free_pci_dev   cmd;
 
-	    /* Free Linux resources */
+	    cmd.hdr.cmd      = ENCLAVE_CMD_FREE_V3_PCI;
+	    cmd.hdr.data_len = ( sizeof(struct cmd_free_pci_dev) - 
+				 sizeof(struct pisces_cmd));
+	    
+	    if (copy_from_user(&(cmd.spec), argp, sizeof(struct pisces_pci_spec))) {
+		printk(KERN_ERR "Could not copy pci device structure from user space\n");
+		return -EFAULT;
+	    }
+
+	    /* Send Free xbuf Call */
+	    ret    = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_add_pci_dev), (u8 **)&resp, &resp_len);
+	    status = resp->status;
+
+	    kfree(resp);
+	    
+	    if ((ret != 0) || (status != 0)) {
+		printk(KERN_ERR "Error freeing PCI device from Enclave\n");
+		return -1;
+	    }
+
+	    /* Free Linux resources */	    
+	    if (pisces_pci_remove_dev(enclave, &cmd.spec) != 0) {
+		return -1;
+	    }
 
 	    break;
 	}
@@ -258,21 +286,25 @@ ctrl_ioctl(struct file   * filp,
 	    memset(&cmd, 0, sizeof(struct cmd_create_vm));
 
 	    cmd.hdr.cmd      = ENCLAVE_CMD_CREATE_VM;
-	    cmd.hdr.data_len = (sizeof(struct cmd_create_vm) - sizeof(struct pisces_cmd));
+	    cmd.hdr.data_len = ( sizeof(struct cmd_create_vm) -
+				 sizeof(struct pisces_cmd));
 
 	    if (copy_from_user(&(cmd.path), argp, sizeof(struct vm_path))) {
 		printk(KERN_ERR "Could not copy vm path from user space\n");
 		return -EFAULT;
 	    }
 
-	    ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_create_vm),  (u8 **)&resp, &resp_len);
+	    ret    = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_create_vm),  (u8 **)&resp, &resp_len);
+	    status = resp->status;
 
 	    kfree(resp);
 
-	    if (ret != 0) {
+	    if ((ret != 0) || (status < 0)) {
 		printk("Error creating VM %s (%s)\n", cmd.path.vm_name, cmd.path.file_name);
 		return -1;
 	    }
+
+	    return status;
 
 	    break;
 	}
@@ -410,10 +442,10 @@ pisces_ctrl_init( struct pisces_enclave * enclave)
 
     init_waitqueue_head(&ctrl->waitq);
     spin_lock_init(&ctrl->lock);
+
     ctrl->connected = 0;
 
-    boot_params = __va(enclave->bootmem_addr_pa);
-    
+    boot_params     = __va(enclave->bootmem_addr_pa);    
     ctrl->xbuf_desc = pisces_xbuf_client_init(enclave, (uintptr_t)__va(boot_params->control_buf_addr), 0, 0);
     
     return 0;

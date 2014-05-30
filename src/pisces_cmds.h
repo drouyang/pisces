@@ -32,7 +32,7 @@ struct pisces_resp {
 /* User space ioctl structures */
 
 #define ENCLAVE_CMD_ADD_CPU            100
-#define ENCLAVE_CMD_ADD_MEM            102
+#define ENCLAVE_CMD_ADD_MEM            101
 
 #define ENCLAVE_CMD_REMOVE_CPU         110
 #define ENCLAVE_CMD_REMOVE_MEM         111
@@ -136,6 +136,16 @@ struct cmd_add_pci_dev {
     struct pisces_pci_spec spec;
     u32 device_ipi_vector;
 } __attribute__((packed));
+
+
+
+struct cmd_free_pci_dev {
+    struct pisces_cmd hdr;
+
+    struct pisces_pci_spec spec;
+} __attribute__((packed));
+
+
 
 #endif
 

@@ -281,7 +281,12 @@ out_free:
     return ret;
 }
 
-
+int
+pisces_pci_remove_dev(struct pisces_enclave  * enclave,
+		      struct pisces_pci_spec * spec)
+{
+    return -1;
+}
 
 
 static irqreturn_t 
