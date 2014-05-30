@@ -1,6 +1,6 @@
 /* 
- * Pisces/V3 Control utility
- * (c) Jack lange, 2013
+ * V3 Control utility
+ * (c) Jack lange, 2011
  */
 
 
@@ -13,11 +13,13 @@
 #include <unistd.h> 
 #include <string.h>
  
+
 #include <pet_types.h>
 #include <pet_ioctl.h>
 
 #include "../src/pisces.h"
 #include "../src/pisces_cmds.h"
+
 
 int main(int argc, char* argv[]) {
     char * enclave_path = argv[1];
@@ -26,13 +28,15 @@ int main(int argc, char* argv[]) {
     int err;
 
     if (argc <= 2) {
-	printf("usage: v3_launch <pisces_device> <vm_id>\n");
+	printf("usage: v3_free <pisces-enclave> <vm-id>\n");
 	return -1;
     }
 
-    printf("Launching VM (%s)\n", enclave_path);
+
+
+
+    printf("Freeing VM [%d] on enclave %s\n", vm_id, enclave_path);
     
- 
     ctrl_fd = pet_ioctl_path(enclave_path, PISCES_ENCLAVE_CTRL_CONNECT, NULL);
 
     if (ctrl_fd < 0) {
@@ -40,13 +44,14 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    if (pet_ioctl_fd(ctrl_fd, ENCLAVE_CMD_LAUNCH_VM, (void *)(uint64_t)vm_id) != 0) {
-	printf("Error: Could not LAUNCH VM\n");
+    if (pet_ioctl_fd(ctrl_fd, ENCLAVE_CMD_FREE_VM, (void *)(uint64_t)vm_id) != 0) {
+	printf("Error: Could not STOP VM\n");
 	return -1;
     }
 
-    close(ctrl_fd);
-    
+    /* Close the file descriptor.  */ 
+    close(ctrl_fd); 
+
     return 0; 
 } 
 

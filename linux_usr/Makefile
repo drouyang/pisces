@@ -13,7 +13,9 @@ execs := 	pisces_load \
 		pisces_ctrl \
 		pisces_cons \
 		v3_create \
+		v3_free \
 		v3_launch \
+		v3_stop \
 		v3_cons_sc \
 		v3_cons_nosc \
 		v3_dbg \
