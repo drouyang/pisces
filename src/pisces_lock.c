@@ -17,7 +17,10 @@ static inline void pisces_cpu_relax(void) {
  * Note 2: xchg has side effect, so that attribute volatile is necessary,
  *	  but generally the primitive is invalid, *ptr is output argument. --ANK
  */
-static inline unsigned long pisces_xchg8(volatile void * ptr, unsigned char x ) {
+static inline unsigned long 
+pisces_xchg8(volatile void * ptr,
+	     unsigned char   x ) 
+{
   __asm__ __volatile__("xchgb %0,%1"
                        :"=r" (x)
                        :"m" (*(volatile unsigned char *)ptr), "0" (x)

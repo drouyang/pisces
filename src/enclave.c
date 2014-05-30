@@ -19,7 +19,6 @@
 #include "pisces.h"
 #include "enclave.h"
 #include "pisces_ctrl.h"
-#include "pisces_portals.h"
 #include "pisces_xpmem.h"
 #include "boot.h"
 
@@ -149,19 +148,12 @@ enclave_ioctl(struct file  * filp,
                 break;
 
             }
-        case PISCES_ENCLAVE_PORTALS_CONNECT:
-        {
-            printk("Connecting Portals Channel\n");
-            ret = pisces_portals_connect(enclave);
-            break;
-        }
-
         case PISCES_ENCLAVE_XPMEM_CONNECT:
-        {
-            printk("Connecting XPMEM Channel\n");
-            ret = pisces_xpmem_connect(enclave);
-            break;
-        }
+	    {
+		printk("Connecting XPMEM Channel\n");
+		ret = pisces_xpmem_connect(enclave);
+		break;
+	    }
 
     }
 
@@ -310,7 +302,6 @@ pisces_enclave_create(struct pisces_image * img)
     INIT_LIST_HEAD(&(enclave->memdesc_list));
 
     init_enclave_fs(enclave);
-    pisces_portals_init(enclave);
     pisces_xpmem_init(enclave);
     pisces_pci_init(enclave);
 

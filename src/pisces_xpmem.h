@@ -2,6 +2,7 @@
 #define __PISCES_XPMEM_H__
 
 #include "pisces_xbuf.h"
+#include "pisces_lcall.h"
 
 
 typedef enum { 

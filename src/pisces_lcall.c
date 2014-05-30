@@ -82,32 +82,8 @@ static int lcall_kern_thread(void * arg) {
             case PISCES_LCALL_VFS_SIZE:
                 enclave_vfs_size_lcall(enclave, xbuf_desc, (struct vfs_size_lcall   *)cur_lcall);
                 break;
-            case PISCES_LCALL_PPE_MESSAGE:
-                pisces_portals_ppe_message(enclave, xbuf_desc, cur_lcall);
-                break;
             case PISCES_LCALL_XPMEM_CMD_EX:
                 pisces_xpmem_cmd_lcall(enclave, xbuf_desc, cur_lcall);
-                break;
-            case PISCES_LCALL_XPMEM_VERSION:
-                pisces_portals_xpmem_version(enclave, xbuf_desc, cur_lcall);
-                break;
-            case PISCES_LCALL_XPMEM_MAKE:
-                pisces_portals_xpmem_make(enclave, xbuf_desc, cur_lcall);
-                break;
-            case PISCES_LCALL_XPMEM_REMOVE:
-                pisces_portals_xpmem_remove(enclave, xbuf_desc, cur_lcall);
-                break;
-            case PISCES_LCALL_XPMEM_GET:
-                pisces_portals_xpmem_get(enclave, xbuf_desc, cur_lcall);
-                break;
-            case PISCES_LCALL_XPMEM_RELEASE:
-                pisces_portals_xpmem_release(enclave, xbuf_desc, cur_lcall);
-                break;
-            case PISCES_LCALL_XPMEM_ATTACH:
-                pisces_portals_xpmem_attach(enclave, xbuf_desc, cur_lcall);
-                break;
-            case PISCES_LCALL_XPMEM_DETACH:
-                pisces_portals_xpmem_detach(enclave, xbuf_desc, cur_lcall);
                 break;
             case PISCES_LCALL_IOMMU_MAP:
                 pisces_pci_iommu_map(enclave, xbuf_desc, (struct pci_iommu_map_lcall *)cur_lcall);
