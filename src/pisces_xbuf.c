@@ -10,7 +10,6 @@
 #include "pisces_xbuf.h"
 #include "ipi.h"
 
-#define DEBUG
 #ifdef DEBUG
 static u64 xbuf_op_idx = 0;
 #define debug(fmt, args...) printk(fmt, ##args)
@@ -265,6 +264,11 @@ int pisces_xbuf_send(struct pisces_xbuf_desc * desc, u8 * data, u32 data_len) {
     u8 * resp = NULL;
     u32 resp_len = 0;
     int ret = 0;
+
+    if (desc == NULL) {
+	printk(KERN_ERR "Error: NULL Xbuf Descriptor\n");
+	return -1;
+    }
 
     debug("Sending xbuf msg (desc=%p, data=%p, data_len=%u)\n", desc, data, data_len);
     ret = pisces_xbuf_sync_send(desc, data, data_len, &resp, &resp_len);

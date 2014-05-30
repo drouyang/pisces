@@ -58,15 +58,15 @@ send_vm_cmd(struct pisces_xbuf_desc * xbuf_desc,
     u32       resp_len = 0;
     int       ret      = 0;
 
-    memset(&cmd, 0, sizeof(struct cmd_cpu_add));
+    memset(&cmd, 0, sizeof(struct cmd_vm_ctrl));
 
     cmd.hdr.cmd      = cmd_id;
-    cmd.hdr.data_len = (sizeof(struct cmd_cpu_add) - sizeof(struct pisces_cmd));
+    cmd.hdr.data_len = (sizeof(struct cmd_vm_ctrl) - sizeof(struct pisces_cmd));
     cmd.vm_id        = vm_id;
 
     printk("Sending VM CMD (%llu) to VM (%llu)\n", cmd_id, vm_id);
 
-    ret    = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_cpu_add),  (u8 **)&resp, &resp_len);
+    ret    = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_vm_ctrl),  (u8 **)&resp, &resp_len);
     status = resp->status;
 
     kfree(resp);
@@ -95,6 +95,8 @@ ctrl_ioctl(struct file   * filp,
     int status   = 0;
 
     printk("CTRL IOCTL (%d)\n", ioctl);
+    printk("Enclave=%p\n", enclave);
+
 
     switch (ioctl) {
         case ENCLAVE_CMD_ADD_CPU: {
@@ -335,6 +337,7 @@ ctrl_ioctl(struct file   * filp,
 	    }
 
 	    printk("Console found at %p\n", (void *)cons_pa);
+	    printk("Enclave=%p\n", enclave);
 
 	    return v3_console_connect(enclave, arg, cons_pa);
 	    break;

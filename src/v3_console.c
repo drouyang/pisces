@@ -184,6 +184,9 @@ console_write(struct file       * filp,
     struct cmd_vm_cons_keycode   cmd;
     int i = 0;
 
+    printk("Console: cons=%p, enclave=%p, xbuf_desc=%p\n", 
+	   cons, cons->enclave, cons->enclave->ctrl.xbuf_desc);
+
     memset(&cmd, 0, sizeof(struct cmd_vm_cons_keycode));
 
 
@@ -200,7 +203,6 @@ console_write(struct file       * filp,
 	 //printk("Sending Scan_Code %x\n", cmd.scan_code);
 
 	 pisces_xbuf_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_vm_cons_keycode));
-
     }
     
     return size;
@@ -288,6 +290,8 @@ v3_console_connect(struct pisces_enclave * enclave,
 {
     struct palacios_console * cons = NULL;
     int cons_fd = 0;
+
+    printk("console connect enclave=%p\n", enclave);
 
     cons = kmalloc(sizeof(struct palacios_console), GFP_KERNEL);
     
