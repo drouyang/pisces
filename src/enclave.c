@@ -195,7 +195,7 @@ proc_mem_open(struct inode * inode,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
     void * data = PDE(inode)->data;
 #else 
-    void * data = inode->i_private;
+    void * data = PDE_DATA(inode);
 #endif
 
     return single_open(filp, proc_mem_show, data);

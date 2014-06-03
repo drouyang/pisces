@@ -32,7 +32,7 @@ struct pisces_xbuf {
 	    u64 staged         : 1;   // Used by the endpoints for staged data transfers
 	    u64 active         : 1;   // Set when a message has been accepted by the receiver
 	    u64 complete       : 1;   // Set by the receiver when message has been handled
-	    u64 rsvd          : 59;
+	    u64 rsvd           : 59;
 	} __attribute__((packed));
     } __attribute__((packed));
     
@@ -44,7 +44,7 @@ struct pisces_xbuf {
 
     u32 data_len;
 
-    u8 data[0];
+    u8  data[0];
 } __attribute__((packed));
 
 
@@ -76,27 +76,36 @@ static void lower_flag(struct pisces_xbuf * xbuf, u64 flags) {
 
 
 
-int pisces_xbuf_pending(struct pisces_xbuf_desc * desc) {
+int 
+pisces_xbuf_pending(struct pisces_xbuf_desc * desc)
+{
     return desc->xbuf->pending;
 }
 
-static u32 init_stage_data(struct pisces_xbuf * xbuf, u8 * data, u32 data_len) {
-    u32 xbuf_size = xbuf->total_size;
+static u32 
+init_stage_data(struct pisces_xbuf * xbuf, 
+		u8                 * data,
+		u32                  data_len) 
+{
+    u32 xbuf_size  = xbuf->total_size;
     u32 staged_len = (data_len > xbuf_size) ? xbuf_size : data_len;
 	
     xbuf->data_len = data_len;
 
     memcpy(xbuf->data, data, staged_len);
     raise_flag(xbuf, XBUF_STAGED);
-    //    xbuf->staged = 1;
     mb();
 	
     return staged_len;
 }
 
 
-static u32 send_data(struct pisces_xbuf * xbuf, u8 * data, u32 data_len) {
-    u32 xbuf_size = xbuf->total_size;
+static u32 
+send_data(struct pisces_xbuf * xbuf, 
+	  u8                 * data,
+	  u32                  data_len) 
+{
+    u32 xbuf_size  = xbuf->total_size;
     u32 bytes_sent = 0;
     u32 bytes_left = data_len;
 
@@ -110,7 +119,6 @@ static u32 send_data(struct pisces_xbuf * xbuf, u8 * data, u32 data_len) {
 
 	memcpy(xbuf->data, data + bytes_sent, staged_len);
 
-	// xbuf->staged = 1;
 	raise_flag(xbuf, XBUF_STAGED);
 	mb();
 	
@@ -123,14 +131,18 @@ static u32 send_data(struct pisces_xbuf * xbuf, u8 * data, u32 data_len) {
 }
 
 
-static u32 recv_data(struct pisces_xbuf * xbuf, u8 ** data, u32 * data_len) {
-    u32 xbuf_size = xbuf->total_size;
+static u32 
+recv_data(struct pisces_xbuf  * xbuf,
+	  u8                 ** data,
+	  u32                 * data_len)
+{
+    u32 xbuf_size  = xbuf->total_size;
     u32 bytes_read = 0;
     u32 bytes_left = xbuf->data_len;
-    u64 iter_cnt = 0;
+    u64 iter_cnt   = 0;
 
-    *data_len = xbuf->data_len;
-    *data = kmalloc(xbuf->data_len, GFP_KERNEL);
+    *data_len      = xbuf->data_len;
+    *data          = kmalloc(xbuf->data_len, GFP_KERNEL);
 
     debug("XBUF Receiving %u bytes of data\n", *data_len);
 
@@ -139,6 +151,7 @@ static u32 recv_data(struct pisces_xbuf * xbuf, u8 ** data, u32 * data_len) {
 
 
 	iter_cnt = 0;
+
 	while (xbuf->staged == 0) {
 	    __asm__ __volatile__ ("":::"memory");
 
@@ -157,8 +170,6 @@ static u32 recv_data(struct pisces_xbuf * xbuf, u8 ** data, u32 * data_len) {
 
 	memcpy(*data + bytes_read, xbuf->data, staged_len);
 
-	
-	//	xbuf->staged = 0;
 	lower_flag(xbuf, XBUF_STAGED);
 	
 	bytes_read += staged_len;
@@ -172,7 +183,11 @@ static u32 recv_data(struct pisces_xbuf * xbuf, u8 ** data, u32 * data_len) {
 
 
 
-int pisces_xbuf_recv(struct pisces_xbuf_desc * desc, u8 ** data, u32 * data_len) {
+int
+pisces_xbuf_recv(struct pisces_xbuf_desc  * desc, 
+		 u8                      ** data, 
+		 u32                      * data_len)
+{
     if (desc->xbuf->active == 0) {
 	return -1;
     }
@@ -180,11 +195,16 @@ int pisces_xbuf_recv(struct pisces_xbuf_desc * desc, u8 ** data, u32 * data_len)
     return recv_data(desc->xbuf, data, data_len);
 }
 
-int pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc, u8 * data, u32 data_len,
-			  u8 ** resp_data, u32 * resp_len) {
+int 
+pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc, 
+		      u8                      * data, 
+		      u32                       data_len,
+		      u8                     ** resp_data, 
+		      u32                     * resp_len) 
+{
     struct pisces_xbuf * xbuf = desc->xbuf;
-    unsigned long flags = 0;
-    int acquired = 0;
+    unsigned long flags       = 0;
+    int acquired              = 0;
     
     if (xbuf->ready == 0) {
         printk(KERN_ERR "Attempted sync_end to unready xbuf\n");
@@ -196,7 +216,6 @@ int pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc, u8 * data, u32 data_le
 	
 	if (xbuf->pending == 0) {
 	    // clear all flags and signal that message is pending */
-	    //	    xbuf->flags = XBUF_READY | XBUF_PENDING;
 	    set_flags(xbuf, XBUF_READY | XBUF_PENDING);
 	    mb();
 	    acquired = 1;
@@ -218,7 +237,7 @@ int pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc, u8 * data, u32 data_le
 	debug("Staged %u bytes\n", bytes_staged);
 
 	data_len -= bytes_staged;
-	data += bytes_staged;
+	data     += bytes_staged;
     }
 
 
@@ -251,7 +270,6 @@ int pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc, u8 * data, u32 data_le
 
     debug("CMD IS NOW READY\n");
     set_flags(xbuf, XBUF_READY);
-    //    xbuf->flags = XBUF_READY;
     mb();
     
     wake_up_interruptible(&(desc->xbuf_waitq));
@@ -260,10 +278,14 @@ int pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc, u8 * data, u32 data_le
 }
 
 
-int pisces_xbuf_send(struct pisces_xbuf_desc * desc, u8 * data, u32 data_len) {
-    u8 * resp = NULL;
-    u32 resp_len = 0;
-    int ret = 0;
+int 
+pisces_xbuf_send(struct pisces_xbuf_desc * desc,
+		 u8                      * data,
+		 u32                       data_len) 
+{
+    u8  * resp     = NULL;
+    u32   resp_len = 0;
+    int   ret      = 0;
 
     if (desc == NULL) {
 	printk(KERN_ERR "Error: NULL Xbuf Descriptor\n");
@@ -283,10 +305,14 @@ int pisces_xbuf_send(struct pisces_xbuf_desc * desc, u8 * data, u32 data_len) {
 
 
 
-int pisces_xbuf_complete(struct pisces_xbuf_desc * desc, u8 * data, u32 data_len) {
+int 
+pisces_xbuf_complete(struct pisces_xbuf_desc * desc, 
+		     u8                      * data, 
+		     u32                       data_len) 
+{
     struct pisces_xbuf * xbuf = NULL;
 	
-    BUG_ON(desc == NULL);
+    BUG_ON(desc       == NULL);
     BUG_ON(desc->xbuf == NULL);
 
     xbuf = desc->xbuf;
@@ -307,13 +333,12 @@ int pisces_xbuf_complete(struct pisces_xbuf_desc * desc, u8 * data, u32 data_len
 	bytes_staged = init_stage_data(xbuf, data, data_len);
 	
 	data_len -= bytes_staged;
-	data += bytes_staged;
+	data     += bytes_staged;
     }
 
     __asm__ __volatile__ ("":::"memory");
 
     raise_flag(xbuf, XBUF_COMPLETE);
-    //    xbuf->complete = 1;    
 
     __asm__ __volatile__ ("":::"memory");
 
@@ -333,20 +358,19 @@ static void
 ipi_handler(void * private_data)
 {	
     struct pisces_xbuf_desc * desc = private_data;
-    struct pisces_xbuf * xbuf = desc->xbuf;
+    struct pisces_xbuf      * xbuf = desc->xbuf;
     unsigned long flags;
     int valid_ipi = 0;
 
     spin_lock_irqsave(&(desc->xbuf_lock), flags);
 
-    if ((xbuf->pending == 1)  && 
-	(xbuf->active == 0)) {
+    if ( (xbuf->pending == 1)  && 
+	 (xbuf->active  == 0) ) {
 	valid_ipi = 1;
     }
 
     raise_flag(xbuf, XBUF_ACTIVE);
-    //    xbuf->active = 1;
-
+  
     spin_unlock_irqrestore(&(desc->xbuf_lock), flags);
 
     if (!valid_ipi) {
@@ -363,7 +387,6 @@ ipi_handler(void * private_data)
     } else {
 	printk("IPI Arrived for XBUF without a handler\n");
 	raise_flag(xbuf, XBUF_COMPLETE);
-	//	xbuf->complete = 1;
     }
 
     return;
@@ -371,11 +394,15 @@ ipi_handler(void * private_data)
 
 
 
-struct pisces_xbuf_desc * pisces_xbuf_server_init(struct pisces_enclave * enclave, 
-						  uintptr_t xbuf_va, u32 total_bytes, 
-						  void (*recv_handler)(struct pisces_enclave *, struct pisces_xbuf_desc *), 
-						  u32 ipi_vector, u32 target_cpu) {
-    struct pisces_xbuf * xbuf = (struct pisces_xbuf *)xbuf_va;
+struct pisces_xbuf_desc * 
+pisces_xbuf_server_init(struct pisces_enclave * enclave, 
+			uintptr_t               xbuf_va, 
+			u32                     total_bytes, 
+			void (*recv_handler)(struct pisces_enclave *, struct pisces_xbuf_desc *), 
+			u32                     ipi_vector,
+			u32                     target_cpu) 
+{
+    struct pisces_xbuf      * xbuf = (struct pisces_xbuf *)xbuf_va;
     struct pisces_xbuf_desc * desc = NULL;
 
     if (xbuf->ready == 1) {
@@ -393,13 +420,13 @@ struct pisces_xbuf_desc * pisces_xbuf_server_init(struct pisces_enclave * enclav
     memset(desc, 0, sizeof(struct pisces_xbuf_desc));
     memset(xbuf, 0, sizeof(struct pisces_xbuf));
 
-    xbuf->host_apic = target_cpu;
+    xbuf->host_apic   = target_cpu;
     xbuf->host_vector = ipi_vector;
-    xbuf->total_size = total_bytes - sizeof(struct pisces_xbuf);
+    xbuf->total_size  = total_bytes - sizeof(struct pisces_xbuf);
     
-    desc->xbuf = xbuf;
+    desc->xbuf         = xbuf;
     desc->recv_handler = recv_handler;
-    desc->enclave = enclave;
+    desc->enclave      = enclave;
     spin_lock_init(&(desc->xbuf_lock));
     init_waitqueue_head(&(desc->xbuf_waitq));
 
@@ -412,16 +439,19 @@ struct pisces_xbuf_desc * pisces_xbuf_server_init(struct pisces_enclave * enclav
     }
     
     set_flags(xbuf, XBUF_READY);
-    //    xbuf->ready = 1;
 
     return desc;
 
 }
 
 
-struct pisces_xbuf_desc * pisces_xbuf_client_init(struct pisces_enclave * enclave, uintptr_t xbuf_va,
-						  u32 ipi_vector, u32 target_cpu) {
-    struct pisces_xbuf * xbuf = (struct pisces_xbuf *)xbuf_va;
+struct pisces_xbuf_desc * 
+pisces_xbuf_client_init(struct pisces_enclave * enclave, 
+			uintptr_t               xbuf_va,
+			u32                     ipi_vector, 
+			u32                     target_cpu)
+{
+    struct pisces_xbuf      * xbuf = (struct pisces_xbuf *)xbuf_va;
     struct pisces_xbuf_desc * desc = kmalloc(sizeof(struct pisces_xbuf_desc), GFP_KERNEL);
 
     if (desc == NULL) {
@@ -430,11 +460,11 @@ struct pisces_xbuf_desc * pisces_xbuf_client_init(struct pisces_enclave * enclav
 
     memset(desc, 0, sizeof(struct pisces_xbuf_desc));
 
-    xbuf->enclave_cpu = target_cpu;
+    xbuf->enclave_cpu    = target_cpu;
     xbuf->enclave_vector = ipi_vector;
 
-    desc->xbuf = xbuf;
-    desc->enclave = enclave;
+    desc->xbuf           = xbuf;
+    desc->enclave        = enclave;
     spin_lock_init(&(desc->xbuf_lock));
     init_waitqueue_head(&(desc->xbuf_waitq));
 
