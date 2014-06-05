@@ -37,7 +37,6 @@ int main(int argc, char ** argv) {
     char      * bdf_str = NULL;
     char      * name    = NULL;
     op_mode_t   mode    = QUERY;
-    int         ret     = 0;
 
 
     {
@@ -215,12 +214,5 @@ int main(int argc, char ** argv) {
 	return -1;
     }
 
-  
-
-
-    if (ret < 0) {
-	printf("Error registering PCI device\n");
-	return -1;
-    }
-
+    return 0;
 }
