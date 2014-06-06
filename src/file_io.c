@@ -21,22 +21,26 @@
 
 int file_mkdir(const char * pathname, unsigned short perms, int recurse);
 
-static int mkdir_recursive(const char * path, unsigned short perms) {
-    char * tmp_str = NULL;
-    char * dirname_ptr;
-    char * tmp_iter;
+static int 
+mkdir_recursive(const char    * path, 
+		unsigned short  perms)
+{
+    char * tmp_str     = NULL;
+    char * dirname_ptr = NULL;
+    char * tmp_iter    = NULL;
 
     tmp_str = kmalloc(strlen(path) + 1, GFP_KERNEL);
+
     if (!tmp_str) { 
 	printk(KERN_ERR "Cannot kmallocate in mkdir recursive\n");
 	return -1;
     }
 
-    memset(tmp_str, 0, strlen(path) + 1);
+    memset(tmp_str,  0,    strlen(path) + 1);
     strncpy(tmp_str, path, strlen(path));
 
     dirname_ptr = tmp_str;
-    tmp_iter = tmp_str;
+    tmp_iter    = tmp_str;
 
     // parse path string, call file_mkdir recursively.
 
@@ -47,7 +51,7 @@ static int mkdir_recursive(const char * path, unsigned short perms) {
 	while ((*tmp_iter != '/') && 
 	       (*tmp_iter != '\0')) {
 
-	    if ( (!isprint(*tmp_iter))) {
+	    if ( (!isprint(*tmp_iter)) ) {
 		printk(KERN_ERR "Invalid character in path name (%d)\n", *tmp_iter);
 		kfree(tmp_str);
 		return -1;
@@ -64,6 +68,7 @@ static int mkdir_recursive(const char * path, unsigned short perms) {
 
 	// Ignore empty directories
 	if ((tmp_iter - dirname_ptr) > 1) {
+
 	    if (file_mkdir(tmp_str, perms, 0) != 0) {
 		printk(KERN_ERR "Could not create directory (%s)\n", tmp_str);
 		kfree(tmp_str);
@@ -87,17 +92,21 @@ static int mkdir_recursive(const char * path, unsigned short perms) {
     return 0;
 }
 
-int file_mkdir(const char * pathname, unsigned short perms, int recurse) {
+int 
+file_mkdir(const char     * pathname, 
+	   unsigned short   perms,
+	   int              recurse) 
+{
     /* Welcome to the jungle... */
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,41)
     /* DO NOT REFERENCE THIS VARIABLE */
     /* It only exists to provide version compatibility */
-    struct path tmp_path; 
+    struct path     tmp_path; 
 #endif
 
-    struct path * path_ptr = NULL;
-    struct dentry * dentry;
+    struct path   * path_ptr = NULL;
+    struct dentry * dentry   = NULL;
     int ret = 0;
 
 
@@ -120,23 +129,23 @@ int file_mkdir(const char * pathname, unsigned short perms, int recurse) {
 	    return 0;
 	}
 
-	if (path_lookup(pathname, LOOKUP_PARENT | LOOKUP_FOLLOW, &nd) != 0) {
+	if (path_lookup(pathname, LOOKUP_PARENT    | LOOKUP_FOLLOW, &nd) != 0) {
 	    return -1;
 	}
 #endif
 
 	if (ret != 0) {
-	    printk(KERN_ERR "%s:%d - Error: kern_path_parent() returned error for (%s)\n", __FILE__, __LINE__, 
-		   pathname);
+	    printk(KERN_ERR "%s:%d - Error: kern_path_parent() returned error for (%s)\n", 
+		   __FILE__, __LINE__, pathname);
 	    return -1;
 	}
 	
-	dentry = lookup_create(&nd, 1);
+	dentry   = lookup_create(&nd, 1);
 	path_ptr = &(nd.path);
     }
 #else 
     {
-	dentry = kern_path_create(AT_FDCWD, pathname, &tmp_path, 1);
+	dentry   = kern_path_create(AT_FDCWD, pathname, &tmp_path, 1);
 	
 	if (IS_ERR(dentry)) {
 	    return 0;
@@ -158,10 +167,12 @@ int file_mkdir(const char * pathname, unsigned short perms, int recurse) {
 }
 
 
-struct file * file_open(const char * path, int mode) {
+struct file * 
+file_open(const char * path, 
+	  int          mode) 
+{
     struct file * file_ptr = NULL;	
     
-
     file_ptr = filp_open(path, mode | O_LARGEFILE, 0);
     
     if (IS_ERR(file_ptr)) {
@@ -172,14 +183,18 @@ struct file * file_open(const char * path, int mode) {
     return file_ptr;
 }
 
-int file_close(struct file * file_ptr) {
+int 
+file_close(struct file * file_ptr) 
+{
 
     filp_close(file_ptr, NULL);
     
     return 0;
 }
 
-unsigned long long file_size(struct file * file_ptr) {
+unsigned long long 
+file_size(struct file * file_ptr) 
+{
     struct kstat s;
     int ret;
     
@@ -197,15 +212,20 @@ unsigned long long file_size(struct file * file_ptr) {
     return s.size;
 }
 
-unsigned long long file_read(struct file * file_ptr, void * buffer, unsigned long long length, unsigned long long offset){
-    ssize_t ret;
+unsigned long long 
+file_read(struct file       * file_ptr, 
+	  void              * buffer, 
+	  unsigned long long  length, 
+	  unsigned long long  offset)
+{
+    ssize_t      ret;
     mm_segment_t old_fs;
 	
     old_fs = get_fs();
     set_fs(get_ds());
-	
-    ret = vfs_read(file_ptr, buffer, length, &offset);
-	
+
+    ret    = vfs_read(file_ptr, buffer, length, &offset);
+
     set_fs(old_fs);
 	
     if (ret <= 0) {
@@ -216,14 +236,19 @@ unsigned long long file_read(struct file * file_ptr, void * buffer, unsigned lon
 }
 
 
-unsigned long long file_write(struct file * file_ptr, void * buffer, unsigned long long length, unsigned long long offset) {
+unsigned long long 
+file_write(struct file        * file_ptr, 
+	   void               * buffer, 
+	   unsigned long long   length, 
+	   unsigned long long   offset) 
+{
     mm_segment_t old_fs;
-    ssize_t ret;
+    ssize_t      ret;
 
     old_fs = get_fs();
     set_fs(get_ds());
 
-    ret = vfs_write(file_ptr, buffer, length, &offset);
+    ret    = vfs_write(file_ptr, buffer, length, &offset);
 	
     set_fs(old_fs);
 
