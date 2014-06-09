@@ -12,14 +12,7 @@ git submodule init
 git submodule update
 
 -- Clone Kitten --
-hg clone https://code.google.com/p/kitten/ 
-
--- Clone Kitten patchset
-cd kitten/.hg;
-hg clone http://essex.cs.pitt.edu/hg/patches-pisces
-cd ..;
-hg qqueue -c pisces
-hg qpush -a
+git clone  https://software.sandia.gov/git/kitten
 
 
 
@@ -69,7 +62,7 @@ insmod pisces.ko
 
 
 -- Add PCI devices to enclave --
-./v3_pci /dev/pisces-enclave0 <device name> <bus> <dev> <fn>
+./v3_pci -a <device_name> <bus>:<dev>.<fn> /dev/pisces-enclave0
 
 
 -- Connecting to Pisces console --
