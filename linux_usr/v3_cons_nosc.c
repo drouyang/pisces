@@ -23,7 +23,7 @@
 #include <pet_ioctl.h>
 
 #include "../src/pisces.h"
-#include "../src/pisces_cmds.h"
+#include "../src/ctrl_cmds.h"
 
 static int use_curses = 0;
 static int debug_enable = 0;

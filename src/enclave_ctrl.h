@@ -7,7 +7,7 @@
 #include <asm/irq_vectors.h>
 
 #include "pisces.h"
-#include "pisces_cmds.h"
+#include "ctrl_cmds.h"
 
 
 

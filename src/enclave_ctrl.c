@@ -8,14 +8,13 @@
 
 #include "pisces.h"
 #include "pisces_boot_params.h"
-#include "pisces_ctrl.h"
+#include "enclave_ctrl.h"
 #include "ipi.h"
 #include "enclave.h"
 #include "boot.h"
-#include "pisces_cmds.h"
+#include "ctrl_cmds.h"
 #include "pisces_xbuf.h"
 #include "pisces_pci.h"
-#include "pisces_sata.h"
 
 #include "v3_console.h"
 

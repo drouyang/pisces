@@ -18,7 +18,7 @@
 
 #include "pisces.h"
 #include "enclave.h"
-#include "pisces_ctrl.h"
+#include "enclave_ctrl.h"
 #include "pisces_xpmem.h"
 #include "boot.h"
 

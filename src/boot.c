@@ -13,7 +13,7 @@
 #include "enclave.h"
 #include "file_io.h"
 #include "pisces_ringbuf.h"
-#include "pisces_ctrl.h"
+#include "enclave_ctrl.h"
 
 #include "pgtables.h"
 #include "linux_syms.h"

@@ -17,7 +17,7 @@
 #include <pet_ioctl.h>
 
 #include "../src/pisces.h"
-#include "../src/pisces_cmds.h"
+#include "../src/ctrl_cmds.h"
 
 
 

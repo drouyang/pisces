@@ -12,7 +12,7 @@
 #include <linux/cdev.h>
 
 #include "enclave_cons.h"
-#include "pisces_ctrl.h"
+#include "enclave_ctrl.h"
 #include "pisces_xpmem.h"
 #include "pisces_lcall.h"
 #include "enclave_fs.h"

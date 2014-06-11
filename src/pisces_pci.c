@@ -11,7 +11,7 @@
 #include <linux/fs.h>
 #include <linux/iommu.h>
 
-#include "pisces_cmds.h"
+#include "ctrl_cmds.h"
 #include "pisces_pci.h"
 #include "pisces_lcall.h"
 #include "enclave.h"

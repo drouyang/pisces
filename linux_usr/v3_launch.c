@@ -17,7 +17,7 @@
 #include <pet_ioctl.h>
 
 #include "../src/pisces.h"
-#include "../src/pisces_cmds.h"
+#include "../src/ctrl_cmds.h"
 
 int main(int argc, char* argv[]) {
     char * enclave_path = argv[1];

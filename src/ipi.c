@@ -17,7 +17,7 @@
 #include "pisces.h"
 #include "enclave.h"
 #include "ipi.h"
-#include "pisces_ctrl.h"
+#include "enclave_ctrl.h"
 
 #include "linux_syms.h"
 

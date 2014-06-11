@@ -16,7 +16,7 @@
 #include <pet_cpu.h>
 
 #include "../src/pisces.h"
-#include "../src/pisces_cmds.h"
+#include "../src/ctrl_cmds.h"
 
 static void usage() {
     printf("Usage: pisces_ctrl [options] <enclave_dev>\n"	\

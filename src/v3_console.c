@@ -19,9 +19,9 @@
 #include "ipi.h"
 #include "pisces_lock.h"
 #include "enclave.h"
-#include "pisces_cmds.h"
+#include "ctrl_cmds.h"
 #include "pisces_xbuf.h"
-#include "pisces_ctrl.h"
+#include "enclave_ctrl.h"
 
 typedef enum { CONSOLE_CURS_SET   = 1,
 	       CONSOLE_CHAR_SET   = 2,
