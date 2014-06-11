@@ -94,7 +94,7 @@ device_ioctl(struct file  * file,
 
         case PISCES_LOAD_IMAGE: {
             struct pisces_image * img = kmalloc(sizeof(struct pisces_image), GFP_KERNEL);
-            int enclave_idx = -1;
+            int enclave_idx           = -1;
 
             if (IS_ERR(img)) {
                 printk(KERN_ERR "Could not allocate space for pisces image\n");
@@ -119,6 +119,13 @@ device_ioctl(struct file  * file,
             break;
         }
 
+	case PISCES_FREE_ENCLAVE: {
+	    int enclave_idx = arg;
+
+	    pisces_enclave_free(enclave_map[enclave_idx]);
+
+	    break;
+	}
         default:
             printk(KERN_ERR "Invalid Pisces IOCTL: %d\n", ioctl);
             return -EINVAL;

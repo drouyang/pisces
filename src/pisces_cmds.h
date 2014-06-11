@@ -27,9 +27,9 @@ struct pisces_resp {
 
 /* 
  * Linux -> Enclave Command Structures
+ * 
+ * For the most part these are identical to the user-space ioctl numbers 
  */
-
-/* User space ioctl structures */
 
 #define ENCLAVE_CMD_ADD_CPU            100
 #define ENCLAVE_CMD_ADD_MEM            101
@@ -52,7 +52,7 @@ struct pisces_resp {
 
 #define ENCLAVE_CMD_VM_CONS_CONNECT    150
 #define ENCLAVE_CMD_VM_CONS_DISCONNECT 151
-#define ENCLAVE_CMD_VM_CONS_KEYCODE    152
+#define ENCLAVE_CMD_VM_CONS_KEYCODE    152  /* Not accessible via an IOCTL */
 
 #define ENCLAVE_CMD_ADD_V3_PCI         180
 #define ENCLAVE_CMD_ADD_V3_SATA        181
@@ -87,6 +87,16 @@ struct pisces_sata_dev {
     u32 func;
     u32 port;
 } __attribute__((packed));
+
+struct pisces_dbg_spec {
+    u32 vm_id;
+    u32 core;
+    u32 cmd;
+} __attribute__((packed));
+
+
+
+
 
 /* Kernel Space command Structures */
 #ifdef __KERNEL__
@@ -123,16 +133,22 @@ struct cmd_vm_ctrl {
 
 
 struct cmd_vm_cons_keycode {
-    struct pisces_cmd hdr;
-
+    struct pisces_cmd     hdr;
     u32 vm_id;
     u8  scan_code;
 } __attribute__((packed));
 
 
-struct cmd_add_pci_dev {
-    struct pisces_cmd hdr;
 
+struct cmd_vm_debug {
+    struct pisces_cmd      hdr;
+    struct pisces_dbg_spec dbg_spec;
+} __attribute__((packed));
+
+
+
+struct cmd_add_pci_dev {
+    struct pisces_cmd      hdr;
     struct pisces_pci_spec spec;
     u32 device_ipi_vector;
 } __attribute__((packed));
@@ -140,10 +156,11 @@ struct cmd_add_pci_dev {
 
 
 struct cmd_free_pci_dev {
-    struct pisces_cmd hdr;
-
+    struct pisces_cmd      hdr;
     struct pisces_pci_spec spec;
 } __attribute__((packed));
+
+
 
 
 

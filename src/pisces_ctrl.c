@@ -337,33 +337,37 @@ ctrl_ioctl(struct file   * filp,
 	    }
 
 	    printk("Console found at %p\n", (void *)cons_pa);
-	    printk("Enclave=%p\n", enclave);
+	    printk("Enclave=%p\n",                  enclave);
 
 	    return v3_console_connect(enclave, arg, cons_pa);
 	    break;
 	}
 
-	case ENCLAVE_CMD_VM_CONS_KEYCODE: {
-	    struct cmd_vm_cons_keycode cmd;
-
-	    memset(&cmd, 0, sizeof(struct cmd_vm_cons_keycode));
-
-	    cmd.hdr.cmd      = ENCLAVE_CMD_VM_CONS_KEYCODE;
-	    cmd.hdr.data_len = ( sizeof(struct cmd_vm_cons_keycode) - 
-				 sizeof(struct pisces_cmd) );
-	    cmd.vm_id        = 0;
-	    cmd.scan_code    = (u8)arg;
-
-	    printk("Directly Sending Scan_Code %x\n", cmd.scan_code);
-
-	    pisces_xbuf_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_vm_cons_keycode));
-    
-	    break;
-
-	}
 	case ENCLAVE_CMD_VM_DBG: {
-	    printk("Sending Debug IPI to palacios\n");
-	    pisces_send_ipi(enclave, 0, 169);
+	    struct cmd_vm_debug cmd;
+
+	    memset(&cmd, 0, sizeof(struct cmd_vm_debug));
+
+	    
+	    cmd.hdr.cmd      = ENCLAVE_CMD_VM_DBG;
+	    cmd.hdr.data_len = ( sizeof(struct cmd_vm_debug) - 
+				 sizeof(struct pisces_cmd) );
+
+	    if (copy_from_user(&(cmd.dbg_spec), argp, sizeof(struct pisces_dbg_spec))) {
+		printk(KERN_ERR "Could not copy debug command from user space\n");
+		return -EFAULT;
+	    }
+
+	    ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_vm_debug), (u8 **)&resp, &resp_len);
+
+	    kfree(resp);
+
+	    if (ret != 0) {
+		printk(KERN_ERR "Error sending debug command [%d] to VM (%d)\n",
+		       cmd.dbg_spec.cmd, cmd.dbg_spec.vm_id);
+		return -1;
+	    }
+
 	    break;
 	}
 	default:  {

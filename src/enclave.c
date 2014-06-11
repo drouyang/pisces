@@ -58,7 +58,6 @@ free_enclave_index(int idx)
 
 
 static int pisces_enclave_launch(struct pisces_enclave * enclave);
-static void pisces_enclave_free(struct pisces_enclave * enclave);
 
 
 
@@ -117,9 +116,9 @@ enclave_ioctl(struct file  * filp,
 		}
 
 		/* We need to check that these values are legit */
-		enclave->bootmem_addr_pa = boot_env.base_addr;
-		enclave->bootmem_size    = (boot_env.pages * PAGE_SIZE);
-		enclave->boot_cpu        = boot_env.cpu_id;
+		enclave->bootmem_addr_pa =  boot_env.base_addr;
+		enclave->bootmem_size    =  boot_env.pages * PAGE_SIZE;
+		enclave->boot_cpu        =  boot_env.cpu_id;
 
 		pisces_enclave_add_cpu(enclave, boot_env.cpu_id);
 		pisces_enclave_add_mem(enclave, boot_env.base_addr, boot_env.pages);
@@ -133,7 +132,14 @@ enclave_ioctl(struct file  * filp,
 
                 break;
             }
-
+	case PISCES_ENCLAVE_SHUTDOWN:
+	    {
+		
+		/* Let the enclave know it is going to be shut down */
+		
+		
+		break;
+	    }
         case PISCES_ENCLAVE_CONS_CONNECT:
             {
                 printk(KERN_DEBUG "Open enclave console...\n");
@@ -391,14 +397,14 @@ pisces_enclave_launch(struct pisces_enclave * enclave)
 
 
 
-static void 
+int
 pisces_enclave_free(struct pisces_enclave * enclave) 
 {
 
     free_enclave_index(enclave->id);
     kfree(enclave);
 
-    return;
+    return 0;
 }
 
 

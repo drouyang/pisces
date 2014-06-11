@@ -69,6 +69,8 @@ int
 pisces_enclave_create(struct pisces_image * img);
 
 
+int pisces_enclave_free(struct pisces_enclave * enclave);
+
 int 
 pisces_enclave_add_mem(struct pisces_enclave * enclave, 
 		       u64                     base_addr, 
