@@ -93,6 +93,7 @@ static int write_file(int fd, int size, unsigned char * buf) {
 
 static int create_vm(char * enclave_path, char * vm_name, char * filename) {
     int ctrl_fd = 0;
+    int vm_id   = 0;
     struct vm_path vm;
     
     memset(&vm, 0, sizeof(struct vm_path));
@@ -107,10 +108,15 @@ static int create_vm(char * enclave_path, char * vm_name, char * filename) {
         return -1;
     }
 
-    if (pet_ioctl_fd(ctrl_fd, ENCLAVE_CMD_CREATE_VM, (void *)&vm) != 0) {
+    vm_id = pet_ioctl_fd(ctrl_fd, ENCLAVE_CMD_CREATE_VM, (void *)&vm);
+
+    if (vm_id <= 0) {
 	printf("Error: Could not create VM\n");
 	return -1;
     }
+
+    printf("Created VM (ID: %d) on Enclave (%s)\n", vm_id, enclave_path);
+
     return 0;
 }
 
