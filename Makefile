@@ -2,6 +2,8 @@
 #KERN_PATH=../linux/
 KERN_PATH=/home/jarusl/linux-3.11.8-200.fc19.x86_64.debug
 
+XPMEM_KERN_PATH=/home/briankoco/xpmem/kernel
+
 obj-m += pisces.o
 
 pisces-objs :=  src/main.o \
@@ -23,8 +25,16 @@ pisces-objs :=  src/main.o \
 		src/util-hashtable.o \
 		src/util-queue.o \
 		src/v3_console.o \
-		src/pisces_pci.o \
-		src/pisces_xpmem.o 
+		src/pisces_pci.o
+
+ifeq ($(XPMEM),y)
+EXTRA_CFLAGS         += -I$(XPMEM_KERN_PATH)/include -DUSING_XPMEM
+KBUILD_EXTRA_SYMBOLS += $(XPMEM_KERN_PATH)/Module.symvers
+
+pisces-objs +=  src/pisces_xpmem.o 
+
+endif
+
 
 
 all:

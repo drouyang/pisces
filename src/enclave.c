@@ -154,12 +154,6 @@ enclave_ioctl(struct file  * filp,
                 break;
 
             }
-        case PISCES_ENCLAVE_XPMEM_CONNECT:
-	    {
-		printk("Connecting XPMEM Channel\n");
-		ret = pisces_xpmem_connect(enclave);
-		break;
-	    }
 
     }
 
@@ -308,8 +302,11 @@ pisces_enclave_create(struct pisces_image * img)
     INIT_LIST_HEAD(&(enclave->memdesc_list));
 
     init_enclave_fs(enclave);
-    pisces_xpmem_init(enclave);
     pisces_pci_init(enclave);
+
+#ifdef USING_XPMEM
+    pisces_xpmem_init(enclave);
+#endif
 
     enclave->dev          = MKDEV(pisces_major_num, enclave_idx);
     enclave->memdesc_num  = 0;

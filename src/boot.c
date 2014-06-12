@@ -352,11 +352,6 @@ setup_boot_params(struct pisces_enclave * enclave)
         boot_params->xpmem_buf_addr = __pa(base_addr + offset);
         boot_params->xpmem_buf_size = PAGE_SIZE_4KB;
 
-        if (pisces_xpmem_init(enclave) == -1) {
-            printk(KERN_ERR "Error initializing XPMEM channel\n");
-            return -1;
-        }
-
         offset += PAGE_SIZE_4KB;
 
         printk("XPMEM buffer initialized. Offset at %p (target_addr=%p, size=%llu)\n", 

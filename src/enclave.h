@@ -46,7 +46,9 @@ struct pisces_enclave {
 
     struct pisces_cons          cons;
     struct pisces_ctrl          ctrl;
+#ifdef USING_XPMEM
     struct pisces_xpmem         xpmem;
+#endif
     struct pisces_lcall_state   lcall_state;
     struct enclave_fs           fs_state;
     struct pisces_pci_state     pci_state;

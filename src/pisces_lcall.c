@@ -21,6 +21,7 @@
 #include "ipi.h"
 #include "pisces_xbuf.h"
 #include "pisces_pci.h"
+#include "pisces_xpmem.h"
 
 
 
@@ -82,9 +83,11 @@ static int lcall_kern_thread(void * arg) {
             case PISCES_LCALL_VFS_SIZE:
                 enclave_vfs_size_lcall(enclave, xbuf_desc, (struct vfs_size_lcall   *)cur_lcall);
                 break;
+#ifdef USING_XPMEM
             case PISCES_LCALL_XPMEM_CMD_EX:
                 pisces_xpmem_cmd_lcall(enclave, xbuf_desc, cur_lcall);
                 break;
+#endif
             case PISCES_LCALL_IOMMU_MAP:
                 pisces_pci_iommu_map(enclave, xbuf_desc, (struct pci_iommu_map_lcall *)cur_lcall);
                 break;

@@ -1,136 +1,35 @@
 #ifndef __PISCES_XPMEM_H__
 #define __PISCES_XPMEM_H__
 
+
+#ifdef USING_XPMEM
+
 #include "pisces_xbuf.h"
 #include "pisces_lcall.h"
 
+#include <xpmem_iface.h>
 
-typedef enum { 
-    LOCAL,
-    VM,
-    ENCLAVE
-} xpmem_endpoint_t;
-
-struct xpmem_dom {
-    /* Name-server routing info */
-    struct {
-        int id; 
-        int fd; 
-        xpmem_endpoint_t type;
-    } ns; 
-
-    /* Within enclave routing info */
-    struct { 
-        int id; 
-        int fd; 
-        xpmem_endpoint_t type;
-    } enclave;
-};
-
-struct xpmem_cmd_make_ex {
-    int64_t segid; /* Input/Output - nameserver must ensure uniqueness */
-};
-
-struct xpmem_cmd_remove_ex {
-    int64_t segid;
-};
-
-struct xpmem_cmd_get_ex {
-    int64_t  segid;
-    uint32_t flags;
-    uint32_t permit_type;
-    uint64_t permit_value;
-    int64_t  apid; /* Output */
-};
-
-struct xpmem_cmd_release_ex {
-    int64_t apid;
-};
-
-struct xpmem_cmd_attach_ex {
-    int64_t    apid;
-    uint64_t   off;
-    uint64_t   size;
-    uint64_t   num_pfns;
-    uint64_t * pfns;
-};
-
-struct xpmem_cmd_detach_ex {
-    uint64_t vaddr;
-};
-
-typedef enum {
-    XPMEM_MAKE,
-    XPMEM_MAKE_COMPLETE,
-    XPMEM_REMOVE,
-    XPMEM_REMOVE_COMPLETE,
-    XPMEM_GET,
-    XPMEM_GET_COMPLETE,
-    XPMEM_RELEASE,
-    XPMEM_RELEASE_COMPLETE,
-    XPMEM_ATTACH,
-    XPMEM_ATTACH_COMPLETE,
-    XPMEM_DETACH,
-    XPMEM_DETACH_COMPLETE,
-} xpmem_op_t;
-
-struct xpmem_cmd_ex {
-    struct xpmem_dom src_dom;
-    struct xpmem_dom dst_dom;
-    xpmem_op_t type;
-
-    union {
-        struct xpmem_cmd_make_ex    make;
-        struct xpmem_cmd_remove_ex  remove;
-        struct xpmem_cmd_get_ex     get;
-        struct xpmem_cmd_release_ex release;
-        struct xpmem_cmd_attach_ex  attach;
-        struct xpmem_cmd_detach_ex  detach;
-    };  
-};
-
-struct xpmem_cmd_iter {
-    struct xpmem_cmd_ex * cmd;
-    struct list_head      node;
-};
 
 struct pisces_xpmem {
-    int initialized;
-    int fd; 
+    /* xbuf for IPI-based communication */
+    struct pisces_xbuf_desc      * xbuf_desc;
 
-    spinlock_t state_lock;
-
-    /* Incoming lcall cmds */
-    struct list_head in_cmds;
-    spinlock_t       in_lock;
-
-    /* waitqs */
-    wait_queue_head_t user_waitq;
-
-    /* Structure to facilitate IPI-based communication */
-    struct pisces_xbuf_desc * xbuf_desc;
+    /* XPMEM kernel interface */
+    int                            connected;
+    xpmem_link_t                   link;
+    struct xpmem_partition_state * part;
 };
 
 
-/* Longcall structures */
-struct pisces_xpmem_cmd_lcall {
-    struct pisces_lcall lcall;
-    
-    struct xpmem_cmd_ex xpmem_cmd;
-    u8 pfn_list[0];
-} __attribute__((packed));
+int
+pisces_xpmem_init(struct pisces_enclave * enclave);
 
-/* Ctrl command structures */
-struct pisces_xpmem_cmd_ctrl {
-    struct xpmem_cmd_ex xpmem_cmd;
-    u8 pfn_list[0];
-} __attribute__((packed));
+int
+pisces_xpmem_cmd_lcall(struct pisces_enclave   * enclave, 
+                       struct pisces_xbuf_desc * xbuf_desc, 
+		       struct pisces_lcall     * lcall);
 
-
-
-int pisces_xpmem_init(struct pisces_enclave * enclave);
-int pisces_xpmem_connect(struct pisces_enclave * enclave);
-int pisces_xpmem_cmd_lcall(struct pisces_enclave * enclave, struct pisces_xbuf_desc * xbuf_desc, struct pisces_lcall * lcall);
+#endif /* USING_XPMEM */
 
 
 #endif /* __PISCES_XPMEM_H__ */
