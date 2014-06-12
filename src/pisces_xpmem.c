@@ -138,6 +138,7 @@ pisces_xpmem_cmd_lcall(struct pisces_enclave   * enclave,
     struct pisces_xpmem_cmd_lcall * xpmem_lcall      = (struct pisces_xpmem_cmd_lcall *)lcall;
     struct xpmem_cmd_ex           * cmd              = NULL;
     struct pisces_lcall_resp        lcall_resp;
+    u64                             pfn_len          = 0;
 
     lcall_resp.status   = 0;
     lcall_resp.data_len = 0;
@@ -167,16 +168,19 @@ pisces_xpmem_cmd_lcall(struct pisces_enclave   * enclave,
 
     /* Copy any pfns lists, if present */
     if (cmd->type == XPMEM_ATTACH_COMPLETE) {
+	pfn_len = cmd->attach.num_pfns * sizeof(u64);
+    }
 
-	cmd->attach.pfns = kmalloc(cmd->attach.num_pfns * sizeof(u64), GFP_KERNEL);
-        if (!cmd->attach.pfns) {
+    if (pfn_len > 0) {
+	cmd->attach.pfns = kmalloc(pfn_len, GFP_KERNEL);
+	if (!cmd->attach.pfns) {
 	    printk(KERN_ERR "Pisces XPMEM: out of memory\n");
-            kfree(cmd);
+	    kfree(cmd);
 	    lcall_resp.status = -1;
 	    goto out;
-        }
+	}
 
-        memcpy(cmd->attach.pfns, 
+	memcpy(cmd->attach.pfns, 
 	       xpmem_lcall->pfn_list, 
 	       cmd->attach.num_pfns * sizeof(u64)
 	);
@@ -190,9 +194,15 @@ pisces_xpmem_cmd_lcall(struct pisces_enclave   * enclave,
 			 (u8 *)&lcall_resp,
 			 sizeof(struct pisces_lcall_resp));
 
-    /* Deliver command to XPMEM partition */
+    /* Deliver command to XPMEM partition if we received everything correctly */
     if (lcall_resp.status == 0) {
 	xpmem_cmd_deliver(xpmem->part, xpmem->link, cmd);
+
+	if (pfn_len > 0) {
+	    kfree(cmd->attach.pfns);
+	}
+
+	kfree(cmd);
     }
 
     return 0;
