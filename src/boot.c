@@ -14,6 +14,7 @@
 #include "file_io.h"
 #include "pisces_ringbuf.h"
 #include "enclave_ctrl.h"
+#include "pisces_xpmem.h"
 
 #include "pgtables.h"
 #include "linux_syms.h"
@@ -351,6 +352,13 @@ setup_boot_params(struct pisces_enclave * enclave)
 
         boot_params->xpmem_buf_addr = __pa(base_addr + offset);
         boot_params->xpmem_buf_size = PAGE_SIZE_4KB;
+
+#ifdef USING_XPMEM
+	if (pisces_xpmem_init(enclave) == -1) {
+	    printk(KERN_ERR "Error initializing XPMEM channel\n");
+	    return -1;
+	}
+#endif
 
         offset += PAGE_SIZE_4KB;
 

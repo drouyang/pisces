@@ -207,7 +207,7 @@ pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc,
     int acquired              = 0;
     
     if (xbuf->ready == 0) {
-        printk(KERN_ERR "Attempted sync_end to unready xbuf\n");
+        printk(KERN_ERR "Attempted sync_send to unready xbuf\n");
         return -1;
     }
 

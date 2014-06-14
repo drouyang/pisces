@@ -304,10 +304,6 @@ pisces_enclave_create(struct pisces_image * img)
     init_enclave_fs(enclave);
     pisces_pci_init(enclave);
 
-#ifdef USING_XPMEM
-    pisces_xpmem_init(enclave);
-#endif
-
     enclave->dev          = MKDEV(pisces_major_num, enclave_idx);
     enclave->memdesc_num  = 0;
 

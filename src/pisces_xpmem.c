@@ -46,6 +46,11 @@ xpmem_cmd_fn(struct xpmem_cmd_ex * cmd,
     u64                            pfn_len = 0;
     int                            status  = 0;
 
+    if (!xpmem->connected) {
+	printk(KERN_ERR "Pisces XPMEM: cannot handle command: enclave channel not connected\n");
+	return -1;
+    }
+
     if (cmd->type == XPMEM_ATTACH_COMPLETE) {
 	pfn_len = cmd->attach.num_pfns * sizeof(u64);
     }
