@@ -193,15 +193,12 @@ int main(int argc, char ** argv) {
 	
 	ctrl_fd = pet_ioctl_path(enclave_path, PISCES_ENCLAVE_CTRL_CONNECT, NULL);
 
-	if (ctrl_fd < 0) {
-	    printf("Error opening enclave control channel (%s)\n", enclave_path);
-	    return -1;
+	if (ctrl_fd >= 0) {
+	    if (pet_ioctl_fd(ctrl_fd, ENCLAVE_CMD_FREE_V3_PCI,  &dev_spec) != 0) {
+		printf("Error: Could not remove device from Palacios\n");
+	    }
 	}
 
-	if (pet_ioctl_fd(ctrl_fd, ENCLAVE_CMD_FREE_V3_PCI,  &dev_spec) != 0) {
-	    printf("Error: Could not remove device from Palacios\n");
-	    return -1;
-	}
 
 
 	if (pet_online_pci(bus, dev, fn) != 0) {
