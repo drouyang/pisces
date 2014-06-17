@@ -270,12 +270,13 @@ ctrl_ioctl(struct file   * filp,
 	    kfree(resp);
 	    
 	    if ((ret != 0) || (status != 0)) {
-		printk(KERN_ERR "Error freeing PCI device from Enclave\n");
+		printk(KERN_ERR "Error in PCI free enclave command\n");
 		return -1;
 	    }
 
 	    /* Free Linux resources */	    
 	    if (pisces_pci_remove_dev(enclave, &cmd.spec) != 0) {
+		printk(KERN_ERR "Error removing Pisces device from Enclave state\n");
 		return -1;
 	    }
 
