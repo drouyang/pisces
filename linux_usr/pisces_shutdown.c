@@ -15,9 +15,9 @@
 #include "../src/pisces.h"
 #include "../src/ctrl_cmds.h"
 
-
-#define DEV_PATH  "/dev/pisces-enclave"
-#define PROC_PATH "/proc/pisces/"
+#define PISCES_PATH "/dev/pisces"
+#define DEV_PATH    "/dev/pisces-enclave"
+#define PROC_PATH   "/proc/pisces/"
 
 #define CPU_HDR_STR       "Num CPUs: "
 #define CPU_ENTRY_STR     "CPU "
@@ -249,7 +249,7 @@ int main(int argc, char ** argv) {
 
     /* Free Enclave */
     {
-	pet_ioctl_path(enclave_path, PISCES_FREE_ENCLAVE, (void *)(uint64_t)enclave_id);
+	pet_ioctl_path(PISCES_PATH, PISCES_FREE_ENCLAVE, (void *)(uint64_t)enclave_id);
     }
 
     

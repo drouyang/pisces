@@ -399,7 +399,7 @@ pisces_enclave_free(struct pisces_enclave * enclave)
 
 	remove_proc_entry("memory", enclave->proc_dir);
 	remove_proc_entry("cpus",   enclave->proc_dir);
-	remove_proc_entry("name",   pisces_proc_dir);
+	remove_proc_entry(name,     pisces_proc_dir);
     }
 
     free_enclave_index(enclave->id);
