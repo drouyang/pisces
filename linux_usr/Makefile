@@ -10,6 +10,7 @@ libs := 	$(PETLIB)/petlib.a
 
 execs := 	pisces_load \
 		pisces_launch \
+		pisces_shutdown \
 		pisces_ctrl \
 		pisces_cons \
 		v3_create \

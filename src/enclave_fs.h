@@ -59,26 +59,32 @@ struct enclave_fs {
 };
 
 
-int init_enclave_fs(struct pisces_enclave * enclave);
+int init_enclave_fs(struct pisces_enclave   * enclave);
+int deinit_enclave_fs(struct pisces_enclave * enclave);
 
-int enclave_vfs_read_lcall(struct pisces_enclave    * enclave, 
-			   struct pisces_xbuf_desc  * xbuf_desc, 
-			   struct vfs_read_lcall    * lcall);
+int 
+enclave_vfs_read_lcall(struct pisces_enclave    * enclave, 
+		       struct pisces_xbuf_desc  * xbuf_desc, 
+		       struct vfs_read_lcall    * lcall);
 
-int enclave_vfs_write_lcall(struct pisces_enclave   * enclave, 
-			    struct pisces_xbuf_desc * xbuf_desc, 
-			    struct vfs_write_lcall  * lcall);
+int 
+enclave_vfs_write_lcall(struct pisces_enclave   * enclave, 
+			struct pisces_xbuf_desc * xbuf_desc, 
+			struct vfs_write_lcall  * lcall);
 
-int enclave_vfs_open_lcall(struct pisces_enclave    * enclave,
-			   struct pisces_xbuf_desc  * xbuf_desc, 
-			   struct vfs_open_lcall    * lcall);
+int 
+enclave_vfs_open_lcall(struct pisces_enclave    * enclave,
+		       struct pisces_xbuf_desc  * xbuf_desc, 
+		       struct vfs_open_lcall    * lcall);
 
-int enclave_vfs_close_lcall(struct pisces_enclave   * enclave,
-			    struct pisces_xbuf_desc * xbuf_desc, 
-			    struct vfs_close_lcall  * lcall);
+int 
+enclave_vfs_close_lcall(struct pisces_enclave   * enclave,
+			struct pisces_xbuf_desc * xbuf_desc, 
+			struct vfs_close_lcall  * lcall);
 
-int enclave_vfs_size_lcall(struct pisces_enclave    * enclave,
-			   struct pisces_xbuf_desc  * xbuf_desc, 
-			   struct vfs_size_lcall    * lcall);
+int 
+enclave_vfs_size_lcall(struct pisces_enclave    * enclave,
+		       struct pisces_xbuf_desc  * xbuf_desc, 
+		       struct vfs_size_lcall    * lcall);
 
 #endif

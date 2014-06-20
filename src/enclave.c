@@ -132,14 +132,6 @@ enclave_ioctl(struct file  * filp,
 
                 break;
             }
-	case PISCES_ENCLAVE_SHUTDOWN:
-	    {
-		
-		/* Let the enclave know it is going to be shut down */
-		
-		
-		break;
-	    }
         case PISCES_ENCLAVE_CONS_CONNECT:
             {
                 printk(KERN_DEBUG "Open enclave console...\n");
@@ -229,7 +221,7 @@ proc_cpu_open(struct inode * inode,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
     void * data = PDE(inode)->data;
 #else 
-    void * data = inode->i_private;
+    void * data = PDE_DATA(inode);
 #endif
 
     return single_open(filp, proc_cpu_show, data);
@@ -302,7 +294,7 @@ pisces_enclave_create(struct pisces_image * img)
     INIT_LIST_HEAD(&(enclave->memdesc_list));
 
     init_enclave_fs(enclave);
-    pisces_pci_init(enclave);
+    init_enclave_pci(enclave);
 
     enclave->dev          = MKDEV(pisces_major_num, enclave_idx);
     enclave->memdesc_num  = 0;
@@ -394,7 +386,38 @@ int
 pisces_enclave_free(struct pisces_enclave * enclave) 
 {
 
+    /* Free Enclave device file */
+    device_destroy(pisces_class, enclave->dev);
+    cdev_del(&(enclave->cdev));
+
+    /* Free proc entries */
+    {
+	char name[128];
+	
+	memset(name, 0, 128);
+	snprintf(name, 128, "enclave-%d", enclave->id);
+
+	remove_proc_entry("memory", enclave->proc_dir);
+	remove_proc_entry("cpus",   enclave->proc_dir);
+	remove_proc_entry("name",   pisces_proc_dir);
+    }
+
     free_enclave_index(enclave->id);
+
+    deinit_enclave_fs(enclave);
+    deinit_enclave_pci(enclave);
+    
+    /* Remove Memory descriptors */
+    {
+	struct enclave_mem_block * memdesc = NULL;
+	struct enclave_mem_block * tmp     = NULL;
+
+	list_for_each_entry_safe(memdesc, tmp, &(enclave->memdesc_list), node) {
+	    list_del(&(memdesc->node));
+	    kfree(memdesc);
+	}
+    }
+
     kfree(enclave);
 
     return 0;
@@ -424,7 +447,7 @@ pisces_enclave_add_mem(struct pisces_enclave * enclave,
 		       u32                     pages) 
 {
     struct enclave_mem_block * memdesc = kmalloc(sizeof(struct enclave_mem_block), GFP_KERNEL);
-    struct enclave_mem_block * iter = NULL;
+    struct enclave_mem_block * iter    = NULL;
 
     if (IS_ERR(memdesc)) {
 	printk(KERN_ERR "Could not allocate memory descriptor\n");

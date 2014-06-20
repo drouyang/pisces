@@ -6,26 +6,26 @@ XPMEM_KERN_PATH=/home/briankoco/xpmem/kernel
 
 obj-m += pisces.o
 
-pisces-objs :=  src/main.o \
-		src/boot.o \
-		src/enclave_cons.o \
-		src/enclave_ctrl.o \
-		src/pisces_lcall.o \
-		src/pisces_xbuf.o \
-		src/enclave_fs.o \
+pisces-objs :=  src/main.o             \
+		src/boot.o             \
+		src/enclave_cons.o     \
+		src/enclave_ctrl.o     \
+		src/pisces_lcall.o     \
+		src/pisces_xbuf.o      \
+		src/enclave_fs.o       \
+		src/enclave_pci.o      \
 		src/wakeup_secondary.o \
-		src/ipi.o \
-		src/enclave.o \
-		src/pisces_lock.o \
-		src/pisces_ringbuf.o \
-		src/file_io.o \
-		src/linux_syms.o \
-		src/launch_code.o \
-		src/pgtables.o \
-		src/util-hashtable.o \
-		src/util-queue.o \
-		src/v3_console.o \
-		src/pisces_pci.o
+		src/ipi.o              \
+		src/enclave.o          \
+		src/pisces_lock.o      \
+		src/pisces_ringbuf.o   \
+		src/file_io.o          \
+		src/linux_syms.o       \
+		src/launch_code.o      \
+		src/pgtables.o         \
+		src/util-hashtable.o   \
+		src/util-queue.o       \
+		src/v3_console.o 
 
 ifeq ($(XPMEM),y)
 EXTRA_CFLAGS         += -I$(XPMEM_KERN_PATH)/include -DUSING_XPMEM

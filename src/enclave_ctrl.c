@@ -14,15 +14,19 @@
 #include "boot.h"
 #include "ctrl_cmds.h"
 #include "pisces_xbuf.h"
-#include "pisces_pci.h"
+#include "enclave_pci.h"
 
 #include "v3_console.h"
 
 
 static ssize_t
-ctrl_read(struct file * filp, char __user * buffer, size_t length, loff_t * offset ) {
+ctrl_read(struct file * filp, 
+	  char __user * buffer, 
+	  size_t        length, 
+	  loff_t      * offset ) 
+{
     struct pisces_enclave * enclave = filp->private_data;
-    struct pisces_ctrl * ctrl = &(enclave->ctrl);
+    struct pisces_ctrl    * ctrl    = &(enclave->ctrl);
     unsigned long flags;
     int ret = 0;
 
@@ -37,7 +41,12 @@ ctrl_read(struct file * filp, char __user * buffer, size_t length, loff_t * offs
 }
 
 // Allow ctrl server to write in a raw command
-static ssize_t ctrl_write(struct file * filp, const char __user * buffer, size_t length, loff_t * offset) {
+static ssize_t 
+ctrl_write(struct file       * filp, 
+	   const char __user * buffer, 
+	   size_t              length, 
+	   loff_t            * offset) 
+{
     //  struct pisces_enclave * enclave = filp->private_data;
 
 
@@ -230,7 +239,7 @@ ctrl_ioctl(struct file   * filp,
 
 	    printk("Init an offlined PCI device\n");
 
-	    ret = pisces_pci_add_dev(enclave, &cmd.spec);
+	    ret = enclave_pci_add_dev(enclave, &cmd.spec);
 
 	    if (ret != 0) {
 		printk(KERN_ERR "Could not initailize PCI device\n");
@@ -245,7 +254,7 @@ ctrl_ioctl(struct file   * filp,
 
 	    if ((ret != 0) || (status != 0)) {
 		printk(KERN_ERR "Error adding PCI device to Enclave %d\n", enclave->id);
-		pisces_pci_remove_dev(enclave, &cmd.spec);
+		enclave_pci_remove_dev(enclave, &cmd.spec);
 		return -1;
 	    }
 
@@ -275,7 +284,7 @@ ctrl_ioctl(struct file   * filp,
 	    }
 
 	    /* Free Linux resources */	    
-	    if (pisces_pci_remove_dev(enclave, &cmd.spec) != 0) {
+	    if (enclave_pci_remove_dev(enclave, &cmd.spec) != 0) {
 		printk(KERN_ERR "Error removing Pisces device from Enclave state\n");
 		return -1;
 	    }
@@ -365,6 +374,26 @@ ctrl_ioctl(struct file   * filp,
 	    if (ret != 0) {
 		printk(KERN_ERR "Error sending debug command [%d] to VM (%d)\n",
 		       cmd.dbg_spec.cmd, cmd.dbg_spec.vm_id);
+		return -1;
+	    }
+
+	    break;
+	}
+
+	case ENCLAVE_CMD_SHUTDOWN: {
+	    struct pisces_cmd cmd;
+
+	    memset(&cmd, 0, sizeof(struct pisces_cmd));
+
+	    cmd.cmd      = ENCLAVE_CMD_SHUTDOWN;
+	    cmd.data_len = 0;
+	    
+	    ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct pisces_cmd), (u8 **)&resp, &resp_len);
+
+	    kfree(resp);
+
+	    if (ret != 0) {
+		printk(KERN_ERR "Error sending shutdown command to enclave\n");
 		return -1;
 	    }
 

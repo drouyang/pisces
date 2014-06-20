@@ -292,3 +292,15 @@ init_enclave_fs(struct pisces_enclave * enclave)
 
     return 0;
 }
+
+
+int 
+deinit_enclave_fs(struct pisces_enclave * enclave)
+{
+
+    /* Iterate through open files and close each one.  */
+
+    /* Delete htable */
+
+    return -1;
+}

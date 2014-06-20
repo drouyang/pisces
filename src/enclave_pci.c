@@ -12,7 +12,7 @@
 #include <linux/iommu.h>
 
 #include "ctrl_cmds.h"
-#include "pisces_pci.h"
+#include "enclave_pci.h"
 #include "pisces_lcall.h"
 #include "enclave.h"
 #include "ipi.h"
@@ -117,8 +117,8 @@ static struct pisces_pci_dev *
 find_dev_by_name(struct pisces_enclave * enclave,
 		 char                  * name) 
 {
-    struct pisces_pci_state * pci_state = &(enclave->pci_state);
-    struct pisces_pci_dev   * dev       = NULL;
+    struct enclave_pci_state * pci_state = &(enclave->pci_state);
+    struct pisces_pci_dev    * dev       = NULL;
 	
     if (list_empty(&(pci_state->dev_list))) {
 	return NULL;
@@ -156,12 +156,12 @@ send_resp(struct pisces_xbuf_desc * xbuf_desc,
  * calling this function
  */
 int
-pisces_pci_add_dev(struct pisces_enclave  * enclave,
-		   struct pisces_pci_spec * spec)
+enclave_pci_add_dev(struct pisces_enclave  * enclave,
+		    struct pisces_pci_spec * spec)
 {
-    struct pisces_pci_state * pci_state = &(enclave->pci_state);
-    struct pisces_pci_dev   * pci_dev   = NULL;
-    struct pci_dev          * dev       = NULL;
+    struct enclave_pci_state * pci_state = &(enclave->pci_state);
+    struct pisces_pci_dev    * pci_dev   = NULL;
+    struct pci_dev           * dev       = NULL;
     unsigned long flags;
     int ret = 0;
 
@@ -287,12 +287,12 @@ pisces_pci_add_dev(struct pisces_enclave  * enclave,
 }
 
 int
-pisces_pci_remove_dev(struct pisces_enclave  * enclave,
-		      struct pisces_pci_spec * spec)
+enclave_pci_remove_dev(struct pisces_enclave  * enclave,
+		       struct pisces_pci_spec * spec)
 {
-    struct pisces_pci_state * pci_state = &(enclave->pci_state);
-    struct pisces_pci_dev   * pci_dev   = NULL;
-    struct pci_dev          * dev       = NULL;
+    struct enclave_pci_state * pci_state = &(enclave->pci_state);
+    struct pisces_pci_dev    * pci_dev   = NULL;
+    struct pci_dev           * dev       = NULL;
 
     unsigned long flags = 0;
 
@@ -383,12 +383,12 @@ _host_pci_intx_irq_handler(int    irq,
 
 
 int
-pisces_pci_iommu_map(struct pisces_enclave      * enclave,
-		     struct pisces_xbuf_desc    * xbuf_desc,
-		     struct pci_iommu_map_lcall * lcall)
+enclave_pci_iommu_map(struct pisces_enclave      * enclave,
+		      struct pisces_xbuf_desc    * xbuf_desc,
+		      struct pci_iommu_map_lcall * lcall)
 {
-    struct pisces_pci_state * pci_state = &(enclave->pci_state);
-    struct pisces_pci_dev   * pci_dev   = NULL;
+    struct enclave_pci_state * pci_state = &(enclave->pci_state);
+    struct pisces_pci_dev    * pci_dev   = NULL;
     unsigned long irq_flags = 0;
     int ret  = 0;
 
@@ -451,12 +451,12 @@ pisces_pci_iommu_map(struct pisces_enclave      * enclave,
 
 
 int
-pisces_pci_iommu_unmap(struct pisces_enclave      * enclave,
-		       struct pisces_xbuf_desc    * xbuf_desc,
-		       struct pci_iommu_unmap_lcall * lcall)
+enclave_pci_iommu_unmap(struct pisces_enclave      * enclave,
+			struct pisces_xbuf_desc    * xbuf_desc,
+			struct pci_iommu_unmap_lcall * lcall)
 {
-    struct pisces_pci_state * pci_state = &(enclave->pci_state);
-    struct pisces_pci_dev   * pci_dev   = NULL;
+    struct enclave_pci_state * pci_state = &(enclave->pci_state);
+    struct pisces_pci_dev    * pci_dev   = NULL;
     unsigned long flags = 0;
     int ret  = 0;
 
@@ -520,12 +520,12 @@ pisces_pci_iommu_unmap(struct pisces_enclave      * enclave,
 }
 
 int
-pisces_pci_attach(struct pisces_enclave   * enclave,
-		  struct pisces_xbuf_desc * xbuf_desc,
-		  struct pci_attach_lcall * lcall)
+enclave_pci_attach(struct pisces_enclave   * enclave,
+		   struct pisces_xbuf_desc * xbuf_desc,
+		   struct pci_attach_lcall * lcall)
 {
-    struct pisces_pci_state * pci_state = &(enclave->pci_state);
-    struct pisces_pci_dev   * pci_dev   = NULL;
+    struct enclave_pci_state * pci_state = &(enclave->pci_state);
+    struct pisces_pci_dev    * pci_dev   = NULL;
     unsigned long flags = 0;
     int ret = 0;
 
@@ -581,12 +581,13 @@ pisces_pci_attach(struct pisces_enclave   * enclave,
 }
 
 
-int pisces_pci_detach(struct pisces_enclave   * enclave,
-		      struct pisces_xbuf_desc * xbuf_desc,
-		      struct pci_detach_lcall * lcall)
+int 
+enclave_pci_detach(struct pisces_enclave   * enclave,
+		   struct pisces_xbuf_desc * xbuf_desc,
+		   struct pci_detach_lcall * lcall)
 {
-    struct pisces_pci_state * pci_state = &(enclave->pci_state);
-    struct pisces_pci_dev   * pci_dev   = NULL;
+    struct enclave_pci_state * pci_state = &(enclave->pci_state);
+    struct pisces_pci_dev    * pci_dev   = NULL;
     unsigned long flags = 0;
 
     spin_lock_irqsave(&(pci_state->lock), flags);
@@ -623,12 +624,12 @@ int pisces_pci_detach(struct pisces_enclave   * enclave,
 
 
 int 
-pisces_pci_ack_irq(struct pisces_enclave    * enclave,
-		   struct pisces_xbuf_desc  * xbuf_desc,
-		   struct pci_ack_irq_lcall * lcall)
+enclave_pci_ack_irq(struct pisces_enclave    * enclave,
+		    struct pisces_xbuf_desc  * xbuf_desc,
+		    struct pci_ack_irq_lcall * lcall)
 {
-    struct pisces_pci_state * pci_state = &(enclave->pci_state);
-    struct pisces_pci_dev   * pci_dev   = NULL;
+    struct enclave_pci_state * pci_state = &(enclave->pci_state);
+    struct pisces_pci_dev    * pci_dev   = NULL;
 
     char          * name  = lcall->name;
     unsigned long   flags = 0;;
@@ -659,12 +660,12 @@ pisces_pci_ack_irq(struct pisces_enclave    * enclave,
 }
 
 int 
-pisces_pci_cmd(struct pisces_enclave   * enclave,
-	       struct pisces_xbuf_desc * xbuf_desc,
-	       struct pci_cmd_lcall    * lcall)
+enclave_pci_cmd(struct pisces_enclave   * enclave,
+		struct pisces_xbuf_desc * xbuf_desc,
+		struct pci_cmd_lcall    * lcall)
 {
-    struct pisces_pci_state * pci_state = &(enclave->pci_state);
-    struct pisces_pci_dev   * pci_dev   = NULL;
+    struct enclave_pci_state * pci_state = &(enclave->pci_state);
+    struct pisces_pci_dev    * pci_dev   = NULL;
 
     host_pci_cmd_t  cmd   = lcall->cmd;
     char          * name  = lcall->name;
@@ -733,13 +734,20 @@ pisces_pci_cmd(struct pisces_enclave   * enclave,
 
 
 int
-pisces_pci_init(struct pisces_enclave * enclave) 
+init_enclave_pci(struct pisces_enclave * enclave) 
 {
-    struct pisces_pci_state * pci_state = &(enclave->pci_state);
+    struct enclave_pci_state * pci_state = &(enclave->pci_state);
 
     spin_lock_init(&(pci_state->lock));
     INIT_LIST_HEAD(&(pci_state->dev_list));
     pci_state->dev_num = 0;
     
     return 0;
+}
+
+
+int
+deinit_enclave_pci(struct pisces_enclave * enclave)
+{
+    return -1;
 }

@@ -16,7 +16,7 @@
 #include "pisces_xpmem.h"
 #include "pisces_lcall.h"
 #include "enclave_fs.h"
-#include "pisces_pci.h"
+#include "enclave_pci.h"
 
 #define ENCLAVE_LOADED      1
 #define ENCLAVE_RUNNING     2
@@ -51,7 +51,7 @@ struct pisces_enclave {
 #endif
     struct pisces_lcall_state   lcall_state;
     struct enclave_fs           fs_state;
-    struct pisces_pci_state     pci_state;
+    struct enclave_pci_state     pci_state;
 
     uintptr_t bootmem_addr_pa;
     u64       bootmem_size;

@@ -62,6 +62,9 @@ struct pisces_resp {
 
 #define ENCLAVE_CMD_XPMEM_CMD_EX       300
 
+
+#define ENCLAVE_CMD_SHUTDOWN           900
+
 struct memory_range {
     u64 base_addr;
     u64 pages;
