@@ -83,7 +83,26 @@ setup_ident_pts(struct pisces_enclave     * enclave,
             ident_pgt->pd0[index].writable        = 1;
             ident_pgt->pd0[index].dirty           = 1;
             ident_pgt->pd0[index].accessed        = 1;
-            ident_pgt->pd0[index].global_page     = 1;
+            ident_pgt->pd0[index].global_page     = 1;   /* <---- HACK! HACK! HACK! HACK! (HOLY SHIT!!!)
+
+							    When Linux/Kitten boot secondary cores they jump out of the trampoline 
+							    to kernel _VIRTUAL_ addresses. Pisces does not currently provide a mapping for 
+							    those virtual addresses and so it sets the trampoline target to the  physical/identity 
+							    mapped address. However Linux/Kitten blow away their identity mappings after the BSP 
+							    comes up so the address pisces uses is invalid. The hideous trick hidden here is that 
+							    by setting the global bit the TLB entries for the identity mapping won't be lost once the 
+							    page tables are reloaded. So effectively pisces forces the enclave to execute the secondary
+							    startup code from _STALE_ TLB entries. 
+
+							    Pisces must just hope to god that the secondary startup doesn't span PTE entries and miss 
+							    in the TLB, or that the enclave uses a more effective TLB flush mechanism, or is executing 
+							    on a platform that does not honor the PGE flag (Like QEMU!!! or a number of other VMMs).
+							    Otherwise the enclave is going to trigger a page fault with the IDT loaded at an unmapped address, 
+							    leading to a double fault, leading to a hard system reset. 
+							 
+							    WHY THE FUCK WASN'T THIS COMMENTED????????
+							 */
+
 
 	    addr += PAGE_SIZE_2MB;
         }
