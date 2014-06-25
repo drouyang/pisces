@@ -29,19 +29,19 @@
 #define PTE32PAE_INDEX(x)  ((((u32)x) >> 12) & 0x1ff)
 
 #define PML4E64_INDEX(x) ((((u64)x) >> 39) & 0x1ff)
-#define PDPE64_INDEX(x) ((((u64)x) >> 30) & 0x1ff)
-#define PDE64_INDEX(x) ((((u64)x) >> 21) & 0x1ff)
-#define PTE64_INDEX(x) ((((u64)x) >> 12) & 0x1ff)
+#define PDPE64_INDEX(x)  ((((u64)x) >> 30) & 0x1ff)
+#define PDE64_INDEX(x)   ((((u64)x) >> 21) & 0x1ff)
+#define PTE64_INDEX(x)   ((((u64)x) >> 12) & 0x1ff)
 
 
 /* Gets the base address needed for a Page Table entry */
-#define PAGE_TO_BASE_ADDR(x) ((x) >> 12)
+#define PAGE_TO_BASE_ADDR(x)     ((x) >> 12)
 #define PAGE_TO_BASE_ADDR_4KB(x) ((x) >> 12)
 #define PAGE_TO_BASE_ADDR_2MB(x) ((x) >> 21)
 #define PAGE_TO_BASE_ADDR_4MB(x) ((x) >> 22)
 #define PAGE_TO_BASE_ADDR_1GB(x) ((x) >> 30)
 
-#define BASE_TO_PAGE_ADDR(x) (((uintptr_t)x) << 12)
+#define BASE_TO_PAGE_ADDR(x)     (((uintptr_t)x) << 12)
 #define BASE_TO_PAGE_ADDR_4KB(x) (((uintptr_t)x) << 12)
 #define BASE_TO_PAGE_ADDR_2MB(x) (((uintptr_t)x) << 21)
 #define BASE_TO_PAGE_ADDR_4MB(x) (((uintptr_t)x) << 22)
@@ -55,14 +55,14 @@
 #define PAGE_OFFSET_4MB(x) ((x) & 0x3fffff)
 #define PAGE_OFFSET_1GB(x) ((x) & 0x3fffffff)
 
-#define PAGE_POWER 12
+#define PAGE_POWER     12
 #define PAGE_POWER_4KB 12
 #define PAGE_POWER_2MB 21
 #define PAGE_POWER_4MB 22
 #define PAGE_POWER_1GB 30
 
 // We shift instead of mask because we don't know the address size
-#define PAGE_ADDR(x) (((x) >> PAGE_POWER) << PAGE_POWER)
+#define PAGE_ADDR(x)     (((x) >> PAGE_POWER) << PAGE_POWER)
 #define PAGE_ADDR_4KB(x) (((x) >> PAGE_POWER_4KB) << PAGE_POWER_4KB)
 #define PAGE_ADDR_2MB(x) (((x) >> PAGE_POWER_2MB) << PAGE_POWER_2MB)
 #define PAGE_ADDR_4MB(x) (((x) >> PAGE_POWER_4MB) << PAGE_POWER_4MB)
@@ -336,5 +336,6 @@ typedef struct pf_error_code {
 } __attribute__((packed)) pf_error_t;
 
 int dump_pgtables(uintptr_t cr3, uintptr_t vaddr);
+int walk_pgtables(uintptr_t cr3);
 
 #endif /*_PGTABLES_H */

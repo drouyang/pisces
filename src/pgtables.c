@@ -13,16 +13,19 @@ static inline uintptr_t get_cr3(void) {
     return (uintptr_t)cr3;
 }
 
-int dump_pgtables(uintptr_t cr3, uintptr_t vaddr) {
-    pml4e64_t * pml = (pml4e64_t *) cr3;
-    pdpe64_t * pdp = NULL;
-    pde64_t * pd = NULL;
-    pte64_t * pt = NULL;
+int 
+dump_pgtables(uintptr_t cr3, 
+	      uintptr_t vaddr) 
+{
+    pml4e64_t * pml = (pml4e64_t *) __va(cr3);
+    pdpe64_t  * pdp = NULL;
+    pde64_t   * pd  = NULL;
+    pte64_t   * pt  = NULL;
 
     pml4e64_t * pml_entry = NULL;
-    pdpe64_t * pdp_entry = NULL;
-    pde64_t * pd_entry = NULL;
-    pte64_t * pt_entry = NULL;
+    pdpe64_t  * pdp_entry = NULL;
+    pde64_t   * pd_entry  = NULL;
+    pte64_t   * pt_entry  = NULL;
 
     if (cr3 == 0) {
         printk("Error dumpping a NULL cr3\n");
@@ -76,5 +79,127 @@ int dump_pgtables(uintptr_t cr3, uintptr_t vaddr) {
 
         printk("Page addr: %p\n", (void *) page_addr);
     }
+
     return 0;
+}
+
+
+
+int 
+walk_pgtables(uintptr_t cr3_va) 
+{
+    pml4e64_t * pml = (pml4e64_t *)cr3_va;
+    pdpe64_t  * pdp = NULL;
+    pde64_t   * pd  = NULL;
+    pte64_t   * pt  = NULL;
+
+    pml4e64_t * pml_entry = NULL;
+    pdpe64_t  * pdp_entry = NULL;
+    pde64_t   * pd_entry  = NULL;
+    pte64_t   * pt_entry  = NULL;   
+
+    int i = 0;
+    int j = 0;
+    int k = 0;
+    int m = 0;
+
+    uintptr_t addr_iter = 0;
+
+    if (cr3_va == 0) {
+        printk("Error dumpping a NULL cr3\n");
+        return -1;
+    }
+
+    
+    for (i = 0; i < 512; i++) {
+	
+	pml_entry = &pml[i];
+
+	if (!pml_entry->present) {
+	    // printk("PDP Not present (idx = %llu)\n", PML4E64_INDEX(vaddr));
+	    addr_iter += (uintptr_t)(PAGE_SIZE_1GB) * (uintptr_t)512;
+	    continue;
+	} else {
+	    // printk("Found PDP (idx = %llu)\n", PML4E64_INDEX(vaddr));
+	    pdp = __va(BASE_TO_PAGE_ADDR(pml_entry->pdp_base_addr));
+	}
+
+	for (j = 0; j < 512; j++) {
+
+
+	    pdp_entry = &pdp[j];
+	    
+	    if (!pdp_entry->present) {
+		addr_iter += PAGE_SIZE_1GB;
+		continue;
+	    } else if (pdp_entry->large_page) {
+		printk("1G page: %p -> %p\n", 
+		       (void *)addr_iter, 
+		       (void *) BASE_TO_PAGE_ADDR_1GB(((pdpe64_1GB_t *)pdp_entry)->page_base_addr));
+		addr_iter += PAGE_SIZE_1GB;
+		udelay(10);
+		continue;
+	    } else {
+		//		printk("Found PD (idx = %llu)\n", PDPE64_INDEX(vaddr));
+		pd = __va(BASE_TO_PAGE_ADDR(pdp_entry->pd_base_addr));
+	    }
+
+
+	    for (k = 0; k < 512; k++) {
+
+		pd_entry = &pd[k];
+
+		if (!pd_entry->present) {
+		    //		    printk("PT not present (idx = %llu)\n", PDE64_INDEX(vaddr));
+		    addr_iter += PAGE_SIZE_2MB;
+		    continue;
+		    
+		} else if (pd_entry->large_page) {
+		    printk("2M page: %p -> %p (i=%d, j=%d, k=%d, m=%d)\n", 
+			   (void *)addr_iter,
+			   (void *) (BASE_TO_PAGE_ADDR_2MB(((pde64_2MB_t *)pd_entry)->page_base_addr)),
+			   i, j, k, m);
+
+		    addr_iter += PAGE_SIZE_2MB;
+		    udelay(10);
+
+		    continue;
+		} else {
+		    //		    printk("Found PT (idx = %llu)\n", PDE64_INDEX(vaddr));
+		    pt = __va(BASE_TO_PAGE_ADDR(pd_entry->pt_base_addr));
+		}
+
+
+
+		for (m = 0; m < 512; m++) {
+
+
+		    pt_entry = &pt[m];
+		    
+		    if (!pt_entry->present) {
+			//	printk("Page entry not present (idx=%llu), vaddr = %p\n", PTE64_INDEX(vaddr), (void *) vaddr);
+			addr_iter += PAGE_SIZE_4KB;
+		    } else {
+			uintptr_t page_addr = BASE_TO_PAGE_ADDR(pt_entry->page_base_addr);
+			
+			printk("4K page: %p -> %p\n", 
+			       (void *)addr_iter,
+			       (void *) page_addr);
+			udelay(10);
+
+			addr_iter += PAGE_SIZE_4KB;
+		    }
+
+		}
+
+
+	    }
+
+	}
+	
+
+    }
+
+    return 0;
+
 }
