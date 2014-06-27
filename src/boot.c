@@ -477,10 +477,33 @@ boot_enclave(struct pisces_enclave * enclave)
     __wakeup_secondary_cpu_via_init(apicid);
 	
     /* Delay for target CPU to use Linux trampoline*/
-    //udelay(500);
-    mdelay(10);
+    {
+	int i = 0;
+
+	for (i = 0; i < 15; i++) {
+	    if (boot_params->initialized == 1) {
+		break;
+	    }
+
+	    printk("...Waiting (%d)\n", i);
+	    mdelay(100);
+	}
 	
+	if (boot_params->initialized == 1) {
+	    printk("Enclave CPU has initialized\n");
+	} else {
+	    printk(KERN_ERR "Error: Enclave CPU timed out\n");
+	    printk(KERN_ERR "TODO:  Quiesce CPU with INIT IPI\n");
+
+	    ret = -1;
+
+	    // Quiesce the CPU via an INIT IPI
+	} 
+
+    }	
+
     pisces_restore_trampoline(enclave);
+
 
 
     return ret;

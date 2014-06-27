@@ -142,9 +142,21 @@ setup_boot_params(struct pisces_enclave * enclave)
      *   copy in loading ASM
      */
     {
-        extern u8 launch_code_start;
+        extern u8 launch_code_start[];
+	extern u8 launch_code_end[];
 
-        memcpy(boot_params->launch_code, &launch_code_start, LAUNCH_CODE_SIZE);
+	u64 launch_code_size = launch_code_end - launch_code_start;
+
+	if (launch_code_size != sizeof(boot_params->launch_code)) {
+	    printk(KERN_ERR "Error: Launch code does not fit boot parameter buffer\n");
+	    printk(KERN_ERR "\t launch_code length = %llu, buffer size = %lu\n", 
+		   launch_code_size,
+		   sizeof(boot_params->launch_code));
+	    
+	    return -1;
+	}
+
+        memcpy(boot_params->launch_code, &launch_code_start, launch_code_size);
 
         printk("Launch code is at %p\n",
                 (void *)__pa(&boot_params->launch_code));
@@ -156,23 +168,21 @@ setup_boot_params(struct pisces_enclave * enclave)
      */
     {
 
-	boot_params->magic = PISCES_MAGIC;
 	strncpy(boot_params->cmd_line, enclave->kern_cmdline, 1024);
-	
-	
-	boot_params->cpu_id  = enclave->boot_cpu;
-	boot_params->apic_id = apic->cpu_present_to_apicid(enclave->boot_cpu);
-	// Record pre-calculated cpu speed
-	boot_params->cpu_khz = cpu_khz;
 
-	// Linux trampoline address
-	boot_params->trampoline_code_pa = trampoline_state.cpu_init_rip;
-	printk("Linux trampoline at %p\n", (void *)trampoline_state.cpu_init_rip);
+	boot_params->magic              = PISCES_MAGIC;
+	boot_params->cpu_id             = enclave->boot_cpu;
+	boot_params->apic_id            = apic->cpu_present_to_apicid(enclave->boot_cpu);
+	boot_params->cpu_khz            = cpu_khz;   /* Record pre-calculated cpu speed */
+
+	boot_params->trampoline_code_pa = trampoline_state.cpu_init_rip;  /* Linux trampoline address */
 	
-	boot_params->base_mem_paddr = enclave->bootmem_addr_pa;
-	boot_params->base_mem_size  = enclave->bootmem_size;
+	boot_params->base_mem_paddr     = enclave->bootmem_addr_pa;
+	boot_params->base_mem_size      = enclave->bootmem_size;
 
 	offset += sizeof_boot_params(enclave);
+
+	printk("Linux trampoline at %p\n", (void *)trampoline_state.cpu_init_rip);
 	printk("boot params initialized. Offset at %p\n", (void *)(base_addr + offset));
     }
 
