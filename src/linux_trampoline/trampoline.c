@@ -75,7 +75,7 @@ init_linux_trampoline(void)
             return -1;
         }
 
-       __cpu_maps_update_done = (void (*)(void))symbol_addr;
+       __cpu_maps_update_begin = (void (*)(void))symbol_addr;
     }
 
     /* Symbol:
@@ -89,7 +89,7 @@ init_linux_trampoline(void)
             return -1;
         }
 
-        __cpu_maps_update_begin = (void (*)(void))symbol_addr;
+        __cpu_maps_update_done = (void (*)(void))symbol_addr;
     }
 
 

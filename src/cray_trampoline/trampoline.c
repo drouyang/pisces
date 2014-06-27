@@ -40,7 +40,7 @@ init_cray_trampoline(void)
             return -1;
         }
 
-        __cpu_maps_update_done = (void (*)(void))symbol_addr;
+        __cpu_maps_update_begin = (void (*)(void))symbol_addr;
     }
 
     /* Symbol:
@@ -54,7 +54,7 @@ init_cray_trampoline(void)
             return -1;
         }
 
-        __cpu_maps_update_begin = (void (*)(void))symbol_addr;
+        __cpu_maps_update_done = (void (*)(void))symbol_addr;
     }
 
     /* Record the location of the trampoline to send with the INIT/SIPI IPI */
