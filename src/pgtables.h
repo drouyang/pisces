@@ -335,7 +335,7 @@ typedef struct pf_error_code {
     u32 rsvd              : 27;
 } __attribute__((packed)) pf_error_t;
 
-int dump_pgtables(uintptr_t cr3, uintptr_t vaddr);
-int walk_pgtables(uintptr_t cr3);
+int dump_pgtables(uintptr_t pgt_ptr, uintptr_t vaddr);
+int walk_pgtables(uintptr_t pgt_ptr);
 
 #endif /*_PGTABLES_H */

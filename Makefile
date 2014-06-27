@@ -7,6 +7,7 @@ XPMEM_KERN_PATH=/home/briankoco/xpmem/kernel
 obj-m += pisces.o
 
 pisces-objs :=  src/main.o             \
+		src/pisces_boot_params.o \
 		src/boot.o             \
 		src/enclave_cons.o     \
 		src/enclave_ctrl.o     \
@@ -14,7 +15,6 @@ pisces-objs :=  src/main.o             \
 		src/pisces_xbuf.o      \
 		src/enclave_fs.o       \
 		src/enclave_pci.o      \
-		src/wakeup_secondary.o \
 		src/ipi.o              \
 		src/enclave.o          \
 		src/pisces_lock.o      \
@@ -35,6 +35,8 @@ pisces-objs +=  src/pisces_xpmem.o
 
 endif
 
+
+pisces-objs += src/linux_trampoline/trampoline.o
 
 
 all:

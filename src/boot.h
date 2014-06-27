@@ -1,12 +1,29 @@
 #ifndef _BOOT_H_
 #define _BOOT_H_
 
-inline void reset_cpu(int apicid);
-int setup_boot_params(struct pisces_enclave * enclave);
+#include "pgtables.h"
+
+struct trampoline_data {
+    uintptr_t pml_pa;
+
+    uintptr_t pdp0_pa;   /* < 1GB identity map (trampoline) */
+    uintptr_t pdp1_pa;   /* > 1GB identity map (bootmem)    */
+    uintptr_t pdp2_pa;   /* Kernel address map (bootmem)    */   
+
+    uintptr_t pd0_pa;     /* < 1GB identity map (trampoline) */
+    uintptr_t pd1_pa;     /* > 1GB identity map (bootmem)    */
+    uintptr_t pd2_pa;     /* Kernel address map (bootmem)    */  
+
+    unsigned long cpu_init_rip;  
+} __attribute__((aligned(PAGE_SIZE))) __attribute__((packed));
+
+extern struct trampoline_data trampoline_state;
+
 int boot_enclave(struct pisces_enclave * enclave);
 
-void set_linux_trampoline(struct pisces_enclave * enclave);
-void restore_linux_trampoline(struct pisces_enclave * enclave);
+int init_trampoline(void);
+int setup_trampoline(struct pisces_enclave * enclave);
+int restore_trampoline(struct pisces_enclave * enclave);
 
 void trampoline_lock(void);
 void trampoline_unlock(void);

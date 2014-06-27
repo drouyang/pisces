@@ -21,6 +21,7 @@
 #include "enclave_ctrl.h"
 #include "pisces_xpmem.h"
 #include "boot.h"
+#include "pisces_boot_params.h"
 
 
 #include "pgtables.h"

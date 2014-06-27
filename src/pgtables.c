@@ -1,6 +1,7 @@
 #include <linux/types.h>
 #include "pgtables.h"
 
+
 // Returns the current CR3 value
 static inline uintptr_t get_cr3(void) {
     u64 cr3 = 0;
@@ -14,10 +15,10 @@ static inline uintptr_t get_cr3(void) {
 }
 
 int 
-dump_pgtables(uintptr_t cr3, 
+dump_pgtables(uintptr_t pgt_ptr, 
 	      uintptr_t vaddr) 
 {
-    pml4e64_t * pml = (pml4e64_t *) __va(cr3);
+    pml4e64_t * pml = (pml4e64_t *) pgt_ptr;
     pdpe64_t  * pdp = NULL;
     pde64_t   * pd  = NULL;
     pte64_t   * pt  = NULL;
@@ -27,7 +28,7 @@ dump_pgtables(uintptr_t cr3,
     pde64_t   * pd_entry  = NULL;
     pte64_t   * pt_entry  = NULL;
 
-    if (cr3 == 0) {
+    if (pgt_ptr == 0) {
         printk("Error dumpping a NULL cr3\n");
         return -1;
     }
@@ -86,9 +87,9 @@ dump_pgtables(uintptr_t cr3,
 
 
 int 
-walk_pgtables(uintptr_t cr3_va) 
+walk_pgtables(uintptr_t pgt_ptr) 
 {
-    pml4e64_t * pml = (pml4e64_t *)cr3_va;
+    pml4e64_t * pml = (pml4e64_t *)pgt_ptr;
     pdpe64_t  * pdp = NULL;
     pde64_t   * pd  = NULL;
     pte64_t   * pt  = NULL;
@@ -105,7 +106,7 @@ walk_pgtables(uintptr_t cr3_va)
 
     uintptr_t addr_iter = 0;
 
-    if (cr3_va == 0) {
+    if (pgt_ptr == 0) {
         printk("Error dumpping a NULL cr3\n");
         return -1;
     }
@@ -137,7 +138,6 @@ walk_pgtables(uintptr_t cr3_va)
 		       (void *)addr_iter, 
 		       (void *) BASE_TO_PAGE_ADDR_1GB(((pdpe64_1GB_t *)pdp_entry)->page_base_addr));
 		addr_iter += PAGE_SIZE_1GB;
-		udelay(10);
 		continue;
 	    } else {
 		//		printk("Found PD (idx = %llu)\n", PDPE64_INDEX(vaddr));
@@ -161,7 +161,6 @@ walk_pgtables(uintptr_t cr3_va)
 			   i, j, k, m);
 
 		    addr_iter += PAGE_SIZE_2MB;
-		    udelay(10);
 
 		    continue;
 		} else {
@@ -185,7 +184,6 @@ walk_pgtables(uintptr_t cr3_va)
 			printk("4K page: %p -> %p\n", 
 			       (void *)addr_iter,
 			       (void *) page_addr);
-			udelay(10);
 
 			addr_iter += PAGE_SIZE_4KB;
 		    }
@@ -203,3 +201,5 @@ walk_pgtables(uintptr_t cr3_va)
     return 0;
 
 }
+
+

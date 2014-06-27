@@ -200,6 +200,11 @@ pisces_init(void)
         return -1;
     }
 
+    if (init_trampoline() != 0) {
+	printk(KERN_ERR "Could not initialize trampoline\n");
+	return -1;
+    }
+
     if (pisces_ipi_init() != 0) {
         printk(KERN_ERR "Could not initialize Pisces IPI handler\n");
         return -1;

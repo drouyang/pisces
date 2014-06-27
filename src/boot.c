@@ -1,469 +1,290 @@
-#include <linux/fs.h>
-#include <linux/mutex.h>
+#include <linux/init.h>
+#include <linux/smp.h>
+#include <linux/module.h>
+#include <linux/sched.h>
 #include <linux/percpu.h>
-#include <linux/delay.h>
+#include <linux/bootmem.h>
+#include <linux/err.h>
+#include <linux/nmi.h>
+#include <linux/tboot.h>
+#include <linux/stackprotector.h>
+#include <linux/gfp.h>
+#include <linux/cpuidle.h>
 
-#include <asm/delay.h>
+#include <asm/acpi.h>
 #include <asm/desc.h>
-#include <asm/segment.h>
-#include <asm/uaccess.h>
+#include <asm/nmi.h>
+#include <asm/irq.h>
+#include <asm/idle.h>
+#include <asm/realmode.h>
+#include <asm/cpu.h>
+#include <asm/numa.h>
+#include <asm/pgtable.h>
+#include <asm/tlbflush.h>
+#include <asm/mtrr.h>
+#include <asm/mwait.h>
+#include <asm/apic.h>
+#include <asm/io_apic.h>
+#include <asm/i387.h>
+#include <asm/fpu-internal.h>
+#include <asm/setup.h>
+#include <asm/uv/uv.h>
+#include <linux/mc146818rtc.h>
+
+#include <asm/smpboot_hooks.h>
+#include <asm/i8259.h>
+
 #include <asm/realmode.h>
 
-#include "pisces_boot_params.h"
+#include "linux_syms.h"
 #include "enclave.h"
-#include "file_io.h"
-#include "pisces_ringbuf.h"
-#include "enclave_ctrl.h"
-#include "pisces_xpmem.h"
+#include "pisces_boot_params.h"
 
 #include "pgtables.h"
 #include "linux_syms.h"
+#include "wakeup_secondary.h"
+
+#include "boot.h"
+
+#include "linux_trampoline/trampoline.h"
 
 
 
-extern int wakeup_secondary_cpu_via_init(int, unsigned long);
-extern u64 linux_level3_ident_pgt_pa;
+struct trampoline_data trampoline_state;
 
-static inline u32 
-sizeof_boot_params(struct pisces_enclave * enclave) 
+
+static struct page * pgt_pages = NULL;
+
+
+static void
+init_trampoline_pgts(void)
 {
-    return sizeof(struct pisces_boot_params);
-}
-
-
-// setup bootstrap page tables - pisces_ident_pgt
-// 1G identity mapping start from 0
-// and 1G mapping start from enclave->bootmem_addr_pa higher than 1G
-#define MEM_ADDR_1G 0x40000000
-
-static int 
-setup_ident_pts(struct pisces_enclave     * enclave,
-		struct pisces_boot_params * boot_params, 
-		uintptr_t                   target_addr) 
-{
-    struct pisces_ident_pgt * ident_pgt = (struct pisces_ident_pgt *)target_addr;
-
-    memset(ident_pgt, 0, sizeof(struct pisces_ident_pgt));
-
-    boot_params->ident_pml4e64.pdp_base_addr = PAGE_TO_BASE_ADDR(__pa(ident_pgt->pdp));
-    boot_params->ident_pml4e64.present       = 1;
-    boot_params->ident_pml4e64.writable      = 1;
-    boot_params->ident_pml4e64.accessed      = 1;
-
-    printk(KERN_INFO "  ident_pml4e64 entry: %p", 
-	   (void *) *(u64 *) &boot_params->ident_pml4e64);
-
-    /* 1G ident mapping start from 0 for trampoline code
-     * and enclave boot memory lower than 1G
+    /* 
+     * Clear the pages individually to avoid any overrun bugs
      */
+    memset(__va(trampoline_state.pml_pa),  0, PAGE_SIZE);
+    memset(__va(trampoline_state.pdp0_pa), 0, PAGE_SIZE);
+    memset(__va(trampoline_state.pdp1_pa), 0, PAGE_SIZE);
+    memset(__va(trampoline_state.pdp2_pa), 0, PAGE_SIZE);
+    memset(__va(trampoline_state.pd0_pa),  0, PAGE_SIZE);
+    memset(__va(trampoline_state.pd1_pa),  0, PAGE_SIZE);
+    memset(__va(trampoline_state.pd2_pa),  0, PAGE_SIZE);
 
+
+
+    /* Map only first 2MB as identity  */
     {
-        int index = 0;
-        u64 addr  = 0;
-        u64 i     = 0;
+	pml4e64_t   * pml  = __va(trampoline_state.pml_pa);
+	pdpe64_t    * pdp0 = __va(trampoline_state.pdp0_pa);
+	pde64_2MB_t * pd0  = __va(trampoline_state.pd0_pa);
 
-        index = PDPE64_INDEX(addr);
+	pml4e64_t   * pml_entry = &(pml[0]);
+	pdpe64_t    * pdp_entry = &(pdp0[0]);
+	pde64_2MB_t * pd_entry  = &(pd0[0]);
 
-        ident_pgt->pdp[index].pd_base_addr = PAGE_TO_BASE_ADDR(__pa(ident_pgt->pd0));
-        ident_pgt->pdp[index].present      = 1;
-        ident_pgt->pdp[index].writable     = 1;
-        ident_pgt->pdp[index].accessed     = 1;
+	pml_entry->present       = 1;
+	pml_entry->writable      = 1;
+	pml_entry->pdp_base_addr = PAGE_TO_BASE_ADDR(trampoline_state.pdp0_pa);
 
-        printk(KERN_INFO "  pdp[%d]: %p\n", 
-	       index, 
-                (void *) *(u64 *) &ident_pgt->pdp[index]);
+	pdp_entry->present       = 1;
+	pdp_entry->writable      = 1;
+	pdp_entry->pd_base_addr  = PAGE_TO_BASE_ADDR(trampoline_state.pd0_pa);
 
-        for (i = 0; i < MAX_PDE64_ENTRIES; i++) {
+	pd_entry->present        = 1;
+	pd_entry->writable       = 1;
+	pd_entry->large_page     = 1;
+	pd_entry->page_base_addr = PAGE_TO_BASE_ADDR_2MB(0);
 
-            index = PDE64_INDEX(addr);
-
-            ident_pgt->pd0[index].page_base_addr  = PAGE_TO_BASE_ADDR_2MB(addr);
-            ident_pgt->pd0[index].large_page      = 1;
-            ident_pgt->pd0[index].present         = 1;
-            ident_pgt->pd0[index].writable        = 1;
-            ident_pgt->pd0[index].dirty           = 1;
-            ident_pgt->pd0[index].accessed        = 1;
-            ident_pgt->pd0[index].global_page     = 1;   /* <---- HACK! HACK! HACK! HACK! (HOLY SHIT!!!)
-
-							    When Linux/Kitten boot secondary cores they jump out of the trampoline 
-							    to kernel _VIRTUAL_ addresses. Pisces does not currently provide a mapping for 
-							    those virtual addresses and so it sets the trampoline target to the  physical/identity 
-							    mapped address. However Linux/Kitten blow away their identity mappings after the BSP 
-							    comes up so the address pisces uses is invalid. The hideous trick hidden here is that 
-							    by setting the global bit the TLB entries for the identity mapping won't be lost once the 
-							    page tables are reloaded. So effectively pisces forces the enclave to execute the secondary
-							    startup code from _STALE_ TLB entries. 
-
-							    Pisces must just hope to god that the secondary startup doesn't span PTE entries and miss 
-							    in the TLB, or that the enclave uses a more effective TLB flush mechanism, or is executing 
-							    on a platform that does not honor the PGE flag (Like QEMU!!! or a number of other VMMs).
-							    Otherwise the enclave is going to trigger a page fault with the IDT loaded at an unmapped address, 
-							    leading to a double fault, leading to a hard system reset. 
-							 
-							    WHY THE FUCK WASN'T THIS COMMENTED????????
-							 */
-
-
-	    addr += PAGE_SIZE_2MB;
-        }
     }
-
-    /* 1G ident mapping start from bootmem_addr
-     * for enclave loaded higher than 1G
-     */
-    if (enclave->bootmem_addr_pa  > MEM_ADDR_1G) {
-        int index = 0;
-        u64 addr  = enclave->bootmem_addr_pa;
-        u64 i     = 0;
-
-        index = PDPE64_INDEX(addr);
-
-        ident_pgt->pdp[index].pd_base_addr  = PAGE_TO_BASE_ADDR(__pa(ident_pgt->pd1));
-        ident_pgt->pdp[index].present       = 1;
-        ident_pgt->pdp[index].writable      = 1;
-        ident_pgt->pdp[index].accessed      = 1;
-
-        printk(KERN_INFO "  pdp[%d]: %p\n", 
-	       index, 
-	       (void *) *(u64 *) &ident_pgt->pdp[index]);
-
-        for (i = 0; i < MAX_PDE64_ENTRIES; i++) {
-
-            index = PDE64_INDEX(addr);
-
-            ident_pgt->pd1[index].page_base_addr  = PAGE_TO_BASE_ADDR_2MB(addr);
-            ident_pgt->pd1[index].large_page      = 1;
-            ident_pgt->pd1[index].present         = 1;
-            ident_pgt->pd1[index].writable        = 1;
-            ident_pgt->pd1[index].dirty           = 1;
-            ident_pgt->pd1[index].accessed        = 1;
-            ident_pgt->pd1[index].global_page     = 1;
-
-	    addr += PAGE_SIZE_2MB;
-        }
-    }
-
-    return 0;
-}
-
-
-
-static int 
-load_kernel(struct pisces_enclave     * enclave, 
-	    struct pisces_boot_params * boot_params, 
-	    uintptr_t                   target_addr) 
-{
-
-    struct file * kern_image = file_open(enclave->kern_path, O_RDONLY);
-    u64           bytes_read = 0;
-    
-    if (kern_image == NULL) {
-	printk(KERN_ERR "Error opening kernel image (%s)\n", enclave->kern_path);
-	return -1;
-    }
-
-    boot_params->kernel_addr = __pa(target_addr);
-    boot_params->kernel_size = file_size(kern_image);
-    
-    while (bytes_read < boot_params->kernel_size) {
-	u64 ret = 0;
-
-	ret = file_read(kern_image, 
-			(void *)(target_addr + bytes_read), 
-			(boot_params->kernel_size - bytes_read), 
-			bytes_read);
-	
-	if (ret == 0) {
-	    printk(KERN_ERR "Error reading kernel image. Only read %llu bytes.\n", bytes_read);
-	    file_close(kern_image);
-	    return -1;
-	}
-
-	bytes_read += ret;
-    }
-
-    file_close(kern_image);
-
-    return 0;
-}
-
-
-static int 
-load_initrd(struct pisces_enclave     * enclave, 
-	    struct pisces_boot_params * boot_params,
-	    uintptr_t                   target_addr) 
-{
-
-
-    struct file * initrd_image = file_open(enclave->initrd_path, O_RDONLY);
-    u64           bytes_read   = 0;
-    
-    if (initrd_image == NULL) {
-	printk(KERN_ERR "Error opening initrd (%s)\n", enclave->initrd_path);
-	return -1;
-    }
-
-    boot_params->initrd_addr = __pa(target_addr);
-    boot_params->initrd_size = file_size(initrd_image);
-    
-    while (bytes_read < boot_params->initrd_size) {
-	u64 ret = 0;
-
-	ret = file_read(initrd_image, 
-			(void *)(target_addr + bytes_read), 
-			(boot_params->initrd_size - bytes_read), 
-			bytes_read);
-
-	if (ret == 0) {
-	    printk(KERN_ERR "Error reading initrd. Only read %llu bytes.\n", bytes_read);
-	    file_close(initrd_image);
-	    return -1;
-	}
-
-	bytes_read += ret;
-    }
-    
-    printk("Loaded INITRD %s (bytes_read = %llu)\n", enclave->initrd_path, bytes_read);
-    printk("INITRD bytes (at %p) = %x\n",            (void *)target_addr, *(unsigned int*)target_addr); 
-	   
-	
-
-
-
-    file_close(initrd_image);
-
-    return 0;
 }
 
 
 int 
-setup_boot_params(struct pisces_enclave * enclave) 
+init_trampoline(void)
 {
-    uintptr_t offset = 0;
-    uintptr_t base_addr = 0;
-    struct pisces_boot_params * boot_params = NULL;
 
-    base_addr   = (uintptr_t)__va(enclave->bootmem_addr_pa);
-    boot_params = (struct pisces_boot_params *)base_addr;
 
-    memset((void *)base_addr, 0, enclave->bootmem_size);
+    memset(&trampoline_state, 0, sizeof(struct trampoline_data));
 
-    if (!boot_params) {
-	printk(KERN_ERR "Invalid address for boot parameters (%p)\n", boot_params);
+    pgt_pages = alloc_pages(GFP_KERNEL, get_order(PAGE_SIZE * 7));
+
+    if (pgt_pages == NULL) {
+	printk(KERN_ERR "Error: Could not allocate pages for trampoline page table\n");
+	return -1;
+    }
+
+    trampoline_state.pml_pa  = (page_to_pfn(&(pgt_pages[0])) << PAGE_SHIFT);
+    trampoline_state.pdp0_pa = (page_to_pfn(&(pgt_pages[1])) << PAGE_SHIFT);
+    trampoline_state.pdp1_pa = (page_to_pfn(&(pgt_pages[2])) << PAGE_SHIFT);
+    trampoline_state.pdp2_pa = (page_to_pfn(&(pgt_pages[3])) << PAGE_SHIFT);
+    trampoline_state.pd0_pa  = (page_to_pfn(&(pgt_pages[4])) << PAGE_SHIFT);
+    trampoline_state.pd1_pa  = (page_to_pfn(&(pgt_pages[5])) << PAGE_SHIFT);
+    trampoline_state.pd2_pa  = (page_to_pfn(&(pgt_pages[6])) << PAGE_SHIFT);
+
+    /*
+     * Init trampoline PGTs 
+     */
+    init_trampoline_pgts();
+
+    return init_linux_trampoline();
+}
+
+
+
+void 
+trampoline_lock(void) 
+{
+    mutex_lock(linux_trampoline_lock);
+}
+
+void 
+trampoline_unlock(void) 
+{
+    mutex_unlock(linux_trampoline_lock);
+}
+
+
+int 
+setup_trampoline(struct pisces_enclave * enclave) 
+{
+
+
+    if (enclave->bootmem_size % PAGE_SIZE_2MB) {
+	printk(KERN_ERR "Error: Bootmem must be at least 2MB granularity\n");
 	return -1;
     }
 
 
-    printk("Setting up boot parameters. BaseAddr=%p\n", (void *)base_addr);
-
-
     /*
-     *   copy in loading ASM
+     * Setup trampoline PGTs 
+     *  --  re-init pgts
+     *  --  identity map first 128MB of bootmem 
+     *  --  map 128MB of bootmem into kernel addresses 
      */
+    init_trampoline_pgts();
+
     {
-        extern u8 launch_code_start;
+	pml4e64_t   * pml_entry = NULL;
+	pdpe64_t    * pdp_entry = NULL;
+	pde64_2MB_t * pd_entry  = NULL;
 
-        memcpy(boot_params->launch_code, &launch_code_start, LAUNCH_CODE_SIZE);
-
-        printk("Launch code is at %p\n",
-                (void *)__pa(&boot_params->launch_code));
-    }
-
-
-    /*
-     *   Basic boot parameters 
-     */
-    {
-	boot_params->magic = PISCES_MAGIC;
-	strncpy(boot_params->cmd_line, enclave->kern_cmdline, 1024);
+	pml4e64_t   * pml = NULL;
+	pdpe64_t    * pdp = NULL;
+	pde64_2MB_t * pd  = NULL;
 	
+	uintptr_t base_addr = enclave->bootmem_addr_pa;
+	u32 num_pde_entries = (enclave->bootmem_size / PAGE_SIZE_2MB);
 	
-	boot_params->cpu_id  = enclave->boot_cpu;
-	boot_params->apic_id = apic->cpu_present_to_apicid(enclave->boot_cpu);
-	// Record pre-calculated cpu speed
-	boot_params->cpu_khz = cpu_khz;
-
-        // Linux trampoline address
-	boot_params->trampoline_code_pa = linux_trampoline_startip;
-	printk("Linux trampoline at %p\n", (void *)linux_trampoline_startip);
-
-	boot_params->base_mem_paddr = enclave->bootmem_addr_pa;
-	boot_params->base_mem_size  = enclave->bootmem_size;
-
-	offset += sizeof_boot_params(enclave);
-	printk("boot params initialized. Offset at %p\n", (void *)(base_addr + offset));
-    }
+	int i = 0;
 
 
-    /*
-     *	 Initialize Console Ring buffer (64KB)
-     */
-    {
-	offset = ALIGN(offset, PAGE_SIZE_4KB);
-	//    boot_params->console_ring_addr
+	pml       = (pml4e64_t  *)__va(trampoline_state.pml_pa);
+	pml_entry = &(pml[PML4E64_INDEX(base_addr)]);
 
-	if (pisces_cons_init(enclave, (struct pisces_cons_ringbuf *)(base_addr + offset)) == -1) {
-	    printk(KERN_ERR "Error initializing Pisces Console\n");
-	    return -1;
+
+	if (!pml_entry->present) {
+	    pml_entry->present       = 1;
+	    pml_entry->writable      = 1;
+	    pml_entry->pdp_base_addr = PAGE_TO_BASE_ADDR(trampoline_state.pdp1_pa);
+	} 
+
+	pdp       = __va(BASE_TO_PAGE_ADDR(pml_entry->pdp_base_addr));
+	pdp_entry = &(pdp[PDPE64_INDEX(base_addr)]);
+
+
+	if (!pdp_entry->present) {
+	    pdp_entry->present      = 1;
+	    pdp_entry->writable     = 1;
+	    pdp_entry->pd_base_addr = PAGE_TO_BASE_ADDR(trampoline_state.pd1_pa);
+	}
+
+	pd  = __va(BASE_TO_PAGE_ADDR(pdp_entry->pd_base_addr));
+
+
+	for (i = 0; i < num_pde_entries; i++) {
+	    pd_entry = &(pd[PDE64_INDEX(base_addr)]);
+
+	    if (!pd_entry->present) {
+		pd_entry->present    = 1;
+		pd_entry->writable   = 1;
+		pd_entry->large_page = 1;
+		pd_entry->page_base_addr = PAGE_TO_BASE_ADDR_2MB(base_addr);
+	    }
+
+	    base_addr += PAGE_SIZE_2MB;
 	}
 	
-	boot_params->console_ring_addr = __pa(base_addr + offset);
-	boot_params->console_ring_size = sizeof(struct pisces_cons_ringbuf);
+    }
+
+
+
+    {
+#define KERN_VA_BASE 0xffffffff80000000ULL
+
+	pml4e64_t   * pml_entry = NULL;
+	pdpe64_t    * pdp_entry = NULL;
+	pde64_2MB_t * pd_entry  = NULL;
+
+	pml4e64_t   * pml = NULL;
+	pdpe64_t    * pdp = NULL;
+	pde64_2MB_t * pd  = NULL;
 	
-	offset += sizeof(struct pisces_cons_ringbuf);
-	printk("console initialized. Offset at %p (target addr=%p, size=%llu)\n", 
-	       (void *)(base_addr + offset), 
-	       (void *)boot_params->console_ring_addr, boot_params->console_ring_size);
-    }
+	uintptr_t kern_addr    = KERN_VA_BASE;
+	uintptr_t bootmem_addr = enclave->bootmem_addr_pa;
+	u32 num_pde_entries    = (enclave->bootmem_size / PAGE_SIZE_2MB);
+	
+	int i = 0;
+
+	pml       = (pml4e64_t  *)__va(trampoline_state.pml_pa);
+	pml_entry = &(pml[PML4E64_INDEX(kern_addr)]);
 
 
-    /*
-     * Initialize CMD/CTRL buffer (4KB)
-     */
-    {
-        offset = ALIGN(offset, PAGE_SIZE_4KB);
+	if (!pml_entry->present) {
+	    pml_entry->present       = 1;
+	    pml_entry->writable      = 1;
+	    pml_entry->pdp_base_addr = PAGE_TO_BASE_ADDR(trampoline_state.pdp1_pa);
+	} 
 
-        boot_params->control_buf_addr = __pa(base_addr + offset);
-        boot_params->control_buf_size = PAGE_SIZE_4KB;
-
-        if (pisces_ctrl_init(enclave) == -1) {
-            printk(KERN_ERR "Error initializing control channel\n");
-            return -1;
-        }
-
-        offset += PAGE_SIZE_4KB;
-
-        printk("Control inbuf initialized. Offset at %p (target_addr=%p, size=%llu)\n", 
-                (void *)(base_addr + offset),
-                (void *)boot_params->control_buf_addr, 
-                boot_params->control_buf_size);
-    }
+	pdp       = __va(BASE_TO_PAGE_ADDR(pml_entry->pdp_base_addr));
+	pdp_entry = &(pdp[PDPE64_INDEX(kern_addr)]);
 
 
-
-    /*
-     * Initialize LongCall buffer (4KB)
-     */
-    {
-        offset = ALIGN(offset, PAGE_SIZE_4KB);
-
-        boot_params->longcall_buf_addr = __pa(base_addr + offset);
-        boot_params->longcall_buf_size = PAGE_SIZE_4KB;
-
-        if (pisces_lcall_init(enclave) == -1) {
-            printk(KERN_ERR "Error initializing Longcall channel\n");
-            return -1;
-        }
-
-        offset += PAGE_SIZE_4KB;
-
-        printk("Longcall buffer initialized. Offset at %p (target_addr=%p, size=%llu)\n", 
-                (void *)(base_addr + offset),
-                (void *)boot_params->longcall_buf_addr, 
-                boot_params->longcall_buf_size);
-    }
-
-    /*
-     * Initialize XPMEM buffer (4KB)
-     */
-    {
-        offset = ALIGN(offset, PAGE_SIZE_4KB);
-
-        boot_params->xpmem_buf_addr = __pa(base_addr + offset);
-        boot_params->xpmem_buf_size = PAGE_SIZE_4KB;
-
-#ifdef USING_XPMEM
-	if (pisces_xpmem_init(enclave) == -1) {
-	    printk(KERN_ERR "Error initializing XPMEM channel\n");
-	    return -1;
+	if (!pdp_entry->present) {
+	    pdp_entry->present      = 1;
+	    pdp_entry->writable     = 1;
+	    pdp_entry->pd_base_addr = PAGE_TO_BASE_ADDR(trampoline_state.pd1_pa);
 	}
-#endif
 
-        offset += PAGE_SIZE_4KB;
-
-        printk("XPMEM buffer initialized. Offset at %p (target_addr=%p, size=%llu)\n", 
-                (void *)(base_addr + offset),
-                (void *)boot_params->xpmem_buf_addr, 
-                boot_params->xpmem_buf_size);
-    }
+	pd  = __va(BASE_TO_PAGE_ADDR(pdp_entry->pd_base_addr));
 
 
-    /*
-     * Identity mapped page tables
-     */
-    {
+	for (i = 0; i < num_pde_entries; i++) {
+	    pd_entry = &(pd[PDE64_INDEX(kern_addr)]);
 
-        offset = ALIGN(offset, PAGE_SIZE_4KB);
-        printk("Setting up ident page table (1G mapped) at %p\n", (void *)(base_addr + offset));
+	    if (!pd_entry->present) {
+		pd_entry->present    = 1;
+		pd_entry->writable   = 1;
+		pd_entry->large_page = 1;
+		pd_entry->page_base_addr = PAGE_TO_BASE_ADDR_2MB(bootmem_addr);
+	    }
 
-        if (setup_ident_pts(enclave, boot_params, base_addr + offset) == -1) {
-            printk(KERN_ERR "Error configuring identity mapped page tables\n");
-            return -1;
-        }
-
-        offset += sizeof(struct pisces_ident_pgt);
-
-        printk("\t Ident PTS done. Offset at %p\n", (void *)(base_addr + offset));
-    }
-
-
-    /*
-     * 1. kernel image
-     */
-    {
-	offset = ALIGN(offset, PAGE_SIZE_2MB);
-	
-	printk("Loading Kernel. Offset at %p\n", (void *)(base_addr + offset));
-	if (load_kernel(enclave, boot_params, base_addr + offset) == -1) {
-	    printk(KERN_ERR "Error loading kernel to target (%p)\n", (void *)(base_addr + offset));
-	    return -1;
+	    kern_addr    += PAGE_SIZE_2MB;
+	    bootmem_addr += PAGE_SIZE_2MB;
 	}
-	
-	offset += boot_params->kernel_size;
 
-	printk("\t kernel loaded. Offset at %p\n", (void *)(base_addr + offset));
     }
 
+    // walk_pgtables((uintptr_t)__va(trampoline_state.pml_pa));
 
 
-    /*
-     * Lets just pad some space here for the kernel's BSS...
-     *    JRL TODO: How do we deal with this permanently???
-     */
-    offset += 4 * PAGE_SIZE_2MB;
+    return setup_linux_trampoline(enclave);
+}
 
 
-
-    /* 
-     * InitRD
-     */
-    {
-	offset = ALIGN(offset, PAGE_SIZE_2MB);
-	
-	printk("Loading InitRD. Offset at %p\n", (void *)(base_addr + offset));
-	if (load_initrd(enclave, boot_params, base_addr + offset) == -1) {
-	    printk(KERN_ERR "Error loading initrd to target (%p)\n", (void *)(base_addr + offset));
-	    return -1;
-	}
-	
-	offset += boot_params->initrd_size;
-
-	printk("\tInitRD loaded. Offset at %p\n", (void *)(base_addr + offset));
-    }
-
-
-    printk(KERN_INFO "Pisces loader memroy map:\n");
-    printk(KERN_INFO "  kernel:        [%p, %p), size %llu\n",
-	   (void *)boot_params->kernel_addr,
-	   (void *)(boot_params->kernel_addr + boot_params->kernel_size),
-	   boot_params->kernel_size);
-    printk(KERN_INFO "  initrd:        [%p, %p), size %llu\n",
-	   (void *)boot_params->initrd_addr, 
-	   (void *)(boot_params->initrd_addr + boot_params->initrd_size),
-	   boot_params->initrd_size);
-
-    
-    return 0;
+int
+restore_trampoline(struct pisces_enclave * enclave) 
+{
+    return restore_linux_trampoline(enclave);
 }
 
 
@@ -471,9 +292,9 @@ setup_boot_params(struct pisces_enclave * enclave)
  * Update Pisces trampoline data
  */
 static void
-set_enclave_trampoline(struct pisces_enclave * enclave, 
-		       u64                     target_addr, 
-		       u64                     esi)
+set_enclave_launch_args(struct pisces_enclave * enclave, 
+			u64                     target_addr, 
+			u64                     esi)
 {
     extern u8  launch_code_start;
     extern u64 launch_code_target_addr;
@@ -502,82 +323,143 @@ set_enclave_trampoline(struct pisces_enclave * enclave,
 }
 
 
-/*
- * Reset CPU with INIT/INIT/SINIT IPIs
- */
-inline void 
-reset_cpu(int apicid)
+
+
+static int 
+__lapic_get_maxlvt(void)
 {
-    printk(KERN_INFO "Reset APIC %d from APIC %d (CPU=%d)\n", 
-	   apicid,
-	   apic->cpu_present_to_apicid(smp_processor_id()), smp_processor_id());
+    unsigned int v;
 
-    wakeup_secondary_cpu_via_init(apicid, linux_trampoline_startip);
-}
-/*
- * Setup identity mapped page table for Linux trampoline
- * default only maps first 1G, this function setup mapping
- * for enclave boot memory
- *
- */
-static u64 linux_trampoline_pgd_buf;
-static u64 linux_trampoline_target_buf;
+    v = apic_read(APIC_LVR);
 
-
-void 
-set_linux_trampoline(struct pisces_enclave * enclave)
-{
-    struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->bootmem_addr_pa);
-
-    u64 start_addr  = 0;
-    //u64 start_addr = enclave->bootmem_addr_pa;
-
-    int index       = PML4E64_INDEX(start_addr);
-
-    memcpy(&linux_trampoline_pgd_buf,    &linux_trampoline_pgd[index], sizeof(pml4e64_t));
-    memcpy(&linux_trampoline_pgd[index], &boot_params->ident_pml4e64,  sizeof(pml4e64_t));
-
-    printk("Set trampoline_pgd[%d]: %p -> %p\n", index, 
-            (void *) linux_trampoline_pgd_buf, 
-            (void *) *(u64 *) &linux_trampoline_pgd[index]);
-
-    linux_trampoline_target_buf = *linux_trampoline_target;
-    *linux_trampoline_target    = enclave->bootmem_addr_pa;
-
-    printk(KERN_DEBUG "Set linux trampoline target: %p -> %p\n", 
-            (void *) linux_trampoline_target_buf, (void *)enclave->bootmem_addr_pa);
+    return APIC_INTEGRATED(GET_APIC_VERSION(v)) ? GET_APIC_MAXLVT(v) : 2;
 }
 
-void 
-restore_linux_trampoline(struct pisces_enclave * enclave)
+
+
+static int 
+__wakeup_secondary_cpu_via_init(int phys_apicid)
 {
-    //u64 target_addr = enclave->bootmem_addr_pa;
-    u64 target_addr = 0;
-    int index       = PML4E64_INDEX(target_addr);
+        unsigned long send_status, accept_status = 0;
+        int maxlvt, num_starts, j;
 
-    memcpy(&linux_trampoline_pgd[index], &linux_trampoline_pgd_buf,
-            sizeof(pml4e64_t));
+        maxlvt = __lapic_get_maxlvt();
 
-    printk("Restore trampoline_pgd[%d]: %p\n", index, 
-            (void *)linux_trampoline_pgd_buf);
+        /*
+         * Be paranoid about clearing APIC errors.
+         */
+        if (APIC_INTEGRATED(apic_version[phys_apicid])) {
+                if (maxlvt > 3)         /* Due to the Pentium erratum 3AP.  */
+                        apic_write(APIC_ESR, 0);
+                apic_read(APIC_ESR);
+        }
 
-    *linux_trampoline_target = linux_trampoline_target_buf;
+        pr_debug("Asserting INIT\n");
 
-    printk("Restore linux trampoline target: %p\n", 
-	   (void *) linux_trampoline_target_buf);
+        /*
+         * Turn INIT on target chip
+         */
+        /*
+         * Send IPI
+         */
+        apic_icr_write(APIC_INT_LEVELTRIG | APIC_INT_ASSERT | APIC_DM_INIT,
+                       phys_apicid);
+
+        pr_debug("Waiting for send to finish...\n");
+        send_status = safe_apic_wait_icr_idle();
+
+        mdelay(10);
+
+        pr_debug("Deasserting INIT\n");
+
+        /* Target chip */
+        /* Send IPI */
+        apic_icr_write(APIC_INT_LEVELTRIG | APIC_DM_INIT, phys_apicid);
+
+        pr_debug("Waiting for send to finish...\n");
+        send_status = safe_apic_wait_icr_idle();
+
+        mb();
+        //atomic_set(&init_deasserted, 1);
+
+        /*
+         * Should we send STARTUP IPIs ?
+         *
+         * Determine this based on the APIC version.
+         * if we don't have an integrated APIC, don't send the STARTUP IPIs.
+         */
+        if (APIC_INTEGRATED(apic_version[phys_apicid]))
+                num_starts = 2;
+        else
+                num_starts = 0;
+
+        /*
+         * Paravirt / VMI wants a startup IPI hook here to set up the
+         * target processor state.
+         */
+#if 0
+
+	/* JRL: Disabled for now
+	 *  --  They need to be set to the enclave ptrs if we use them
+	 */
+        startup_ipi_hook(phys_apicid, (unsigned long) linux_start_secondary_addr,
+                         linux_stack_start);
+
+#endif
+        /*
+         * Run STARTUP IPI loop.
+         */
+        pr_debug("#startup loops: %d\n", num_starts);
+
+        for (j = 1; j <= num_starts; j++) {
+                pr_debug("Sending STARTUP #%d\n", j);
+                if (maxlvt > 3)         /* Due to the Pentium erratum 3AP.  */
+                        apic_write(APIC_ESR, 0);
+                apic_read(APIC_ESR);
+                pr_debug("After apic_write\n");
+
+                /*
+                 * STARTUP IPI
+                 */
+
+                /* Target chip */
+                /* Boot on the stack */
+                /* Kick the second */
+                apic_icr_write(APIC_DM_STARTUP | (trampoline_state.cpu_init_rip >> 12),
+                               phys_apicid);
+
+                /*
+                 * Give the other CPU some time to accept the IPI.
+                 */
+                udelay(300);
+
+                pr_debug("Startup point 1\n");
+
+                pr_debug("Waiting for send to finish...\n");
+                send_status = safe_apic_wait_icr_idle();
+
+                /*
+                 * Give the other CPU some time to accept the IPI.
+                 */
+                udelay(200);
+                if (maxlvt > 3)         /* Due to the Pentium erratum 3AP.  */
+                       apic_write(APIC_ESR, 0);
+                accept_status = (apic_read(APIC_ESR) & 0xEF);
+                if (send_status || accept_status)
+                        break;
+        }
+        pr_debug("After Startup\n");
+
+        if (send_status)
+                pr_err("APIC never delivered???\n");
+        if (accept_status)
+                pr_err("APIC delivery error (%lx)\n", accept_status);
+
+        return (send_status | accept_status);
 }
 
-void 
-trampoline_lock(void) 
-{
-    mutex_lock(linux_trampoline_lock);
-}
 
-void 
-trampoline_unlock(void) 
-{
-    mutex_unlock(linux_trampoline_lock);
-}
+
 
 int 
 boot_enclave(struct pisces_enclave * enclave) 
@@ -590,34 +472,34 @@ boot_enclave(struct pisces_enclave * enclave)
     printk(KERN_DEBUG "Boot Enclave on CPU %d (APIC=%d)...\n", 
 	   enclave->boot_cpu, apicid);
 
-    set_enclave_trampoline(enclave,
-			   boot_params->kernel_addr,
-			   enclave->bootmem_addr_pa >> PAGE_SHIFT);
+    set_enclave_launch_args(enclave,
+			    boot_params->kernel_addr,
+			    enclave->bootmem_addr_pa >> PAGE_SHIFT);
+
     /*
      * hold this lock to serialize trampoline data access 
      * as cpu_maps_update_begin in linux
      */
     mutex_lock(linux_trampoline_lock);
-    set_linux_trampoline(enclave);
-
-#if 0
     {
-        // debug
-        u64 * addr = (u64 *) enclave->bootmem_addr_pa;
-        //u64 index = PML4E64_INDEX(addr);
-        dump_pgtables((uintptr_t) linux_trampoline_pgd, (uintptr_t) 0);
-        dump_pgtables((uintptr_t) linux_trampoline_pgd, (uintptr_t) PAGE_SIZE_2MB);
-        dump_pgtables((uintptr_t) linux_trampoline_pgd, (uintptr_t) addr);
+	if (setup_trampoline(enclave) != 0) {
+	    mutex_unlock(linux_trampoline_lock);
+	    return -1;
+	}
+	
+	
+	printk(KERN_INFO "Reset APIC %d from APIC %d (CPU=%d)\n", 
+	       apicid,
+	       apic->cpu_present_to_apicid(smp_processor_id()), smp_processor_id());
+	
+	__wakeup_secondary_cpu_via_init(apicid);
+	
+	/* Delay for target CPU to use Linux trampoline*/
+	//udelay(500);
+	mdelay(10);
+	
+	restore_trampoline(enclave);
     }
-#endif
-
-    reset_cpu(apicid);
-
-    /* Delay for target CPU to use Linux trampoline*/
-    //udelay(500);
-    mdelay(10);
-
-    restore_linux_trampoline(enclave);
     mutex_unlock(linux_trampoline_lock);
 
     return ret;

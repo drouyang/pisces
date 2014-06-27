@@ -16,6 +16,8 @@
 #include "pisces_xbuf.h"
 #include "enclave_pci.h"
 
+#include "pgtables.h"
+
 #include "v3_console.h"
 
 
@@ -129,7 +131,7 @@ ctrl_ioctl(struct file   * filp,
 
 	    /* Setup Linux trampoline to jump to enclave trampoline */
 	    trampoline_lock();
-	    set_linux_trampoline(enclave);
+	    setup_trampoline(enclave);
 
 	    printk("Sending Command\n");
 
@@ -138,7 +140,7 @@ ctrl_ioctl(struct file   * filp,
 
 	    kfree(resp);
 
-	    restore_linux_trampoline(enclave);
+	    restore_trampoline(enclave);
 	    trampoline_unlock();
 
 	    printk("\tDone\n");

@@ -7,7 +7,7 @@
 
 #include <linux/types.h>
 
-#include "pgtables.h"
+
 
 
 #define PISCES_MAGIC 0x000FE110
@@ -21,18 +21,10 @@ struct pisces_enclave;
  * 2. Console ring buffer (64KB) // 4KB aligned
  * 3. To enclave CMD buffer  // (4KB)
  * 4. From enclave CMD buffer // (4KB)
- * 4. Identity mapped page tables // 4KB aligned (5 Pages)
- * 5. kernel image // 2M aligned
- * 6. initrd // 2M aligned
+ * 4. kernel image // 2M aligned
+ * 5. initrd // 2M aligned
  *
  */
-
-struct pisces_ident_pgt {
-    pdpe64_t      pdp[MAX_PDPE64_ENTRIES];
-    pde64_2MB_t   pd0[MAX_PDE64_ENTRIES]; // 1G mapping from 0
-    pde64_2MB_t   pd1[MAX_PDE64_ENTRIES]; // 1G mapping from bootmem_addr
-};
-
 
 #define LAUNCH_CODE_SIZE      64
 #define LAUNCH_CODE_DATA_RSI  6
@@ -89,13 +81,13 @@ struct pisces_boot_params {
     u64 xpmem_buf_addr;
     u64 xpmem_buf_size;
 
-    // 1G ident mapping pml entry
-    pml4e64_t ident_pml4e64;
-
     u64 base_mem_paddr;
     u64 base_mem_size;
 
 
 } __attribute__((packed));
+
+
+int setup_boot_params(struct pisces_enclave * enclave);
 
 #endif
