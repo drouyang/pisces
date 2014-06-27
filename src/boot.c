@@ -187,6 +187,12 @@ pisces_setup_trampoline(struct pisces_enclave * enclave)
 	
 	int i = 0;
 
+	if (num_pde_entries > (MAX_PDE64_ENTRIES - PDE64_INDEX(base_addr))) {
+	    printk(KERN_ERR "Error: Overflow of identity mapped page tables by bootmem.");
+	    printk(KERN_ERR "\t Truncating mapping BUT THIS MAY FAIL spectacularly!!!\n");
+
+	    num_pde_entries = (MAX_PDE64_ENTRIES - PDE64_INDEX(base_addr));
+	}
 
 	pml       = (pml4e64_t  *)__va(trampoline_state.pml_pa);
 	pml_entry = &(pml[PML4E64_INDEX(base_addr)]);
@@ -215,9 +221,9 @@ pisces_setup_trampoline(struct pisces_enclave * enclave)
 	    pd_entry = &(pd[PDE64_INDEX(base_addr)]);
 
 	    if (!pd_entry->present) {
-		pd_entry->present    = 1;
-		pd_entry->writable   = 1;
-		pd_entry->large_page = 1;
+		pd_entry->present        = 1;
+		pd_entry->writable       = 1;
+		pd_entry->large_page     = 1;
 		pd_entry->page_base_addr = PAGE_TO_BASE_ADDR_2MB(base_addr);
 	    }
 
@@ -244,6 +250,15 @@ pisces_setup_trampoline(struct pisces_enclave * enclave)
 	u32 num_pde_entries    = (enclave->bootmem_size / PAGE_SIZE_2MB);
 	
 	int i = 0;
+
+
+	if (num_pde_entries > (MAX_PDE64_ENTRIES - PDE64_INDEX(kern_addr))) {
+	    printk(KERN_ERR "Error: Overflow of kernel VA space page tables by bootmem.");
+	    printk(KERN_ERR "\t Truncating mapping BUT THIS MAY FAIL spectacularly!!!\n");
+
+	    num_pde_entries = (MAX_PDE64_ENTRIES - PDE64_INDEX(kern_addr));
+	}
+
 
 	pml       = (pml4e64_t  *)__va(trampoline_state.pml_pa);
 	pml_entry = &(pml[PML4E64_INDEX(kern_addr)]);
@@ -272,9 +287,9 @@ pisces_setup_trampoline(struct pisces_enclave * enclave)
 	    pd_entry = &(pd[PDE64_INDEX(kern_addr)]);
 
 	    if (!pd_entry->present) {
-		pd_entry->present    = 1;
-		pd_entry->writable   = 1;
-		pd_entry->large_page = 1;
+		pd_entry->present        = 1;
+		pd_entry->writable       = 1;
+		pd_entry->large_page     = 1;
 		pd_entry->page_base_addr = PAGE_TO_BASE_ADDR_2MB(bootmem_addr);
 	    }
 
