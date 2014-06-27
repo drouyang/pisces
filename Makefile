@@ -4,6 +4,9 @@ KERN_PATH=/home/jarusl/linux-3.11.8-200.fc19.x86_64.debug
 
 XPMEM_KERN_PATH=/home/briankoco/xpmem/kernel
 
+
+VERSION_CMD=$(PWD)/version
+
 obj-m += pisces.o
 
 pisces-objs :=  src/main.o             \
@@ -14,7 +17,6 @@ pisces-objs :=  src/main.o             \
 		src/pisces_lcall.o     \
 		src/pisces_xbuf.o      \
 		src/enclave_fs.o       \
-		src/enclave_pci.o      \
 		src/ipi.o              \
 		src/enclave.o          \
 		src/pisces_lock.o      \
@@ -28,26 +30,50 @@ pisces-objs :=  src/main.o             \
 		src/v3_console.o 
 
 ifeq ($(XPMEM),y)
-EXTRA_CFLAGS         += -I$(XPMEM_KERN_PATH)/include -DUSING_XPMEM
-KBUILD_EXTRA_SYMBOLS += $(XPMEM_KERN_PATH)/Module.symvers
+  EXTRA_CFLAGS         += -I$(XPMEM_KERN_PATH)/include -DUSING_XPMEM
+  KBUILD_EXTRA_SYMBOLS += $(XPMEM_KERN_PATH)/Module.symvers
 
-pisces-objs +=  src/pisces_xpmem.o 
+  pisces-objs +=  src/pisces_xpmem.o 
 
+endif
+
+#
+# If the version command doesn't exist it will be built as a top level dependency
+#   OLD_VERSION will then be set on the reinvocation
+#
+ifneq ($(wildcard $(VERSION_CMD)),) 
+  OLD_VERSION=$(shell $(VERSION_CMD))
+endif
+
+
+ifeq ($(OLD_VERSION),0)
+  pisces-objs  +=  src/linux_trampoline/trampoline.o \
+		   src/enclave_pci.o  
+  EXTRA_CFLAGS += -DPCI_ENABLED
+else
+  pisces-objs  += src/cray_trampoline/trampoline_64.o \
+		  src/cray_trampoline/trampoline.o
+  EXTRA_CFLAGS += -DCRAY_TRAMPOLINE 
+  USR_FLAGS    += STATIC=y
 endif
 
 
 pisces-objs += src/linux_trampoline/trampoline.o
 
 
-all:
+all: version_exec
 	make -C $(KERN_PATH) M=$(PWD) modules
 	make -C petlib/
-	make -C linux_usr/
+	make -C linux_usr/ $(USR_FLAGS)
+
+version_exec: version.c $(VERSION_CMD)
+	gcc -I$(KERN_PATH)/include version.c -o $(VERSION_CMD)
 
 clean:
 	make -C $(KERN_PATH) M=$(PWD) clean
 	make -C petlib/ clean
 	make -C linux_usr/ clean
+	rm $(VERSION_CMD)
 
 
 .PHONY: tags

@@ -42,12 +42,16 @@
 
 #include "pgtables.h"
 #include "linux_syms.h"
-#include "wakeup_secondary.h"
+
 
 #include "boot.h"
 
-#include "linux_trampoline/trampoline.h"
 
+#ifdef CRAY_TRAMPOLINE
+#include "cray_trampoline/trampoline.h"
+#else
+#include "linux_trampoline/trampoline.h"
+#endif
 
 
 struct trampoline_data trampoline_state;
@@ -125,8 +129,11 @@ init_trampoline(void)
      * Init trampoline PGTs 
      */
     init_trampoline_pgts();
-
+#ifdef CRAY_TRAMPOLINE
+    return init_cray_trampoline();
+#else
     return init_linux_trampoline();
+#endif
 }
 
 
@@ -276,15 +283,22 @@ setup_trampoline(struct pisces_enclave * enclave)
 
     // walk_pgtables((uintptr_t)__va(trampoline_state.pml_pa));
 
-
+#ifdef CRAY_TRAMPOLINE
+    return setup_cray_trampoline(enclave);
+#else 
     return setup_linux_trampoline(enclave);
+#endif
 }
 
 
 int
 restore_trampoline(struct pisces_enclave * enclave) 
 {
+#ifdef CRAY_TRAMPOLINE
+    return restore_linux_trampoline(enclave);    
+#else
     return restore_linux_trampoline(enclave);
+#endif
 }
 
 

@@ -3,6 +3,7 @@ PETLIB := ../petlib
 
 CFLAGS = -I$(PETLIB) -L$(PETLIB)
 
+
 CC = gcc
 AR = ar
 
@@ -31,6 +32,12 @@ build = \
 		echo '$2'; \
 		$2; \
 	fi
+
+ifeq ($(STATIC),y)
+  CFLAGS        += -static
+  CURSES_CFLAGS  = -DNCURSES_STATIC
+endif
+
 
 
 all: $(execs) $(libs)

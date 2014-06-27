@@ -5,9 +5,9 @@
 
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <linux/fs.h>
 #include <linux/anon_inodes.h>
 #include <linux/uaccess.h>
-#include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/kthread.h>
 
@@ -88,6 +88,7 @@ static int lcall_kern_thread(void * arg) {
                 pisces_xpmem_cmd_lcall(enclave, xbuf_desc, cur_lcall);
                 break;
 #endif
+#ifdef PCI_ENABLED
             case PISCES_LCALL_IOMMU_MAP:
                 enclave_pci_iommu_map(enclave, xbuf_desc, (struct pci_iommu_map_lcall *)cur_lcall);
                 break;
@@ -106,6 +107,7 @@ static int lcall_kern_thread(void * arg) {
             case PISCES_LCALL_PCI_CMD:
                 enclave_pci_cmd(enclave, xbuf_desc, (struct pci_cmd_lcall *)cur_lcall);
                 break;
+#endif
             case PISCES_LCALL_VFS_READDIR:
             default:
                 printk(KERN_ERR "Enclave requested unimplemented LCALL %llu\n", cur_lcall->lcall);

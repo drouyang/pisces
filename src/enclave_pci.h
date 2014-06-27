@@ -27,6 +27,8 @@ struct pci_ack_irq_lcall;
 struct pci_cmd_lcall;
 
 
+#ifdef PCI_ENABLED
+
 int 
 init_enclave_pci(struct pisces_enclave * enclave);
 
@@ -74,6 +76,32 @@ enclave_pci_cmd(struct pisces_enclave   * enclave,
 		struct pisces_xbuf_desc * xbuf_desc,
 		struct pci_cmd_lcall    * cur_lcall);
 
+
+
+#else 
+
+static inline int 
+init_enclave_pci(struct pisces_enclave * enclave) { 
+    printk("PCI Support Not enabled for this kernel. Ignoring.\n");
+    return -1; 
+}
+
+static inline int 
+deinit_enclave_pci(struct pisces_enclave * enclave) { 
+    printk("PCI Support Not enabled for this kernel. Ignoring.\n");
+    return -1; 
+}
+
+static inline int
+enclave_pci_add_dev(struct pisces_enclave  * enclave,
+		    struct pisces_pci_spec * spec) { return -1; }
+
+static inline int
+enclave_pci_remove_dev(struct pisces_enclave  * enclave,
+		       struct pisces_pci_spec * spec) { return -1; }
+
+
+#endif
 
 
 #endif
