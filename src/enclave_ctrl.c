@@ -1,8 +1,8 @@
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <linux/fs.h>
 #include <linux/anon_inodes.h>
 #include <linux/uaccess.h>
-#include <linux/fs.h>
 #include <linux/slab.h>
 
 
@@ -131,7 +131,7 @@ ctrl_ioctl(struct file   * filp,
 
 	    /* Setup Linux trampoline to jump to enclave trampoline */
 	    trampoline_lock();
-	    setup_trampoline(enclave);
+	    pisces_setup_trampoline(enclave);
 
 	    printk("Sending Command\n");
 
@@ -140,7 +140,7 @@ ctrl_ioctl(struct file   * filp,
 
 	    kfree(resp);
 
-	    restore_trampoline(enclave);
+	    pisces_restore_trampoline(enclave);
 	    trampoline_unlock();
 
 	    printk("\tDone\n");

@@ -8,7 +8,6 @@
 #include <linux/pci.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
-#include <linux/export.h>
 #include <linux/kthread.h>
 #include <asm/desc.h>
 #include <asm/ipi.h>

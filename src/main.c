@@ -157,6 +157,7 @@ dbg_mem_show(struct seq_file * s,
 
     boot_params = (struct pisces_boot_params *)__va(enclave_map[0]->bootmem_addr_pa);
     seq_printf(s, "%s: %p\n", boot_params->init_dbg_buf, (void *)*(((u64*)(boot_params->init_dbg_buf)) + 1));
+    seq_printf(s, "tramp_status: %p\n", (void *)*(((u64 *)(boot_params))));
 
     return 0;
 }
@@ -200,7 +201,7 @@ pisces_init(void)
         return -1;
     }
 
-    if (init_trampoline() != 0) {
+    if (pisces_init_trampoline() != 0) {
 	printk(KERN_ERR "Could not initialize trampoline\n");
 	return -1;
     }

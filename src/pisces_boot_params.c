@@ -7,7 +7,6 @@
 #include <asm/desc.h>
 #include <asm/segment.h>
 #include <asm/uaccess.h>
-#include <asm/realmode.h>
 
 #include "pisces_boot_params.h"
 #include "enclave.h"

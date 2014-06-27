@@ -58,7 +58,6 @@ else
 endif
 
 
-pisces-objs += src/linux_trampoline/trampoline.o
 
 
 all: version_exec

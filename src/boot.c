@@ -16,25 +16,20 @@
 #include <asm/nmi.h>
 #include <asm/irq.h>
 #include <asm/idle.h>
-#include <asm/realmode.h>
 #include <asm/cpu.h>
 #include <asm/numa.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/mtrr.h>
-#include <asm/mwait.h>
 #include <asm/apic.h>
 #include <asm/io_apic.h>
 #include <asm/i387.h>
-#include <asm/fpu-internal.h>
 #include <asm/setup.h>
 #include <asm/uv/uv.h>
 #include <linux/mc146818rtc.h>
 
 #include <asm/smpboot_hooks.h>
 #include <asm/i8259.h>
-
-#include <asm/realmode.h>
 
 #include "linux_syms.h"
 #include "enclave.h"
@@ -104,7 +99,7 @@ init_trampoline_pgts(void)
 
 
 int 
-init_trampoline(void)
+pisces_init_trampoline(void)
 {
 
 
@@ -152,7 +147,7 @@ trampoline_unlock(void)
 
 
 int 
-setup_trampoline(struct pisces_enclave * enclave) 
+pisces_setup_trampoline(struct pisces_enclave * enclave) 
 {
 
 
@@ -292,10 +287,10 @@ setup_trampoline(struct pisces_enclave * enclave)
 
 
 int
-restore_trampoline(struct pisces_enclave * enclave) 
+pisces_restore_trampoline(struct pisces_enclave * enclave) 
 {
 #ifdef CRAY_TRAMPOLINE
-    return restore_linux_trampoline(enclave);    
+    return restore_cray_trampoline(enclave);    
 #else
     return restore_linux_trampoline(enclave);
 #endif
@@ -496,7 +491,7 @@ boot_enclave(struct pisces_enclave * enclave)
      */
     mutex_lock(linux_trampoline_lock);
     {
-	if (setup_trampoline(enclave) != 0) {
+	if (pisces_setup_trampoline(enclave) != 0) {
 	    mutex_unlock(linux_trampoline_lock);
 	    return -1;
 	}
@@ -512,7 +507,7 @@ boot_enclave(struct pisces_enclave * enclave)
 	//udelay(500);
 	mdelay(10);
 	
-	restore_trampoline(enclave);
+	pisces_restore_trampoline(enclave);
     }
     mutex_unlock(linux_trampoline_lock);
 

@@ -23,6 +23,8 @@ extern u64 secondary_startup_vector;
 int 
 init_cray_trampoline(void)
 {
+    trampoline_state.cpu_init_rip = TRAMPOLINE_BASE;
+
     return 0;
 }
 
@@ -30,7 +32,7 @@ init_cray_trampoline(void)
 int
 setup_cray_trampoline(struct pisces_enclave * enclave)
 {
-    struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->bootmem_addr_pa);
+    //    struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->bootmem_addr_pa);
 
     printk("Setting up Cray Trampoline\n");
 
@@ -41,15 +43,16 @@ setup_cray_trampoline(struct pisces_enclave * enclave)
 
     memset(trampoline_level4_pgt, 0, PAGE_SIZE);                             /* Clear old PT Entries */
 
-    memcpy(trampoline_level4_pgt, __va(trampoline_state.pml_pa), sizeof(u64)); /* Overwrite 1st PML Entry (512GB) with our own PDP */
+    memcpy(trampoline_level4_pgt, __va(trampoline_state.pml_pa), PAGE_SIZE); /* Overwrite 1st PML Entry (512GB) with our own PDP */
     
     memcpy(__va(TRAMPOLINE_BASE), trampoline_data, TRAMPOLINE_SIZE);
+
 
     
     printk("Final startup_target = %p\n", 
 	   (void *)*(u64 *)((u64)__va(TRAMPOLINE_BASE) + ((u64)&secondary_startup_vector - (u64)trampoline_data)));
 
-
+    return 0;
 }
 
 
@@ -58,7 +61,7 @@ restore_cray_trampoline(struct pisces_enclave * enclave)
 {
 
     /* Do we need to do anything here??? */
-    return;
+    return 0;
 
 }
 

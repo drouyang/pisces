@@ -21,9 +21,9 @@ extern struct trampoline_data trampoline_state;
 
 int boot_enclave(struct pisces_enclave * enclave);
 
-int init_trampoline(void);
-int setup_trampoline(struct pisces_enclave * enclave);
-int restore_trampoline(struct pisces_enclave * enclave);
+int pisces_init_trampoline(void);
+int pisces_setup_trampoline(struct pisces_enclave * enclave);
+int pisces_restore_trampoline(struct pisces_enclave * enclave);
 
 void trampoline_lock(void);
 void trampoline_unlock(void);
