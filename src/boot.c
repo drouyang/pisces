@@ -1,3 +1,4 @@
+#include <linux/delay.h>
 
 #include <linux/mutex.h>
 
@@ -45,13 +46,13 @@ init_trampoline_pgts(void)
 
     /* Map only first 2MB as identity  */
     {
-	pml4e64_t   * pml  = __va(trampoline_state.pml_pa);
-	pdpe64_t    * pdp0 = __va(trampoline_state.pdp0_pa);
-	pde64_2MB_t * pd0  = __va(trampoline_state.pd0_pa);
+	pml4e64_t   * pml        = __va(trampoline_state.pml_pa);
+	pdpe64_t    * pdp0       = __va(trampoline_state.pdp0_pa);
+	pde64_2MB_t * pd0        = __va(trampoline_state.pd0_pa);
 
-	pml4e64_t   * pml_entry = &(pml[0]);
-	pdpe64_t    * pdp_entry = &(pdp0[0]);
-	pde64_2MB_t * pd_entry  = &(pd0[0]);
+	pml4e64_t   * pml_entry  = &(pml[0]);
+	pdpe64_t    * pdp_entry  = &(pdp0[0]);
+	pde64_2MB_t * pd_entry   = &(pd0[0]);
 
 	pml_entry->present       = 1;
 	pml_entry->writable      = 1;
@@ -527,45 +528,6 @@ boot_enclave(struct pisces_enclave * enclave)
 
     pisces_restore_trampoline(enclave);
 
-
-
     return ret;
 }
 
-
-
-/*
-#include <linux/init.h>
-#include <linux/smp.h>
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/percpu.h>
-#include <linux/bootmem.h>
-#include <linux/err.h>
-#include <linux/nmi.h>
-#include <linux/tboot.h>
-#include <linux/stackprotector.h>
-#include <linux/gfp.h>
-#include <linux/cpuidle.h>
-
-#include <asm/acpi.h>
-#include <asm/desc.h>
-#include <asm/nmi.h>
-#include <asm/irq.h>
-#include <asm/idle.h>
-#include <asm/cpu.h>
-#include <asm/numa.h>
-#include <asm/pgtable.h>
-#include <asm/tlbflush.h>
-#include <asm/mtrr.h>
-#include <asm/apic.h>
-#include <asm/io_apic.h>
-#include <asm/i387.h>
-#include <asm/setup.h>
-#include <asm/uv/uv.h>
-#include <linux/mc146818rtc.h>
-
-#include <asm/smpboot_hooks.h>
-#include <asm/i8259.h>
-
-*/
