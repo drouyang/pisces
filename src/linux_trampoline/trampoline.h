@@ -12,6 +12,7 @@
 struct pisces_enclave;
 
 int init_linux_trampoline(void);
+int deinit_linux_trampoline(void);
 int setup_linux_trampoline(struct pisces_enclave * enclave);
 int restore_linux_trampoline(struct pisces_enclave * enclave);
 

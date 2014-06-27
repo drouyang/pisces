@@ -8,6 +8,7 @@
 struct pisces_enclave;
 
 int init_cray_trampoline(void);
+int deinit_cray_trampoline(void);
 int setup_cray_trampoline(struct pisces_enclave * enclave);
 int restore_cray_trampoline(struct pisces_enclave * enclave);
 

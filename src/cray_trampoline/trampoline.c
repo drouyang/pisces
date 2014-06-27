@@ -63,6 +63,14 @@ init_cray_trampoline(void)
     return 0;
 }
 
+int 
+deinit_cray_trampoline(void)
+{  
+    /* Nothing to do for now */
+
+    return 0;
+}
+
 
 int
 setup_cray_trampoline(struct pisces_enclave * enclave)

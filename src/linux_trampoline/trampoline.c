@@ -110,6 +110,14 @@ init_linux_trampoline(void)
 }
 
 
+int 
+deinit_linux_trampoline(void) 
+{
+    free_page(pgd_cache_page);
+
+    return 0;
+}
+
 
 
 

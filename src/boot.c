@@ -124,6 +124,11 @@ pisces_init_trampoline(void)
      * Init trampoline PGTs 
      */
     init_trampoline_pgts();
+
+
+    /* 
+     * Call arch specific trampoline init
+     */
 #ifdef CRAY_TRAMPOLINE
     return init_cray_trampoline();
 #else
@@ -131,6 +136,21 @@ pisces_init_trampoline(void)
 #endif
 }
 
+
+int 
+pisces_deinit_trampoline(void) 
+{
+
+#ifdef CRAY_TRAMPOLINE
+    deinit_cray_trampoline();
+#else
+    deinit_linux_trampoline();
+#endif
+
+    __free_pages(pgt_pages, get_order(PAGE_SIZE * 7));
+
+    return 0;
+}
 
 
 
@@ -232,7 +252,7 @@ pisces_setup_trampoline(struct pisces_enclave * enclave)
 	if (!pml_entry->present) {
 	    pml_entry->present       = 1;
 	    pml_entry->writable      = 1;
-	    pml_entry->pdp_base_addr = PAGE_TO_BASE_ADDR(trampoline_state.pdp1_pa);
+	    pml_entry->pdp_base_addr = PAGE_TO_BASE_ADDR(trampoline_state.pdp2_pa);
 	} 
 
 	pdp       = __va(BASE_TO_PAGE_ADDR(pml_entry->pdp_base_addr));
@@ -242,7 +262,7 @@ pisces_setup_trampoline(struct pisces_enclave * enclave)
 	if (!pdp_entry->present) {
 	    pdp_entry->present      = 1;
 	    pdp_entry->writable     = 1;
-	    pdp_entry->pd_base_addr = PAGE_TO_BASE_ADDR(trampoline_state.pd1_pa);
+	    pdp_entry->pd_base_addr = PAGE_TO_BASE_ADDR(trampoline_state.pd2_pa);
 	}
 
 	pd  = __va(BASE_TO_PAGE_ADDR(pdp_entry->pd_base_addr));
@@ -476,7 +496,7 @@ boot_enclave(struct pisces_enclave * enclave)
 	
     __wakeup_secondary_cpu_via_init(apicid);
 	
-    /* Delay for target CPU to use Linux trampoline*/
+    /* Wait for the target CPU to come up */
     {
 	int i = 0;
 

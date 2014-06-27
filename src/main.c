@@ -291,6 +291,8 @@ pisces_exit(void)
     class_destroy(pisces_class);
 
     remove_proc_entry(PISCES_PROC_DIR, NULL);
+
+    pisces_deinit_trampoline();
 }
 
 
