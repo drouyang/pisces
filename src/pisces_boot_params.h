@@ -51,7 +51,7 @@ struct pisces_boot_params {
 	    u64 initialized  : 1;
 	    u64 flags__rsvd  : 63;
 	} __attribute__((packed));
-    } __attribute__((pacsked));
+    } __attribute__((packed));
     
 
     u64 boot_params_size;
