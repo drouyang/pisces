@@ -130,7 +130,6 @@ ctrl_ioctl(struct file   * filp,
 	    printk("Adding CPU %llu (APIC %llu)\n", cpu_id, cmd.apic_id);
 
 	    /* Setup Linux trampoline to jump to enclave trampoline */
-	    trampoline_lock();
 	    pisces_setup_trampoline(enclave);
 
 	    printk("Sending Command\n");
@@ -141,7 +140,6 @@ ctrl_ioctl(struct file   * filp,
 	    kfree(resp);
 
 	    pisces_restore_trampoline(enclave);
-	    trampoline_unlock();
 
 	    printk("\tDone\n");
 

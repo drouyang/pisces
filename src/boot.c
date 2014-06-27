@@ -133,18 +133,6 @@ pisces_init_trampoline(void)
 
 
 
-void 
-trampoline_lock(void) 
-{
-    mutex_lock(linux_trampoline_lock);
-}
-
-void 
-trampoline_unlock(void) 
-{
-    mutex_unlock(linux_trampoline_lock);
-}
-
 
 int 
 pisces_setup_trampoline(struct pisces_enclave * enclave) 
@@ -485,31 +473,25 @@ boot_enclave(struct pisces_enclave * enclave)
 			    boot_params->kernel_addr,
 			    enclave->bootmem_addr_pa >> PAGE_SHIFT);
 
-    /*
-     * hold this lock to serialize trampoline data access 
-     * as cpu_maps_update_begin in linux
-     */
-    mutex_lock(linux_trampoline_lock);
-    {
-	if (pisces_setup_trampoline(enclave) != 0) {
-	    mutex_unlock(linux_trampoline_lock);
-	    return -1;
-	}
-	
-	
-	printk(KERN_INFO "Reset APIC %d from APIC %d (CPU=%d)\n", 
-	       apicid,
-	       apic->cpu_present_to_apicid(smp_processor_id()), smp_processor_id());
-	
-	__wakeup_secondary_cpu_via_init(apicid);
-	
-	/* Delay for target CPU to use Linux trampoline*/
-	//udelay(500);
-	mdelay(10);
-	
-	pisces_restore_trampoline(enclave);
+
+
+    if (pisces_setup_trampoline(enclave) != 0) {
+	return -1;
     }
-    mutex_unlock(linux_trampoline_lock);
+	
+	
+    printk(KERN_INFO "Reset APIC %d from APIC %d (CPU=%d)\n", 
+	   apicid,
+	   apic->cpu_present_to_apicid(smp_processor_id()), smp_processor_id());
+	
+    __wakeup_secondary_cpu_via_init(apicid);
+	
+    /* Delay for target CPU to use Linux trampoline*/
+    //udelay(500);
+    mdelay(10);
+	
+    pisces_restore_trampoline(enclave);
+
 
     return ret;
 }

@@ -6,6 +6,7 @@
 #include <linux/init.h>
 #include <asm/io.h>
 #include <asm/trampoline.h>
+#include <linux/kallsyms.h>
 
 
 #include "../enclave.h"
@@ -15,14 +16,48 @@
 
 
 
-extern u8  trampoline_level4_pgt[];
-extern u64 secondary_startup_vector;
+void (*__cpu_maps_update_begin)(void);
+void (*__cpu_maps_update_done)(void);
+
 
 
 
 int 
 init_cray_trampoline(void)
 {
+
+    unsigned long symbol_addr = 0;
+
+
+    /* Symbol:
+     *  --  cpu_maps_update_begin
+     */
+    {
+        symbol_addr = kallsyms_lookup_name("cpu_maps_update_begin");
+
+        if (symbol_addr == 0) {
+            printk(KERN_WARNING "Linux symbol cpu_add_remove_lock not found.\n");
+            return -1;
+        }
+
+        __cpu_maps_update_done = (void (*)(void))symbol_addr;
+    }
+
+    /* Symbol:
+     *  --  cpu_maps_update_done
+     */
+    {
+        symbol_addr = kallsyms_lookup_name("cpu_maps_update_done");
+
+        if (symbol_addr == 0) {
+            printk(KERN_WARNING "Linux symbol cpu_add_remove_lock not found.\n");
+            return -1;
+        }
+
+        __cpu_maps_update_begin = (void (*)(void))symbol_addr;
+    }
+
+    /* Record the location of the trampoline to send with the INIT/SIPI IPI */
     trampoline_state.cpu_init_rip = TRAMPOLINE_BASE;
 
     return 0;
@@ -32,10 +67,13 @@ init_cray_trampoline(void)
 int
 setup_cray_trampoline(struct pisces_enclave * enclave)
 {
-    //    struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->bootmem_addr_pa);
-
+    extern u8  trampoline_level4_pgt[];
+    extern u64 secondary_startup_vector;
+    
     printk("Setting up Cray Trampoline\n");
 
+
+    __cpu_maps_update_begin();    /* Acquire mutex in Linux to prevent CPU operations */
 
     /* Setup Trampoline Code */    
     
@@ -59,9 +97,8 @@ setup_cray_trampoline(struct pisces_enclave * enclave)
 int
 restore_cray_trampoline(struct pisces_enclave * enclave)
 {
+    __cpu_maps_update_done();   /* Relase Linux Mutex for CPU operations */
 
-    /* Do we need to do anything here??? */
     return 0;
-
 }
 

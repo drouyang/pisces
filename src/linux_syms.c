@@ -3,10 +3,6 @@
 #include "linux_syms.h"
 
 
-
-struct mutex * linux_trampoline_lock;
-
-
 void (**linux_x86_platform_ipi_callback)(void);
 
 /*
@@ -18,19 +14,6 @@ pisces_linux_symbol_init(void)
     unsigned long symbol_addr = 0;
 
 
-    /* Symbol:
-     *  --  linux_trampoline_lock
-     */
-    {
-        symbol_addr = kallsyms_lookup_name("cpu_add_remove_lock");
-
-        if (symbol_addr == 0) {
-            printk(KERN_WARNING "Linux symbol cpu_add_remove_lock not found.\n");
-            return -1;
-        }
-
-        linux_trampoline_lock = (struct mutex *)symbol_addr;
-    }
 
     
     /* Symbol:
