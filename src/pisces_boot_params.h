@@ -34,7 +34,14 @@ struct pisces_enclave;
 struct pisces_boot_params {
 
     // Embedded asm to load esi and jump to kernel
-    u64 launch_code[8];
+    union {
+	u64 launch_code[8];
+	struct {
+	    u8    asm_code[48];
+	    u64   launch_code_esi;
+	    u64   launch_code_target_addr;
+	} __attribute__((packed));
+    } __attribute__((packed));
 
     u8 init_dbg_buf[16];
 

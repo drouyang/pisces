@@ -293,30 +293,20 @@ set_enclave_launch_args(struct pisces_enclave * enclave,
 			u64                     target_addr, 
 			u64                     esi)
 {
-    extern u8  launch_code_start;
-    extern u64 launch_code_target_addr;
-    extern u64 launch_code_esi;
-
-    u64 * target_addr_ptr = NULL;
-    u64 * esi_ptr         = NULL;
-
     struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->bootmem_addr_pa);
 
     printk("Setup Enclave trampoline\n");
 
-    target_addr_ptr =  (u64 *)((u8 *)&boot_params->launch_code  +
-			       ((u8 *)&launch_code_target_addr - (u8 *)&launch_code_start));
-
-    esi_ptr =  (u64 *)((u8 *)&boot_params->launch_code + 
-		       ((u8 *)&launch_code_esi - (u8 *)&launch_code_start));
-    
-    *target_addr_ptr = target_addr;
-    *esi_ptr         = esi;
+    boot_params->launch_code_esi         = esi;
+    boot_params->launch_code_target_addr = target_addr;
 
     printk(KERN_DEBUG "  set target address at %p to %p\n", 
-	   (void *) __pa(target_addr_ptr), (void *) *target_addr_ptr);
+	   (void *) __pa(&(boot_params->launch_code_target_addr)), 
+	   (void *) boot_params->launch_code_target_addr);
+
     printk(KERN_DEBUG "  set esi value at %p to %p\n", 
-	   (void *) __pa(esi_ptr), (void *) *esi_ptr);
+	   (void *) __pa(&(boot_params->launch_code_esi)), 
+	   (void *) boot_params->launch_code_esi);
 }
 
 
