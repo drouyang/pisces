@@ -1,35 +1,6 @@
-#include <linux/init.h>
-#include <linux/smp.h>
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/percpu.h>
-#include <linux/bootmem.h>
-#include <linux/err.h>
-#include <linux/nmi.h>
-#include <linux/tboot.h>
-#include <linux/stackprotector.h>
-#include <linux/gfp.h>
-#include <linux/cpuidle.h>
 
-#include <asm/acpi.h>
-#include <asm/desc.h>
-#include <asm/nmi.h>
-#include <asm/irq.h>
-#include <asm/idle.h>
-#include <asm/cpu.h>
-#include <asm/numa.h>
-#include <asm/pgtable.h>
-#include <asm/tlbflush.h>
-#include <asm/mtrr.h>
-#include <asm/apic.h>
-#include <asm/io_apic.h>
-#include <asm/i387.h>
-#include <asm/setup.h>
-#include <asm/uv/uv.h>
-#include <linux/mc146818rtc.h>
+#include <linux/mutex.h>
 
-#include <asm/smpboot_hooks.h>
-#include <asm/i8259.h>
 
 #include "linux_syms.h"
 #include "enclave.h"
@@ -51,6 +22,7 @@
 
 struct trampoline_data trampoline_state;
 
+static struct mutex trampoline_lock;
 
 static struct page * pgt_pages = NULL;
 
@@ -102,6 +74,8 @@ int
 pisces_init_trampoline(void)
 {
 
+    /* Prevent enclaves from  concurrent access to trampoline operations */
+    mutex_init(&(trampoline_lock));
 
     memset(&trampoline_state, 0, sizeof(struct trampoline_data));
 
@@ -157,12 +131,14 @@ pisces_deinit_trampoline(void)
 int 
 pisces_setup_trampoline(struct pisces_enclave * enclave) 
 {
-
+    int ret = 0;
 
     if (enclave->bootmem_size % PAGE_SIZE_2MB) {
 	printk(KERN_ERR "Error: Bootmem must be at least 2MB granularity\n");
 	return -1;
     }
+
+    mutex_lock(&trampoline_lock);
 
 
     /*
@@ -302,21 +278,33 @@ pisces_setup_trampoline(struct pisces_enclave * enclave)
     // walk_pgtables((uintptr_t)__va(trampoline_state.pml_pa));
 
 #ifdef CRAY_TRAMPOLINE
-    return setup_cray_trampoline(enclave);
+    ret = setup_cray_trampoline(enclave);
 #else 
-    return setup_linux_trampoline(enclave);
+    ret = setup_linux_trampoline(enclave);
 #endif
+
+    if (ret == -1) {
+	mutex_unlock(&trampoline_lock);
+    }
+
+    return ret;
 }
 
 
 int
 pisces_restore_trampoline(struct pisces_enclave * enclave) 
 {
+    int ret = 0;
+
 #ifdef CRAY_TRAMPOLINE
-    return restore_cray_trampoline(enclave);    
+    ret = restore_cray_trampoline(enclave);    
 #else
-    return restore_linux_trampoline(enclave);
+    ret = restore_linux_trampoline(enclave);
 #endif
+
+    mutex_unlock(&trampoline_lock);
+    
+    return ret;
 }
 
 
@@ -543,3 +531,41 @@ boot_enclave(struct pisces_enclave * enclave)
 
     return ret;
 }
+
+
+
+/*
+#include <linux/init.h>
+#include <linux/smp.h>
+#include <linux/module.h>
+#include <linux/sched.h>
+#include <linux/percpu.h>
+#include <linux/bootmem.h>
+#include <linux/err.h>
+#include <linux/nmi.h>
+#include <linux/tboot.h>
+#include <linux/stackprotector.h>
+#include <linux/gfp.h>
+#include <linux/cpuidle.h>
+
+#include <asm/acpi.h>
+#include <asm/desc.h>
+#include <asm/nmi.h>
+#include <asm/irq.h>
+#include <asm/idle.h>
+#include <asm/cpu.h>
+#include <asm/numa.h>
+#include <asm/pgtable.h>
+#include <asm/tlbflush.h>
+#include <asm/mtrr.h>
+#include <asm/apic.h>
+#include <asm/io_apic.h>
+#include <asm/i387.h>
+#include <asm/setup.h>
+#include <asm/uv/uv.h>
+#include <linux/mc146818rtc.h>
+
+#include <asm/smpboot_hooks.h>
+#include <asm/i8259.h>
+
+*/
