@@ -16,16 +16,14 @@ struct pisces_enclave;
 struct pisces_xbuf_desc;
 
 struct pisces_ctrl {
-    int connected;
-    wait_queue_head_t waitq;
-    spinlock_t lock;
+    struct mutex lock;
 
-    int active; /* Is the control channel active? Separate from cmd_buf->active */
     struct pisces_xbuf_desc * xbuf_desc;
 } __attribute__((packed));
 
 
 int pisces_ctrl_init(struct pisces_enclave * enclave);
+int pisces_ctrl_deinit(struct pisces_enclave * enclave);
 int pisces_ctrl_connect(struct pisces_enclave * enclave);
 
 #endif

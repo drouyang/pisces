@@ -21,11 +21,10 @@
 #endif
 
 
-struct trampoline_data trampoline_state;
+struct trampoline_data   trampoline_state;
+static struct mutex      trampoline_lock;
 
-static struct mutex trampoline_lock;
-
-static struct page * pgt_pages = NULL;
+static struct page     * pgt_pages = NULL;
 
 
 static void
@@ -490,6 +489,7 @@ boot_enclave(struct pisces_enclave * enclave)
 
 
     if (pisces_setup_trampoline(enclave) != 0) {
+	printk(KERN_ERR "Error: Could not setup trampoline for enclave\n");
 	return -1;
     }
 	

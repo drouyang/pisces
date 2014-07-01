@@ -15,6 +15,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/version.h>
+#include <linux/pci.h>
 
 #include "pisces.h"
 #include "enclave.h"
@@ -103,52 +104,57 @@ enclave_ioctl(struct file  * filp,
     struct pisces_enclave * enclave = (struct pisces_enclave *)filp->private_data;
     int ret = 0;
 
-    switch (ioctl) {
+    mutex_lock(&(enclave->op_lock));
+    {
+	switch (ioctl) {
 
-        case PISCES_ENCLAVE_LAUNCH:
-            {
-		struct enclave_boot_env boot_env;
-		
-		memset(&boot_env, 0, sizeof(struct enclave_boot_env));
-
-		if (copy_from_user(&boot_env, argp, sizeof(struct enclave_boot_env))) {
-		    printk(KERN_ERR "Error copying pisces image from user space\n");
-		    return -EFAULT;
+	    case PISCES_ENCLAVE_LAUNCH:
+		{
+		    struct enclave_boot_env boot_env;
+		    
+		    memset(&boot_env, 0, sizeof(struct enclave_boot_env));
+		    
+		    if (copy_from_user(&boot_env, argp, sizeof(struct enclave_boot_env))) {
+			printk(KERN_ERR "Error copying pisces image from user space\n");
+			ret = -EFAULT;
+			break;
+		    }
+		    
+		    /* We need to check that these values are legit */
+		    enclave->bootmem_addr_pa =  boot_env.base_addr;
+		    enclave->bootmem_size    =  boot_env.pages * PAGE_SIZE;
+		    enclave->boot_cpu        =  boot_env.cpu_id;
+		    
+		    pisces_enclave_add_cpu(enclave, boot_env.cpu_id);
+		    pisces_enclave_add_mem(enclave, boot_env.base_addr, boot_env.pages);
+		    
+		    
+		    printk(KERN_DEBUG "Launch Pisces Enclave (cpu=%d) (bootmem=%p)\n", 
+			   enclave->boot_cpu, 
+			   (void *)enclave->bootmem_addr_pa);
+		    
+		    ret = pisces_enclave_launch(enclave);
+		    
+		    break;
 		}
-
-		/* We need to check that these values are legit */
-		enclave->bootmem_addr_pa =  boot_env.base_addr;
-		enclave->bootmem_size    =  boot_env.pages * PAGE_SIZE;
-		enclave->boot_cpu        =  boot_env.cpu_id;
-
-		pisces_enclave_add_cpu(enclave, boot_env.cpu_id);
-		pisces_enclave_add_mem(enclave, boot_env.base_addr, boot_env.pages);
-
-
-                printk(KERN_DEBUG "Launch Pisces Enclave (cpu=%d) (bootmem=%p)\n", 
-		       enclave->boot_cpu, 
-		       (void *)enclave->bootmem_addr_pa);
-
-                ret = pisces_enclave_launch(enclave);
-
-                break;
-            }
-        case PISCES_ENCLAVE_CONS_CONNECT:
-            {
-                printk(KERN_DEBUG "Open enclave console...\n");
-                ret = pisces_cons_connect(enclave);
-                break;
-            }
-
-        case PISCES_ENCLAVE_CTRL_CONNECT:
-            {
-                printk("Connecting Ctrl Channel\n");
-                ret = pisces_ctrl_connect(enclave);
-                break;
-
-            }
-
+	    case PISCES_ENCLAVE_CONS_CONNECT:
+		{
+		    printk(KERN_DEBUG "Open enclave console...\n");
+		    ret = pisces_cons_connect(enclave);
+		    break;
+		}
+		
+	    case PISCES_ENCLAVE_CTRL_CONNECT:
+		{
+		    printk("Connecting Ctrl Channel\n");
+		    ret = pisces_ctrl_connect(enclave);
+		    break;
+		    
+		}
+		
+	}
     }
+    mutex_unlock(&(enclave->op_lock));
 
     return ret;
 }
@@ -167,15 +173,20 @@ proc_mem_show(struct seq_file * file,
 	return 0;
     }
 
-    seq_printf(file, "Num Memory Blocks: %d\n", enclave->memdesc_num);
-
-    list_for_each_entry(iter, &(enclave->memdesc_list), node) 
+    mutex_lock(&(enclave->op_lock));
     {
-	seq_printf(file, "%d: %p - %p\n", i, 
-		   (void *)iter->base_addr,
-		   (void *)(iter->base_addr + (iter->pages * 4096)));
-	i++;
+	seq_printf(file, "Num Memory Blocks: %d\n", enclave->memdesc_num);
+	
+	list_for_each_entry(iter, &(enclave->memdesc_list), node) 
+	{
+	    seq_printf(file, "%d: %p - %p\n", i, 
+		       (void *)iter->base_addr,
+		       (void *)(iter->base_addr + (iter->pages * 4096)));
+	    i++;
+	}
+
     }
+    mutex_unlock(&(enclave->op_lock));
 
     return 0;
 }
@@ -206,12 +217,16 @@ proc_cpu_show(struct seq_file * file,
 	return 0;
     }
 
-    seq_printf(file, "Num CPUs: %d\n", enclave->num_cpus);
-
-    for_each_cpu(cpu_iter, &(enclave->assigned_cpus)) {
-	seq_printf(file, "CPU %d\n", cpu_iter);
+    mutex_lock(&(enclave->op_lock));
+    {
+	seq_printf(file, "Num CPUs: %d\n", enclave->num_cpus);
+	
+	for_each_cpu(cpu_iter, &(enclave->assigned_cpus)) {
+	    seq_printf(file, "CPU %d\n", cpu_iter);
+	}
     }
- 
+    mutex_unlock(&(enclave->op_lock));
+
     return 0;
 }
 
@@ -226,6 +241,53 @@ proc_cpu_open(struct inode * inode,
 #endif
 
     return single_open(filp, proc_cpu_show, data);
+}
+
+
+
+static int 
+proc_pci_show(struct seq_file * file, 
+	      void            * priv_data)
+{
+    struct pisces_enclave * enclave = file->private;
+    struct pisces_pci_dev * dev     = NULL;
+
+    if (IS_ERR(enclave)) {
+	seq_printf(file, "NULL ENCLAVE\n");
+	return 0;
+    }
+
+    mutex_lock(&(enclave->op_lock));
+    {
+	seq_printf(file, "PCI Devices: %d\n", enclave->pci_state.dev_num);
+	
+	list_for_each_entry(dev, &(enclave->pci_state.dev_list), dev_node) {
+	    seq_printf(file, "%s: %.2x:%.2x.%x\n", 
+		       dev->name,
+		       dev->bus, 
+		       PCI_SLOT(dev->devfn),
+		       PCI_FUNC(dev->devfn));
+	    
+	}
+    }
+    mutex_unlock(&(enclave->op_lock));
+
+    return 0;
+
+
+}
+
+static int 
+proc_pci_open(struct inode * inode, 
+	      struct file  * filp) 
+{
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
+    void * data = PDE(inode)->data;
+#else 
+    void * data = PDE_DATA(inode);
+#endif
+
+    return single_open(filp, proc_pci_show, data);
 }
 
 
@@ -258,6 +320,16 @@ static struct file_operations proc_cpu_fops = {
 };
 
 
+
+static struct file_operations proc_pci_fops = {
+    .owner   = THIS_MODULE, 
+    .open    = proc_pci_open,
+    .read    = seq_read,
+    .llseek  = seq_lseek,
+    .release = single_release,
+};
+
+
 int 
 pisces_enclave_create(struct pisces_image * img) 
 {
@@ -283,6 +355,8 @@ pisces_enclave_create(struct pisces_image * img)
         kfree(enclave);
         return -1;
     }
+
+    mutex_init(&(enclave->op_lock));
 
     enclave->state        = ENCLAVE_LOADED;
 
@@ -328,6 +402,7 @@ pisces_enclave_create(struct pisces_image * img)
 	char name[128];
 	struct proc_dir_entry * mem_entry = NULL;
 	struct proc_dir_entry * cpu_entry = NULL;
+	struct proc_dir_entry * pci_entry = NULL;
 
 	memset(name, 0, 128);
 	snprintf(name, 128, "enclave-%d", enclave->id);
@@ -346,9 +421,16 @@ pisces_enclave_create(struct pisces_image * img)
 	    cpu_entry->proc_fops = &proc_cpu_fops;
 	    cpu_entry->data      = enclave;
 	}
+
+	pci_entry = create_proc_entry("pci",   0444, enclave->proc_dir);
+	if (pci_entry) {
+	    pci_entry->proc_fops = &proc_pci_fops;
+	    pci_entry->data      = enclave;
+	}
 #else
 	mem_entry = proc_create_data("memory",  0444, enclave->proc_dir, &proc_mem_fops, enclave);
 	cpu_entry = proc_create_data("cpus",    0444, enclave->proc_dir, &proc_cpu_fops, enclave);
+	pci_entry = proc_create_data("pci",     0444, enclave->proc_dir, &proc_pci_fops, enclave);
 
 #endif
 
@@ -391,6 +473,10 @@ pisces_enclave_free(struct pisces_enclave * enclave)
     device_destroy(pisces_class, enclave->dev);
     cdev_del(&(enclave->cdev));
 
+    /* Wait for closure of any active connections, and prevent future ones */
+    pisces_ctrl_deinit(enclave);
+
+
     /* Free proc entries */
     {
 	char name[128];
@@ -400,6 +486,7 @@ pisces_enclave_free(struct pisces_enclave * enclave)
 
 	remove_proc_entry("memory", enclave->proc_dir);
 	remove_proc_entry("cpus",   enclave->proc_dir);
+	remove_proc_entry("pci",    enclave->proc_dir);
 	remove_proc_entry(name,     pisces_proc_dir);
     }
 

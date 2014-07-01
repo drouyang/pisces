@@ -17,30 +17,6 @@
 #include "enclave.h"
 #include "ipi.h"
 
-struct pisces_pci_dev {
-    char name[128];
-    u32  domain;
-    u32  bus;
-    u32  devfn;
-    
-    struct pisces_enclave * enclave;
-    
-    u8 ready;
-    u8 assigned;
-
-    u8 iommu_enabled;
-    struct iommu_domain * iommu_domain;
-    
-    u32 device_ipi_vector; /* for irq forwarding */
-    
-    spinlock_t intx_lock;
-    u8         intx_disabled;
-    
-    struct pci_dev    * dev;
-
-
-    struct list_head dev_node;
-};
 
 
 

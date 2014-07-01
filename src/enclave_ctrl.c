@@ -29,15 +29,14 @@ ctrl_read(struct file * filp,
 {
     struct pisces_enclave * enclave = filp->private_data;
     struct pisces_ctrl    * ctrl    = &(enclave->ctrl);
-    unsigned long flags;
     int ret = 0;
 
-    spin_lock_irqsave(&ctrl->lock, flags);
-
+    mutex_lock(&(ctrl->lock));
+    {
 
     // read potential resp data
-
-    spin_unlock_irqrestore(&ctrl->lock, flags);
+    }
+    mutex_unlock(&(ctrl->lock));
 
     return ret;
 }
@@ -417,13 +416,8 @@ ctrl_ioctl(struct file   * filp,
 static int ctrl_release(struct inode * i, struct file * filp) {
     struct pisces_enclave * enclave = filp->private_data;
     struct pisces_ctrl    * ctrl    = &(enclave->ctrl);
-    unsigned long flags;
 
-    spin_lock_irqsave(&(ctrl->lock), flags);
-    {
-	ctrl->connected = 0;
-    }
-    spin_unlock_irqrestore(&(ctrl->lock), flags);
+    mutex_unlock(&(ctrl->lock));
 
     return 0;
 }
@@ -440,29 +434,18 @@ static struct file_operations ctrl_fops = {
 
 int pisces_ctrl_connect(struct pisces_enclave * enclave) {
     struct pisces_ctrl * ctrl = &(enclave->ctrl);
-    unsigned long flags = 0;
-    int acquired        = 0;
     int ctrl_fd         = 0;
 
+    mutex_lock(&(ctrl->lock));
 
-    spin_lock_irqsave(&ctrl->lock, flags);
-    {
-	if (ctrl->connected == 0) {
-	    ctrl->connected = 1;
-	    acquired        = 1;
-	}
-    }
-    spin_unlock_irqrestore(&ctrl->lock, flags);
- 
-    if (acquired == 0) {
-        printk(KERN_ERR "Ctrl already connected\n");
-        return -1;
-    }
 
     ctrl_fd = anon_inode_getfd("enclave-ctrl", &ctrl_fops, enclave, O_RDWR);
 
     if (ctrl_fd < 0) {
         printk(KERN_ERR "Error creating Ctrl inode\n");
+
+	mutex_unlock(&(ctrl->lock));
+
         return ctrl_fd;
     }
 
@@ -472,20 +455,31 @@ int pisces_ctrl_connect(struct pisces_enclave * enclave) {
 
 
 int
-pisces_ctrl_init( struct pisces_enclave * enclave)
+pisces_ctrl_init(struct pisces_enclave * enclave)
 {
     struct pisces_ctrl        * ctrl        = &(enclave->ctrl);
     struct pisces_boot_params * boot_params = NULL;
 
 
-    init_waitqueue_head(&ctrl->waitq);
-    spin_lock_init(&ctrl->lock);
-
-    ctrl->connected = 0;
+    mutex_init(&(ctrl->lock));
 
     boot_params     = __va(enclave->bootmem_addr_pa);    
     ctrl->xbuf_desc = pisces_xbuf_client_init(enclave, (uintptr_t)__va(boot_params->control_buf_addr), 0, 0);
     
+    return 0;
+}
+
+int 
+pisces_ctrl_deinit(struct pisces_enclave * enclave)
+{
+    struct pisces_ctrl * ctrl = &(enclave->ctrl);
+
+    /* 
+     *  Acquire the ctrl lock to ensure that no controllers are connected
+     *  This will block the free operation until all controllers have disconected
+     */
+    mutex_lock(&(ctrl->lock)); 
+
     return 0;
 }
 
