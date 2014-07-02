@@ -10,6 +10,7 @@
 #include <linux/types.h>
 #include <linux/cpumask.h>
 #include <linux/cdev.h>
+#include <linux/kref.h>
 
 #include "enclave_cons.h"
 #include "enclave_ctrl.h"
@@ -20,6 +21,7 @@
 
 #define ENCLAVE_LOADED      1
 #define ENCLAVE_RUNNING     2
+#define ENCLAVE_DEAD        3
 
 struct enclave_mem_block {
     u64 base_addr;
@@ -56,6 +58,7 @@ struct pisces_enclave {
     uintptr_t bootmem_addr_pa;
     u64       bootmem_size;
 
+    struct kref  refcount;
     struct mutex op_lock;
 
     // This is what we will want eventually.....
@@ -71,7 +74,15 @@ int
 pisces_enclave_create(struct pisces_image * img);
 
 
-int pisces_enclave_free(struct pisces_enclave * enclave);
+int 
+pisces_enclave_free(struct pisces_enclave * enclave);
+
+
+void
+enclave_get(struct pisces_enclave * enclave);
+
+void 
+enclave_put(struct pisces_enclave * enclave);
 
 int 
 pisces_enclave_add_mem(struct pisces_enclave * enclave, 
@@ -82,7 +93,6 @@ pisces_enclave_add_mem(struct pisces_enclave * enclave,
 int 
 pisces_enclave_add_cpu(struct pisces_enclave * enclave, 
 		       u32                     cpu_id);
-
 
 
 

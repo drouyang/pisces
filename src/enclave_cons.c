@@ -130,6 +130,7 @@ console_release(struct inode * i,
 
 
 static struct file_operations cons_fops = {
+    .owner    = THIS_MODULE,
     .read     = console_read,
     .release  = console_release
 };

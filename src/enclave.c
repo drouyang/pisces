@@ -69,7 +69,21 @@ enclave_open(struct inode * inode,
 	     struct file  * filp) 
 {
     struct pisces_enclave * enclave = container_of(inode->i_cdev, struct pisces_enclave, cdev);
+
+    enclave_get(enclave);
+
     filp->private_data = enclave;
+    return 0;
+}
+
+static int
+enclave_release(struct inode * inode, 
+		struct file  * filp) 
+{
+    struct pisces_enclave * enclave = filp->private_data;
+
+    enclave_put(enclave);
+
     return 0;
 }
 
@@ -196,13 +210,16 @@ static int
 proc_mem_open(struct inode * inode, 
 	      struct file  * filp) 
 {
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
-    void * data = PDE(inode)->data;
+    struct pisces_enclave * enclave = PDE(inode)->data;
 #else 
-    void * data = PDE_DATA(inode);
+    struct pisces_enclave * enclave = PDE_DATA(inode);
 #endif
 
-    return single_open(filp, proc_mem_show, data);
+    enclave_get(enclave);
+
+    return single_open(filp, proc_mem_show, enclave);
 }
 
 static int 
@@ -235,12 +252,14 @@ proc_cpu_open(struct inode * inode,
 	      struct file  * filp) 
 {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
-    void * data = PDE(inode)->data;
+    struct pisces_enclave * enclave = PDE(inode)->data;
 #else 
-    void * data = PDE_DATA(inode);
+    struct pisces_enclave * enclave = PDE_DATA(inode);
 #endif
 
-    return single_open(filp, proc_cpu_show, data);
+    enclave_get(enclave);
+
+    return single_open(filp, proc_cpu_show, enclave);
 }
 
 
@@ -259,7 +278,7 @@ proc_pci_show(struct seq_file * file,
 
     mutex_lock(&(enclave->op_lock));
     {
-	seq_printf(file, "PCI Devices: %d\n", enclave->pci_state.dev_num);
+	seq_printf(file, "PCI Devices: %d\n", enclave->pci_state.dev_cnt);
 	
 	list_for_each_entry(dev, &(enclave->pci_state.dev_list), dev_node) {
 	    seq_printf(file, "%s: %.2x:%.2x.%x\n", 
@@ -282,12 +301,14 @@ proc_pci_open(struct inode * inode,
 	      struct file  * filp) 
 {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
-    void * data = PDE(inode)->data;
+    struct pisces_enclave * enclave = PDE(inode)->data;
 #else 
-    void * data = PDE_DATA(inode);
+    struct pisces_enclave * enclave = PDE_DATA(inode);
 #endif
 
-    return single_open(filp, proc_pci_show, data);
+    enclave_get(enclave);
+
+    return single_open(filp, proc_pci_show, enclave);
 }
 
 
@@ -299,7 +320,23 @@ static struct file_operations enclave_fops = {
     .open           = enclave_open,
     .read           = enclave_read, 
     .write          = enclave_write,
+    .release        = enclave_release,
 };
+
+static int 
+proc_release(struct inode * inode,
+	     struct file  * filp)
+{
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
+    struct pisces_enclave * enclave = PDE(inode)->data;
+#else 
+    struct pisces_enclave * enclave = PDE_DATA(inode);
+#endif
+
+    enclave_put(enclave);
+
+    return single_release(inode, filp);
+}
 
 
 static struct file_operations proc_mem_fops = {
@@ -307,7 +344,7 @@ static struct file_operations proc_mem_fops = {
     .open    = proc_mem_open,
     .read    = seq_read,
     .llseek  = seq_lseek,
-    .release = single_release,
+    .release = proc_release,
 };
 
 
@@ -316,7 +353,7 @@ static struct file_operations proc_cpu_fops = {
     .open    = proc_cpu_open,
     .read    = seq_read,
     .llseek  = seq_lseek,
-    .release = single_release,
+    .release = proc_release,
 };
 
 
@@ -326,8 +363,10 @@ static struct file_operations proc_pci_fops = {
     .open    = proc_pci_open,
     .read    = seq_read,
     .llseek  = seq_lseek,
-    .release = single_release,
+    .release = proc_release,
 };
+
+
 
 
 int 
@@ -357,6 +396,8 @@ pisces_enclave_create(struct pisces_image * img)
     }
 
     mutex_init(&(enclave->op_lock));
+
+    kref_init(&(enclave->refcount));
 
     enclave->state        = ENCLAVE_LOADED;
 
@@ -469,11 +510,12 @@ int
 pisces_enclave_free(struct pisces_enclave * enclave) 
 {
 
+    enclave->state = ENCLAVE_DEAD;
+
     /* Free Enclave device file */
     device_destroy(pisces_class, enclave->dev);
     cdev_del(&(enclave->cdev));
 
-    /* Wait for closure of any active connections, and prevent future ones */
     pisces_ctrl_deinit(enclave);
 
 
@@ -506,9 +548,34 @@ pisces_enclave_free(struct pisces_enclave * enclave)
 	}
     }
 
-    kfree(enclave);
+
+    enclave_put(enclave);
 
     return 0;
+}
+
+static void 
+enclave_last_put(struct kref * kref)
+{
+    struct pisces_enclave * enclave = container_of(kref, struct pisces_enclave, refcount);
+
+    printk("Freeing Enclave\n");
+
+    kfree(enclave);
+}
+
+
+void 
+enclave_get(struct pisces_enclave * enclave) 
+{
+    kref_get(&(enclave->refcount));
+}
+
+
+void 
+enclave_put(struct pisces_enclave * enclave)
+{
+    kref_put(&(enclave->refcount), enclave_last_put);
 }
 
 

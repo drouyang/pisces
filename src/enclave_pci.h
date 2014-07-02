@@ -26,7 +26,7 @@ struct pci_cmd_lcall;
 struct enclave_pci_state {
     spinlock_t       lock;
     struct list_head dev_list;
-    u32              dev_num;
+    u32              dev_cnt;
 };
 
 

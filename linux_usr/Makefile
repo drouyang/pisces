@@ -55,10 +55,10 @@ all: $(execs) $(libs)
 
 
 v3_cons_sc: v3_cons_sc.c
-	$(call build,CC,$(CC) $(CFLAGS)  $< -lcurses $(libs) -o $@)
+	$(call build,CC,$(CC) $(CFLAGS) $< $(libs) -lcurses -ltinfo -o $@)
 
 v3_cons_nosc: v3_cons_nosc.c
-	$(call build,CC,$(CC) $(CFLAGS)  $< -lcurses $(libs) -o $@)
+	$(call build,CC,$(CC) $(CFLAGS) $< $(libs) -lcurses -ltinfo -o $@)
 
 
 

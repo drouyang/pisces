@@ -23,7 +23,8 @@
 #define CPU_ENTRY_STR     "CPU "
 #define MEM_HDR_STR       "Num Memory Blocks: "
 #define MEM_REGEX_STR     "[0-9]+: ([0-9A-Fa-f]{16}) - ([0-9A-Fa-f]{16})"
-
+#define PCI_HDR_STR       "PCI Devices: "
+#define PCI_REGEX_STR     "(\\s*): ([0-9]{4}?:{0,1}[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}.[0-7])"
 
 
 typedef enum { INVALID_RESOURCE, 
@@ -41,13 +42,19 @@ struct mem_res_info {
     unsigned long long end_addr;
 };
 
+struct pci_res_info {
+    char name[128];
+    char bdf[128];
+};
+
+
 struct enclave_resource {
     res_type_t type;
 
     union {
 	struct cpu_res_info cpu_res;
 	struct mem_res_info mem_res;
-	//	struct pci_res_info pci_res;
+	struct pci_res_info pci_res;
     };
 
     struct list_head node;
@@ -83,6 +90,8 @@ int main(int argc, char ** argv) {
     /* Cache Resources in use */
     INIT_LIST_HEAD(&(resource_list));
 
+
+    printf("Checking for assigned CPUs\n");
 
     /* CPUs */
     {
@@ -141,6 +150,8 @@ int main(int argc, char ** argv) {
 	    list_add(&(res->node), &resource_list);
 	}
     }
+
+    printf("Checking for memory blocks\n");
 
     /* Memory */
     {
@@ -221,12 +232,90 @@ int main(int argc, char ** argv) {
 	}
     }
 
+    printf("Checking for PCI Devices\n");
+    
     /* PCI Devices */
     {
+	char   pci_path[128]   = {[0 ... 127] = 0};
+	char   hdr_str[64]     = {[0 ... 63] = 0};
+	char   pci_str[256]    = {[0 ... 255] = 0};
+	FILE * pci_file        = NULL;
+	unsigned long num_devs = 0;
+
+	int i = 0;
+
+	snprintf(pci_path, 127, PROC_PATH "enclave-%d/pci", enclave_id);
+
+	pci_file = fopen(pci_path, "r");
+
+	if (pci_file == NULL) {
+	    printf("Error: Could not open PCI proc file\n");
+	    return -1;
+	}
+
+	if (fgets(hdr_str, 63, pci_file) == NULL) {
+	    printf("Error: Could not read PCI proc file\n");
+	    return -1;
+	}
+	
+	if (strncmp(hdr_str, PCI_HDR_STR, strlen(PCI_HDR_STR)) != 0) {
+	    printf("Error: Invalid PCI proc file header (%s)\n", hdr_str);
+	    return -1;
+	}
+
+	num_devs = atoi(hdr_str + strlen(PCI_HDR_STR));
+
+	for (i = 0; i < num_devs; i++) {
+	    struct enclave_resource * res = NULL; 
+
+	    char name_str[128] = {[0 ... 127] = 0};
+	    char bdf_str[128]  = {[0 ... 127] = 0};
+
+	    regmatch_t matches[3];
+	    regex_t    regex;
+	
+
+	    if (regcomp(&regex, PCI_REGEX_STR, REG_EXTENDED) != 0) {
+		printf("Error: Compiling Regular Expression (%s)\n", PCI_REGEX_STR);
+		return -1;
+	    }
+
+
+	    if (fgets(pci_str, 255, pci_file) == NULL) {
+		printf("Error: Could not read PCI entry\n");
+		return -1;
+	    }
+
+	    if (regexec(&regex, pci_str, 3, matches, 0) != 0) {
+		printf("Error: Invalid PCI entry string  (%s)\n", pci_str);
+		return -1;
+	    }
+
+	    if ( ((matches[1].rm_eo - matches[1].rm_so) >= 128) ||
+		 ((matches[2].rm_eo - matches[2].rm_so) >= 128) ) {
+		printf("Error: Invalid mem entry string (%s)\n", pci_str);
+	    }
+	    
+	    memcpy(name_str, pci_str + matches[1].rm_so, (matches[1].rm_eo - matches[1].rm_so) );
+	    memcpy(bdf_str,  pci_str + matches[2].rm_so, (matches[2].rm_eo - matches[2].rm_so) );
+	    
+
+	    res = (struct enclave_resource *)malloc(sizeof(struct enclave_resource));
+	    
+	    memset(res, 0, sizeof(struct enclave_resource));
+
+	    res->type        = PCI_RESOURCE;
+	    strncpy(res->pci_res.name, name_str, strlen(name_str));
+	    strncpy(res->pci_res.bdf,  bdf_str,  strlen(bdf_str));
+
+	    list_add(&(res->node), &resource_list);
+	}
 
 
     }
 
+
+    printf("Sending shutdown command to enclave\n");
 
     /* Send shutdown request to Enclave */
     {
@@ -247,12 +336,17 @@ int main(int argc, char ** argv) {
 	close(ctrl_fd);
     }
 
+
+    printf("Freeing enclave\n");
+
     /* Free Enclave */
     {
 	pet_ioctl_path(PISCES_PATH, PISCES_FREE_ENCLAVE, (void *)(uint64_t)enclave_id);
     }
 
     
+    printf("Onlining Resources\n");
+
     /* Online all resources */
     {
 
@@ -276,6 +370,17 @@ int main(int argc, char ** argv) {
 
 		    pet_online_block(blk_id);
 		}
+	    } else if (res->type == PCI_RESOURCE) {
+		unsigned int bus = 0;
+		unsigned int dev = 0;
+		unsigned int fn  = 0;
+		
+		if (pet_parse_bdf(res->pci_res.bdf, &bus, &dev, &fn) != 0) {
+		    printf("Error: Could not parse BDF spcification string (%s)\n", res->pci_res.bdf);
+		    return -1;
+		}
+
+		pet_online_pci(bus, dev, fn);
 
 	    } else {
 		printf("Invalid resource type\n");

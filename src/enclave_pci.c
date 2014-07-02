@@ -157,6 +157,7 @@ enclave_pci_add_dev(struct pisces_enclave  * enclave,
 
 	if (!find_dev_by_name(enclave, spec->name)) {
 	    list_add(&(pci_dev->dev_node), &(pci_state->dev_list));	    
+	    pci_state->dev_cnt++;
 	    ret = 0;
 	}
     }
@@ -262,30 +263,61 @@ enclave_pci_add_dev(struct pisces_enclave  * enclave,
     return ret;
 }
 
+static int
+__unregister_device(struct pisces_enclave  * enclave,
+		    struct pisces_pci_dev * pci_dev) 
+{
+    struct enclave_pci_state * pci_state = &(enclave->pci_state);
+
+    if ( (pci_dev           != NULL) &&
+	 (pci_dev->assigned == 0) && 
+	 (pci_dev->ready    == 1) )
+    {
+	pci_dev->ready = 0;
+	list_del(&(pci_dev->dev_node));
+	pci_state->dev_cnt--;
+
+	return 0;
+    } 
+
+    return -1;
+}
+
+static int
+__reset_hw_dev(struct pci_dev * dev)
+{
+
+    /* 
+     * DMA and Mem-mapped I/O should already be disabled
+     * All IOMMU mappings should be destroyed and device should be detached from IOMMU context
+     */
+
+    /* Free BAR regions */
+    pci_release_regions(dev);
+    
+    /* Reset Device State */
+    pci_reset_function(dev);
+
+    pci_restore_state(dev);
+    pci_disable_device(dev);
+
+    return 0;
+}
+
 int
 enclave_pci_remove_dev(struct pisces_enclave  * enclave,
 		       struct pisces_pci_spec * spec)
 {
     struct enclave_pci_state * pci_state = &(enclave->pci_state);
     struct pisces_pci_dev    * pci_dev   = NULL;
-    struct pci_dev           * dev       = NULL;
 
     unsigned long flags = 0;
-
-    printk(KERN_ERR " REMOVING DEVICE !! REMOVING DEVICE !!\n");
 
     spin_lock_irqsave(&(pci_state->lock), flags);
     {
 	pci_dev = find_dev_by_name(enclave, spec->name);
-	
-	if ( (pci_dev           != NULL) &&
-	     (pci_dev->assigned == 0) && 
-	     (pci_dev->ready    == 1) )
-	{
-	    pci_dev->ready = 0;
-	    list_del(&(pci_dev->dev_node));
-	}
-	else {
+
+	if (__unregister_device(enclave, pci_dev) == -1) {
 	    pci_dev = NULL;
 	}
     }
@@ -296,23 +328,10 @@ enclave_pci_remove_dev(struct pisces_enclave  * enclave,
 	return -1;
     }
 
-    dev = pci_dev->dev;
+    printk("Removing PCI Device [%s]\n", pci_dev->name);
 
-    /* 
-     * DMA and Mem-mapped I/O should already be disabled
-     * All IOMMU mappings should be destroyed and device should be detached from IOMMU context
-     */
-
+    __reset_hw_dev(pci_dev->dev);
     
-    /* Free BAR regions */
-    pci_release_regions(dev);
-    
-    /* Reset Device State */
-    pci_reset_function(dev);
-
-    pci_restore_state(dev);
-    pci_disable_device(dev);
-
     kfree(pci_dev);
     
     return 0;
@@ -716,7 +735,7 @@ init_enclave_pci(struct pisces_enclave * enclave)
 
     spin_lock_init(&(pci_state->lock));
     INIT_LIST_HEAD(&(pci_state->dev_list));
-    pci_state->dev_num = 0;
+    pci_state->dev_cnt = 0;
     
     return 0;
 }
@@ -725,5 +744,30 @@ init_enclave_pci(struct pisces_enclave * enclave)
 int
 deinit_enclave_pci(struct pisces_enclave * enclave)
 {
-    return -1;
+    struct enclave_pci_state * pci_state = &(enclave->pci_state);
+    struct pisces_pci_dev    * pci_dev   = NULL;
+
+    unsigned long flags = 0;
+    
+    while (1) {
+
+	spin_lock_irqsave(&(pci_state->lock), flags);
+	{
+	    if (list_empty(&(pci_state->dev_list))) {
+		spin_unlock_irqrestore(&(pci_state->lock), flags);
+		break;
+	    }
+
+	    pci_dev = list_first_entry( &(pci_state->dev_list), struct pisces_pci_dev, dev_node);
+		
+	    __unregister_device(enclave, pci_dev);
+	} 
+	spin_unlock_irqrestore(&(pci_state->lock), flags);
+	
+	__reset_hw_dev(pci_dev->dev);
+
+	kfree(pci_dev);
+    }
+
+    return 0;
 }

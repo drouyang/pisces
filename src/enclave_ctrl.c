@@ -103,327 +103,360 @@ ctrl_ioctl(struct file   * filp,
     int ret      = 0;
     int status   = 0;
 
-    printk("CTRL IOCTL (%d)\n", ioctl);
-    printk("Enclave=%p\n", enclave);
 
+    mutex_lock(&(ctrl->lock));
+    {
 
-    switch (ioctl) {
-        case ENCLAVE_CMD_ADD_CPU: {
-	    struct cmd_cpu_add  cmd;
-	    u64 cpu_id = (u64)arg;
-	    
-	    memset(&cmd, 0, sizeof(struct cmd_cpu_add));
-	    
-	    if (pisces_enclave_add_cpu(enclave, cpu_id) != 0) {
-		printk(KERN_ERR "Error adding CPU to enclave %d\n", enclave->id);
-		return -1;
-	    }
-
-	    cmd.hdr.cmd      = ENCLAVE_CMD_ADD_CPU;
-	    cmd.hdr.data_len = ( sizeof(struct cmd_cpu_add) - 
-				 sizeof(struct pisces_cmd));
-	    cmd.phys_cpu_id  = cpu_id;
-	    cmd.apic_id      = apic->cpu_present_to_apicid(cpu_id);
-
-
-	    printk("Adding CPU %llu (APIC %llu)\n", cpu_id, cmd.apic_id);
-
-	    /* Setup Linux trampoline to jump to enclave trampoline */
-	    pisces_setup_trampoline(enclave);
-
-	    printk("Sending Command\n");
-
-	    ret    = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_cpu_add),  (u8 **)&resp, &resp_len);
-	    status = resp->status;
-
-	    kfree(resp);
-
-	    pisces_restore_trampoline(enclave);
-
-	    printk("\tDone\n");
-
-	    if ((ret != 0) || (status != 0)) {
-		// remove CPU from enclave
-		return -1;
-	    }
-
-	    break;
-	}
-        case ENCLAVE_CMD_REMOVE_CPU: {
-	    struct cmd_cpu_add  cmd;
-	    u64 cpu_id = (u64)arg;
-
-	    memset(&cmd, 0, sizeof(struct cmd_cpu_add));
-
-	    cmd.hdr.cmd      = ENCLAVE_CMD_REMOVE_CPU;
-	    cmd.hdr.data_len = ( sizeof(struct cmd_cpu_add) -
-				 sizeof(struct pisces_cmd));
-	    cmd.phys_cpu_id  = cpu_id;
-	    cmd.apic_id      = apic->cpu_present_to_apicid(cpu_id);
-
-
-	    printk("Offlining CPU %llu (APIC %llu)\n", cpu_id, cmd.apic_id);
-
-	    ret    = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_cpu_add),  (u8 **)&resp, &resp_len);
-	    status = resp->status;
-
-	    kfree(resp);
-
-	    if ((ret != 0) || (status != 0)) {
-		return -1;
-	    }
-
-	    //pisces_enclave_remove_cpu(enclave, cpu_id);
-
-	    break;
-	}
-
-        case ENCLAVE_CMD_ADD_MEM: {
-	    struct cmd_mem_add  cmd;
-	    struct memory_range reg;
-
-	    memset(&cmd, 0, sizeof(struct cmd_mem_add));
-	    memset(&reg, 0, sizeof(struct memory_range));
-
-	    cmd.hdr.cmd      = ENCLAVE_CMD_ADD_MEM;
-	    cmd.hdr.data_len = ( sizeof(struct cmd_mem_add) - 
-				 sizeof(struct pisces_cmd));
-
-	    if (copy_from_user(&reg, argp, sizeof(struct memory_range))) {
-		printk(KERN_ERR "Could not copy memory region from user space\n");
-		return -EFAULT;
-	    }
-
-	    if (pisces_enclave_add_mem(enclave, reg.base_addr, reg.pages) != 0) {
-		printk(KERN_ERR "Error adding memory descriptor to enclave %d\n", enclave->id);
-		return -1;
-	    }
-
-	    cmd.phys_addr = reg.base_addr;
-	    cmd.size      = reg.pages * PAGE_SIZE_4KB;
-
-	    ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_mem_add),  (u8 **)&resp, &resp_len);
-
-	    kfree(resp);
-
-	    if (ret != 0) {
-		printk(KERN_ERR "Error adding memory to enclave %d\n", enclave->id);
-		// remove memory from enclave
-		return -1;
-	    }
-
-	    break;
-	}
-	case ENCLAVE_CMD_REMOVE_MEM: {
-
-	    printk("Removing memory is not supported\n");
-	    return -1;
-
-	}
-	case ENCLAVE_CMD_ADD_V3_PCI: {
-	    struct cmd_add_pci_dev   cmd;
-
-	    printk("Adding V3 PCI device\n");
-
-	    memset(&cmd, 0, sizeof(struct cmd_add_pci_dev));
-
-	    cmd.hdr.cmd      = ENCLAVE_CMD_ADD_V3_PCI;
-	    cmd.hdr.data_len = ( sizeof(struct cmd_add_pci_dev) - 
-				 sizeof(struct pisces_cmd));
-
-	    if (copy_from_user(&(cmd.spec), argp, sizeof(struct pisces_pci_spec))) {
-		printk(KERN_ERR "Could not copy pci device structure from user space\n");
-		return -EFAULT;
-	    }
-
-	    printk("Init an offlined PCI device\n");
-
-	    ret = enclave_pci_add_dev(enclave, &cmd.spec);
-
-	    if (ret != 0) {
-		printk(KERN_ERR "Could not initailize PCI device\n");
-		return ret;
-	    }
-
-	    printk(" Notifying enclave\n");
-	    ret    = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_add_pci_dev), (u8 **)&resp, &resp_len);
-	    status = resp->status;
-
-	    kfree(resp);
-
-	    if ((ret != 0) || (status != 0)) {
-		printk(KERN_ERR "Error adding PCI device to Enclave %d\n", enclave->id);
-		enclave_pci_remove_dev(enclave, &cmd.spec);
-		return -1;
-	    }
-
-	    break;
-	}
-	case ENCLAVE_CMD_FREE_V3_PCI: {
-	    struct cmd_free_pci_dev   cmd;
-
-	    cmd.hdr.cmd      = ENCLAVE_CMD_FREE_V3_PCI;
-	    cmd.hdr.data_len = ( sizeof(struct cmd_free_pci_dev) - 
-				 sizeof(struct pisces_cmd));
-	    
-	    if (copy_from_user(&(cmd.spec), argp, sizeof(struct pisces_pci_spec))) {
-		printk(KERN_ERR "Could not copy pci device structure from user space\n");
-		return -EFAULT;
-	    }
-
-	    /* Send Free xbuf Call */
-	    ret    = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_add_pci_dev), (u8 **)&resp, &resp_len);
-	    status = resp->status;
-
-	    kfree(resp);
-	    
-	    if ((ret != 0) || (status != 0)) {
-		printk(KERN_ERR "Error in PCI free enclave command\n");
-		return -1;
-	    }
-
-	    /* Free Linux resources */	    
-	    if (enclave_pci_remove_dev(enclave, &cmd.spec) != 0) {
-		printk(KERN_ERR "Error removing Pisces device from Enclave state\n");
-		return -1;
-	    }
-
-	    break;
-	}
-        case ENCLAVE_CMD_CREATE_VM: {
-	    struct cmd_create_vm cmd;
-
-	    memset(&cmd, 0, sizeof(struct cmd_create_vm));
-
-	    cmd.hdr.cmd      = ENCLAVE_CMD_CREATE_VM;
-	    cmd.hdr.data_len = ( sizeof(struct cmd_create_vm) -
-				 sizeof(struct pisces_cmd));
-
-	    if (copy_from_user(&(cmd.path), argp, sizeof(struct vm_path))) {
-		printk(KERN_ERR "Could not copy vm path from user space\n");
-		return -EFAULT;
-	    }
-
-	    ret    = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_create_vm),  (u8 **)&resp, &resp_len);
-	    status = resp->status;
-
-	    kfree(resp);
-
-	    if ((ret != 0) || (status < 0)) {
-		printk("Error creating VM %s (%s) [ret=%d, status=%d]\n", 
-		       cmd.path.vm_name, cmd.path.file_name, 
-		       ret, status);
-		return -1;
-	    }
-
-	    return status;
-
-	    break;
-	}
-        case ENCLAVE_CMD_LAUNCH_VM:
-	case ENCLAVE_CMD_STOP_VM:
-	case ENCLAVE_CMD_FREE_VM:
-	case ENCLAVE_CMD_PAUSE_VM:
-	case ENCLAVE_CMD_CONTINUE_VM: {
-
-	    if (send_vm_cmd(xbuf_desc, ioctl, arg) != 0) {
-		printk("Error Stopping VM (%lu)\n", arg);
-		return -1;
-	    }
-
-	    break;
-	}
-
-	case ENCLAVE_CMD_VM_CONS_CONNECT: {
-	    long long cons_pa = 0;
-
-	    cons_pa = send_vm_cmd(xbuf_desc, ENCLAVE_CMD_VM_CONS_CONNECT, arg);
-
-	    if (cons_pa <= 0) {
-		printk("Could not acquire console ring buffer\n");
-		return -1;
-	    }
-
-	    printk("Console found at %p\n", (void *)cons_pa);
-	    printk("Enclave=%p\n",                  enclave);
-
-	    return v3_console_connect(enclave, arg, cons_pa);
-	    break;
-	}
-
-	case ENCLAVE_CMD_VM_DBG: {
-	    struct cmd_vm_debug cmd;
-
-	    memset(&cmd, 0, sizeof(struct cmd_vm_debug));
-
-	    
-	    cmd.hdr.cmd      = ENCLAVE_CMD_VM_DBG;
-	    cmd.hdr.data_len = ( sizeof(struct cmd_vm_debug) - 
-				 sizeof(struct pisces_cmd) );
-
-	    if (copy_from_user(&(cmd.dbg_spec), argp, sizeof(struct pisces_dbg_spec))) {
-		printk(KERN_ERR "Could not copy debug command from user space\n");
-		return -EFAULT;
-	    }
-
-	    ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_vm_debug), (u8 **)&resp, &resp_len);
-
-	    kfree(resp);
-
-	    if (ret != 0) {
-		printk(KERN_ERR "Error sending debug command [%d] to VM (%d)\n",
-		       cmd.dbg_spec.cmd, cmd.dbg_spec.vm_id);
-		return -1;
-	    }
-
-	    break;
-	}
-
-	case ENCLAVE_CMD_SHUTDOWN: {
-	    struct pisces_cmd cmd;
-
-	    memset(&cmd, 0, sizeof(struct pisces_cmd));
-
-	    cmd.cmd      = ENCLAVE_CMD_SHUTDOWN;
-	    cmd.data_len = 0;
-	    
-	    ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct pisces_cmd), (u8 **)&resp, &resp_len);
-
-	    kfree(resp);
-
-	    if (ret != 0) {
-		printk(KERN_ERR "Error sending shutdown command to enclave\n");
-		return -1;
-	    }
-
-	    break;
-	}
-	default:  {
-	    printk(KERN_ERR "Unknown Enclave IOCTL (%d)\n", ioctl);
+	if (enclave->state != ENCLAVE_RUNNING) {
+	    printk("Attempted Ctrl IOCTL on non-running enclave\n");
 	    return -1;
 	}
+
+	printk("CTRL IOCTL (%d)\n", ioctl);
+
+	switch (ioctl) {
+	    case ENCLAVE_CMD_ADD_CPU: {
+		struct cmd_cpu_add  cmd;
+		u64 cpu_id = (u64)arg;
+	    
+		memset(&cmd, 0, sizeof(struct cmd_cpu_add));
+	    
+		if (pisces_enclave_add_cpu(enclave, cpu_id) != 0) {
+		    printk(KERN_ERR "Error adding CPU to enclave %d\n", enclave->id);
+		    ret = -1;
+		    break;
+		}
+
+		cmd.hdr.cmd      = ENCLAVE_CMD_ADD_CPU;
+		cmd.hdr.data_len = ( sizeof(struct cmd_cpu_add) - 
+				     sizeof(struct pisces_cmd));
+		cmd.phys_cpu_id  = cpu_id;
+		cmd.apic_id      = apic->cpu_present_to_apicid(cpu_id);
+
+
+		printk("Adding CPU %llu (APIC %llu)\n", cpu_id, cmd.apic_id);
+
+		/* Setup Linux trampoline to jump to enclave trampoline */
+		pisces_setup_trampoline(enclave);
+
+		printk("Sending Command\n");
+
+		ret    = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_cpu_add),  (u8 **)&resp, &resp_len);
+		status = resp->status;
+
+		kfree(resp);
+
+		pisces_restore_trampoline(enclave);
+
+		printk("\tDone\n");
+
+		if ((ret != 0) || (status != 0)) {
+		    // remove CPU from enclave
+		    ret = -1;
+		    break;
+		}
+
+		break;
+	    }
+	    case ENCLAVE_CMD_REMOVE_CPU: {
+		struct cmd_cpu_add  cmd;
+		u64 cpu_id = (u64)arg;
+
+		memset(&cmd, 0, sizeof(struct cmd_cpu_add));
+
+		cmd.hdr.cmd      = ENCLAVE_CMD_REMOVE_CPU;
+		cmd.hdr.data_len = ( sizeof(struct cmd_cpu_add) -
+				     sizeof(struct pisces_cmd));
+		cmd.phys_cpu_id  = cpu_id;
+		cmd.apic_id      = apic->cpu_present_to_apicid(cpu_id);
+
+
+		printk("Offlining CPU %llu (APIC %llu)\n", cpu_id, cmd.apic_id);
+
+		ret    = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_cpu_add),  (u8 **)&resp, &resp_len);
+		status = resp->status;
+
+		kfree(resp);
+
+		if ((ret != 0) || (status != 0)) {
+		    ret = -1;
+		    break;
+		}
+
+		//pisces_enclave_remove_cpu(enclave, cpu_id);
+
+		break;
+	    }
+
+	    case ENCLAVE_CMD_ADD_MEM: {
+		struct cmd_mem_add  cmd;
+		struct memory_range reg;
+
+		memset(&cmd, 0, sizeof(struct cmd_mem_add));
+		memset(&reg, 0, sizeof(struct memory_range));
+
+		cmd.hdr.cmd      = ENCLAVE_CMD_ADD_MEM;
+		cmd.hdr.data_len = ( sizeof(struct cmd_mem_add) - 
+				     sizeof(struct pisces_cmd));
+
+		if (copy_from_user(&reg, argp, sizeof(struct memory_range))) {
+		    printk(KERN_ERR "Could not copy memory region from user space\n");
+		    ret = -EFAULT;
+		    break;
+		}
+
+		if (pisces_enclave_add_mem(enclave, reg.base_addr, reg.pages) != 0) {
+		    printk(KERN_ERR "Error adding memory descriptor to enclave %d\n", enclave->id);
+		    ret = -1;
+		    break;
+		}
+
+		cmd.phys_addr = reg.base_addr;
+		cmd.size      = reg.pages * PAGE_SIZE_4KB;
+
+		ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_mem_add),  (u8 **)&resp, &resp_len);
+
+		kfree(resp);
+
+		if (ret != 0) {
+		    printk(KERN_ERR "Error adding memory to enclave %d\n", enclave->id);
+		    // remove memory from enclave
+		    ret = -1;
+		    break;
+		}
+
+		break;
+	    }
+	    case ENCLAVE_CMD_REMOVE_MEM: {
+
+		printk("Removing memory is not supported\n");
+		ret = -1;
+		break;
+		
+	    }
+	    case ENCLAVE_CMD_ADD_V3_PCI: {
+		struct cmd_add_pci_dev   cmd;
+
+		printk("Adding V3 PCI device\n");
+
+		memset(&cmd, 0, sizeof(struct cmd_add_pci_dev));
+
+		cmd.hdr.cmd      = ENCLAVE_CMD_ADD_V3_PCI;
+		cmd.hdr.data_len = ( sizeof(struct cmd_add_pci_dev) - 
+				     sizeof(struct pisces_cmd));
+
+		if (copy_from_user(&(cmd.spec), argp, sizeof(struct pisces_pci_spec))) {
+		    printk(KERN_ERR "Could not copy pci device structure from user space\n");
+		    ret = -EFAULT;
+		    break;
+		}
+
+		printk("Init an offlined PCI device\n");
+
+		ret = enclave_pci_add_dev(enclave, &cmd.spec);
+
+		if (ret != 0) {
+		    printk(KERN_ERR "Could not initailize PCI device\n");
+		    ret = ret;
+		    break;
+		}
+
+		printk(" Notifying enclave\n");
+		ret    = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_add_pci_dev), (u8 **)&resp, &resp_len);
+		status = resp->status;
+
+		kfree(resp);
+
+		if ((ret != 0) || (status != 0)) {
+		    printk(KERN_ERR "Error adding PCI device to Enclave %d\n", enclave->id);
+		    enclave_pci_remove_dev(enclave, &cmd.spec);
+		    ret = -1;
+		    break;
+		}
+
+		break;
+	    }
+	    case ENCLAVE_CMD_FREE_V3_PCI: {
+		struct cmd_free_pci_dev   cmd;
+
+		cmd.hdr.cmd      = ENCLAVE_CMD_FREE_V3_PCI;
+		cmd.hdr.data_len = ( sizeof(struct cmd_free_pci_dev) - 
+				     sizeof(struct pisces_cmd));
+	    
+		if (copy_from_user(&(cmd.spec), argp, sizeof(struct pisces_pci_spec))) {
+		    printk(KERN_ERR "Could not copy pci device structure from user space\n");
+		    ret = -EFAULT;
+		    break;
+		}
+
+		/* Send Free xbuf Call */
+		ret    = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_add_pci_dev), (u8 **)&resp, &resp_len);
+		status = resp->status;
+
+		kfree(resp);
+	    
+		if ((ret != 0) || (status != 0)) {
+		    printk(KERN_ERR "Error in PCI free enclave command\n");
+		    ret = -1;
+		    break;
+		}
+
+		/* Free Linux resources */	    
+		if (enclave_pci_remove_dev(enclave, &cmd.spec) != 0) {
+		    printk(KERN_ERR "Error removing Pisces device from Enclave state\n");
+		    ret = -1;
+		    break;
+		}
+
+		break;
+	    }
+	    case ENCLAVE_CMD_CREATE_VM: {
+		struct cmd_create_vm cmd;
+
+		memset(&cmd, 0, sizeof(struct cmd_create_vm));
+
+		cmd.hdr.cmd      = ENCLAVE_CMD_CREATE_VM;
+		cmd.hdr.data_len = ( sizeof(struct cmd_create_vm) -
+				     sizeof(struct pisces_cmd));
+
+		if (copy_from_user(&(cmd.path), argp, sizeof(struct vm_path))) {
+		    printk(KERN_ERR "Could not copy vm path from user space\n");
+		    ret = -EFAULT;
+		    break;
+		}
+
+		ret    = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_create_vm),  (u8 **)&resp, &resp_len);
+		status = resp->status;
+
+		kfree(resp);
+
+		if ((ret != 0) || (status < 0)) {
+		    printk("Error creating VM %s (%s) [ret=%d, status=%d]\n", 
+			   cmd.path.vm_name, cmd.path.file_name, 
+			   ret, status);
+		    ret = -1;
+		    break;
+		}
+
+		ret = status;
+
+		break;
+	    }
+	    case ENCLAVE_CMD_LAUNCH_VM:
+	    case ENCLAVE_CMD_STOP_VM:
+	    case ENCLAVE_CMD_FREE_VM:
+	    case ENCLAVE_CMD_PAUSE_VM:
+	    case ENCLAVE_CMD_CONTINUE_VM: {
+
+		if (send_vm_cmd(xbuf_desc, ioctl, arg) != 0) {
+		    printk("Error Stopping VM (%lu)\n", arg);
+		    ret =  -1;
+		    break;
+		}
+
+		break;
+	    }
+
+	    case ENCLAVE_CMD_VM_CONS_CONNECT: {
+		long long cons_pa = 0;
+
+		cons_pa = send_vm_cmd(xbuf_desc, ENCLAVE_CMD_VM_CONS_CONNECT, arg);
+
+		if (cons_pa <= 0) {
+		    printk("Could not acquire console ring buffer\n");
+		    ret = -1;
+		    break;
+		}
+
+		printk("Console found at %p\n", (void *)cons_pa);
+		printk("Enclave=%p\n",                  enclave);
+
+		ret = v3_console_connect(enclave, arg, cons_pa);
+		break;
+	    }
+
+	    case ENCLAVE_CMD_VM_DBG: {
+		struct cmd_vm_debug cmd;
+
+		memset(&cmd, 0, sizeof(struct cmd_vm_debug));
+
+	    
+		cmd.hdr.cmd      = ENCLAVE_CMD_VM_DBG;
+		cmd.hdr.data_len = ( sizeof(struct cmd_vm_debug) - 
+				     sizeof(struct pisces_cmd) );
+
+		if (copy_from_user(&(cmd.dbg_spec), argp, sizeof(struct pisces_dbg_spec))) {
+		    printk(KERN_ERR "Could not copy debug command from user space\n");
+		    ret = -EFAULT;
+		    break;
+		}
+
+		ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_vm_debug), (u8 **)&resp, &resp_len);
+
+		kfree(resp);
+
+		if (ret != 0) {
+		    printk(KERN_ERR "Error sending debug command [%d] to VM (%d)\n",
+			   cmd.dbg_spec.cmd, cmd.dbg_spec.vm_id);
+		    ret = -1;
+		    break;
+		}
+
+		break;
+	    }
+
+	    case ENCLAVE_CMD_SHUTDOWN: {
+		struct pisces_cmd cmd;
+
+		memset(&cmd, 0, sizeof(struct pisces_cmd));
+
+		cmd.cmd      = ENCLAVE_CMD_SHUTDOWN;
+		cmd.data_len = 0;
+	    
+		ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct pisces_cmd), (u8 **)&resp, &resp_len);
+
+		kfree(resp);
+
+		if (ret != 0) {
+		    printk(KERN_ERR "Error sending shutdown command to enclave\n");
+		    ret = -1;
+		    break;
+		}
+
+		break;
+	    }
+	    default:  {
+		printk(KERN_ERR "Unknown Enclave IOCTL (%d)\n", ioctl);
+		ret = -1;
+		break;
+	    }
 		   
 
+	}
     }
-
-    return 0;
-}
-
-
-
-
-
-static int ctrl_release(struct inode * i, struct file * filp) {
-    struct pisces_enclave * enclave = filp->private_data;
-    struct pisces_ctrl    * ctrl    = &(enclave->ctrl);
-
     mutex_unlock(&(ctrl->lock));
 
     return 0;
 }
 
 
+
+
+static int 
+ctrl_release(struct inode * i, 
+	     struct file  * filp) 
+{
+    struct pisces_enclave * enclave = filp->private_data;
+    // struct pisces_ctrl    * ctrl    = &(enclave->ctrl);
+
+    enclave_put(enclave);
+
+    return 0;
+}
+
+
 static struct file_operations ctrl_fops = {
+    .owner          = THIS_MODULE,
     .write          = ctrl_write,
     .read           = ctrl_read,
     .unlocked_ioctl = ctrl_ioctl,
@@ -433,18 +466,16 @@ static struct file_operations ctrl_fops = {
 
 
 int pisces_ctrl_connect(struct pisces_enclave * enclave) {
-    struct pisces_ctrl * ctrl = &(enclave->ctrl);
-    int ctrl_fd         = 0;
+    int ctrl_fd  = 0;
 
-    mutex_lock(&(ctrl->lock));
-
+    enclave_get(enclave);
 
     ctrl_fd = anon_inode_getfd("enclave-ctrl", &ctrl_fops, enclave, O_RDWR);
 
     if (ctrl_fd < 0) {
         printk(KERN_ERR "Error creating Ctrl inode\n");
 
-	mutex_unlock(&(ctrl->lock));
+	enclave_put(enclave);
 
         return ctrl_fd;
     }
@@ -472,13 +503,7 @@ pisces_ctrl_init(struct pisces_enclave * enclave)
 int 
 pisces_ctrl_deinit(struct pisces_enclave * enclave)
 {
-    struct pisces_ctrl * ctrl = &(enclave->ctrl);
-
-    /* 
-     *  Acquire the ctrl lock to ensure that no controllers are connected
-     *  This will block the free operation until all controllers have disconected
-     */
-    mutex_lock(&(ctrl->lock)); 
+    //    struct pisces_ctrl * ctrl = &(enclave->ctrl);
 
     return 0;
 }
