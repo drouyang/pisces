@@ -146,10 +146,13 @@ pisces_cons_connect(struct pisces_enclave * enclave)
     int cons_fd  = 0;
     int acquired = 0;
 
+    /*
     if (enclave->state != ENCLAVE_RUNNING) {
         printk(KERN_WARNING "Enclave is not running\n");
         return -1;
     }
+
+    */
 
     spin_lock_irqsave(&(cons->lock), flags);
     {

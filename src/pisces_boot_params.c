@@ -54,7 +54,7 @@ load_kernel(struct pisces_enclave     * enclave,
 			(boot_params->kernel_size - bytes_read), 
 			bytes_read);
 	
-	if (ret == 0) {
+	if (ret <= 0) {
 	    printk(KERN_ERR "Error reading kernel image. Only read %llu bytes.\n", bytes_read);
 	    file_close(kern_image);
 	    return -1;
@@ -95,7 +95,7 @@ load_initrd(struct pisces_enclave     * enclave,
 			(boot_params->initrd_size - bytes_read), 
 			bytes_read);
 
-	if (ret == 0) {
+	if (ret <= 0) {
 	    printk(KERN_ERR "Error reading initrd. Only read %llu bytes.\n", bytes_read);
 	    file_close(initrd_image);
 	    return -1;
