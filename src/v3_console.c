@@ -298,13 +298,18 @@ v3_console_connect(struct pisces_enclave * enclave,
     cons->enclave                = enclave;
     cons->vm_id                  = vm_id;
     cons->ring_buf               = __va(cons_buf_pa);
-    cons->ring_buf->kick_ipi_vec = STUPID_LINUX_IRQ;
     cons->ring_buf->kick_apic    = 0;
 
     init_waitqueue_head(&(cons->intr_queue));
     spin_lock_init(&(cons->irq_lock));
 
     pisces_register_ipi_callback(cons_kick, cons);
+
+    __asm__ __volatile__ ("" ::: "memory");
+
+    cons->ring_buf->kick_ipi_vec = STUPID_LINUX_IRQ;
+
+
 
     cons_fd = anon_inode_getfd("v3-cons", &cons_fops, cons, O_RDWR);
 
