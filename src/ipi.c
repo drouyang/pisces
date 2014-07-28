@@ -133,6 +133,7 @@ pisces_ipi_init(void)
 {
 
     if (linux_x86_platform_ipi_callback == NULL) {
+	panic("Platform IPI symbol not initialized\n");
         return -1;
     }
 
