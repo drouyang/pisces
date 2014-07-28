@@ -75,13 +75,13 @@ send_vm_cmd(struct pisces_xbuf_desc * xbuf_desc,
 
     printk("Sending VM CMD (%llu) to VM (%llu)\n", cmd_id, vm_id);
 
-    ret    = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_vm_ctrl),  (u8 **)&resp, &resp_len);
-    status = resp->status;
+    ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_vm_ctrl),  (u8 **)&resp, &resp_len);
 
     if (ret != 0) {
 	return -1;
     }
 
+    status = resp->status;
     kfree(resp);
 
     return status;
