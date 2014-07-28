@@ -109,6 +109,9 @@ ctrl_ioctl(struct file   * filp,
 
 	if (enclave->state != ENCLAVE_RUNNING) {
 	    printk("Attempted Ctrl IOCTL on non-running enclave\n");
+
+	    mutex_unlock(&(ctrl->lock));
+
 	    return -1;
 	}
 
@@ -436,7 +439,7 @@ ctrl_ioctl(struct file   * filp,
     }
     mutex_unlock(&(ctrl->lock));
 
-    return 0;
+    return ret;
 }
 
 
