@@ -78,11 +78,11 @@ send_vm_cmd(struct pisces_xbuf_desc * xbuf_desc,
     ret    = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_vm_ctrl),  (u8 **)&resp, &resp_len);
     status = resp->status;
 
-    kfree(resp);
-
     if (ret != 0) {
 	return -1;
     }
+
+    kfree(resp);
 
     return status;
 }
@@ -144,16 +144,20 @@ ctrl_ioctl(struct file   * filp,
 
 		printk("Sending Command\n");
 
-		ret    = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_cpu_add),  (u8 **)&resp, &resp_len);
-		status = resp->status;
+		ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_cpu_add),  (u8 **)&resp, &resp_len);
 
-		kfree(resp);
-
+		if (ret == 0) {
+		    status = resp->status;
+		    kfree(resp);
+		} else {
+		    status = -1;
+		}
+		
 		pisces_restore_trampoline(enclave);
 
 		printk("\tDone\n");
 
-		if ((ret != 0) || (status != 0)) {
+		if (status != 0) { 
 		    // remove CPU from enclave
 		    ret = -1;
 		    break;
@@ -176,12 +180,16 @@ ctrl_ioctl(struct file   * filp,
 
 		printk("Offlining CPU %llu (APIC %llu)\n", cpu_id, cmd.apic_id);
 
-		ret    = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_cpu_add),  (u8 **)&resp, &resp_len);
-		status = resp->status;
+		ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_cpu_add),  (u8 **)&resp, &resp_len);
 
-		kfree(resp);
+		if (ret == 0) {
+		    status = resp->status;
+		    kfree(resp);
+		} else {
+		    status = -1;
+		} 
 
-		if ((ret != 0) || (status != 0)) {
+		if (status != 0) {
 		    ret = -1;
 		    break;
 		}
@@ -219,9 +227,9 @@ ctrl_ioctl(struct file   * filp,
 
 		ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_mem_add),  (u8 **)&resp, &resp_len);
 
-		kfree(resp);
-
-		if (ret != 0) {
+		if (ret == 0) {
+		    kfree(resp);
+		} else {
 		    printk(KERN_ERR "Error adding memory to enclave %d\n", enclave->id);
 		    // remove memory from enclave
 		    ret = -1;
@@ -265,12 +273,16 @@ ctrl_ioctl(struct file   * filp,
 		}
 
 		printk(" Notifying enclave\n");
-		ret    = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_add_pci_dev), (u8 **)&resp, &resp_len);
-		status = resp->status;
+		ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_add_pci_dev), (u8 **)&resp, &resp_len);
 
-		kfree(resp);
+		if (ret == 0) {
+		    status = resp->status;
+		    kfree(resp);
+		} else {
+		    status = -1;
+		} 
 
-		if ((ret != 0) || (status != 0)) {
+		if (status != 0) {
 		    printk(KERN_ERR "Error adding PCI device to Enclave %d\n", enclave->id);
 		    enclave_pci_remove_dev(enclave, &cmd.spec);
 		    ret = -1;
@@ -293,12 +305,16 @@ ctrl_ioctl(struct file   * filp,
 		}
 
 		/* Send Free xbuf Call */
-		ret    = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_add_pci_dev), (u8 **)&resp, &resp_len);
-		status = resp->status;
+		ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_add_pci_dev), (u8 **)&resp, &resp_len);
 
-		kfree(resp);
-	    
-		if ((ret != 0) || (status != 0)) {
+		if (ret == 0) {
+		    status = resp->status;
+		    kfree(resp);
+		} else {
+		    status = -1;
+		} 
+
+		if (status != 0) {
 		    printk(KERN_ERR "Error in PCI free enclave command\n");
 		    ret = -1;
 		    break;
@@ -328,12 +344,16 @@ ctrl_ioctl(struct file   * filp,
 		    break;
 		}
 
-		ret    = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_create_vm),  (u8 **)&resp, &resp_len);
-		status = resp->status;
+		ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_create_vm),  (u8 **)&resp, &resp_len);
 
-		kfree(resp);
+		if (ret == 0) {
+		    status = resp->status;
+		    kfree(resp);
+		} else {
+		    status = -1;
+		} 
 
-		if ((ret != 0) || (status < 0)) {
+		if (status < 0) {
 		    printk("Error creating VM %s (%s) [ret=%d, status=%d]\n", 
 			   cmd.path.vm_name, cmd.path.file_name, 
 			   ret, status);
@@ -396,9 +416,9 @@ ctrl_ioctl(struct file   * filp,
 
 		ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_vm_debug), (u8 **)&resp, &resp_len);
 
-		kfree(resp);
-
-		if (ret != 0) {
+		if (ret == 0) {
+		    kfree(resp);
+		} else {
 		    printk(KERN_ERR "Error sending debug command [%d] to VM (%d)\n",
 			   cmd.dbg_spec.cmd, cmd.dbg_spec.vm_id);
 		    ret = -1;
@@ -418,9 +438,9 @@ ctrl_ioctl(struct file   * filp,
 	    
 		ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct pisces_cmd), (u8 **)&resp, &resp_len);
 
-		kfree(resp);
-
-		if (ret != 0) {
+		if (ret == 0) {
+		    kfree(resp);
+		} else {
 		    printk(KERN_ERR "Error sending shutdown command to enclave\n");
 		    ret = -1;
 		    break;
