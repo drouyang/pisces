@@ -3,6 +3,7 @@
  * (c) 2013, Jack Lange (jacklange@cs.pitt.edu)
  */
 
+#include <linux/module.h>
 #include <linux/fs.h>    /* device file */
 #include <linux/anon_inodes.h>
 #include <asm/uaccess.h>
