@@ -1,13 +1,12 @@
-PETLIB := ../petlib
 
 
-CFLAGS = -I$(PETLIB) -L$(PETLIB)
+CFLAGS = -I$(PETLIB_PATH) -L$(PETLIB_PATH)
 
 
 CC = gcc
 AR = ar
 
-libs := 	$(PETLIB)/petlib.a
+libs := 	$(PETLIB_PATH)/petlib.a
 
 execs := 	pisces_load \
 		pisces_launch \

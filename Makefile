@@ -4,6 +4,8 @@ KERN_PATH=/home/jarusl/linux-3.11.8-200.fc19.x86_64.debug
 
 XPMEM_KERN_PATH=/home/briankoco/xpmem/kernel
 
+PETLIB_PATH=../../petlib
+
 
 VERSION_CMD=$(PWD)/version
 
@@ -62,15 +64,13 @@ endif
 
 all: version_exec
 	make -C $(KERN_PATH) M=$(PWD) modules
-	make -C petlib/
-	make -C linux_usr/ $(USR_FLAGS)
+	make -C linux_usr/ PETLIB_PATH=$(PETLIB_PATH) $(USR_FLAGS)
 
 version_exec: version.c $(VERSION_CMD)
 	gcc -I$(KERN_PATH)/include version.c -o $(VERSION_CMD)
 
 clean:
 	make -C $(KERN_PATH) M=$(PWD) clean
-	make -C petlib/ clean
 	make -C linux_usr/ clean
 	rm $(VERSION_CMD)
 
