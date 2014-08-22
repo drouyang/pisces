@@ -307,7 +307,7 @@ v3_console_connect(struct pisces_enclave * enclave,
 
     __asm__ __volatile__ ("" ::: "memory");
 
-    cons->ring_buf->kick_ipi_vec = STUPID_LINUX_IRQ;
+    cons->ring_buf->kick_ipi_vec = PISCES_LCALL_VECTOR;
 
 
 
