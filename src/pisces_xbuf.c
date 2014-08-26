@@ -366,11 +366,9 @@ ipi_handler(void * private_data)
 
     if ( (xbuf->pending == 1)  && 
 	 (xbuf->active  == 0) ) {
+	raise_flag(xbuf, XBUF_ACTIVE);
 	valid_ipi = 1;
     }
-
-    raise_flag(xbuf, XBUF_ACTIVE);
-  
     spin_unlock_irqrestore(&(desc->xbuf_lock), flags);
 
     if (!valid_ipi) {
