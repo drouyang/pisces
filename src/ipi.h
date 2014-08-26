@@ -1,9 +1,12 @@
 #ifndef __LINUX_IPI_H__
 #define __LINUX_IPI_H__
 
+#include <asm/irq_vectors.h>
+
+#define PISCES_LCALL_VECTOR X86_PLATFORM_IPI_VECTOR
+
 struct pisces_enclave;
 
-#define STUPID_LINUX_IRQ 247
 
 int pisces_register_ipi_callback(void (*callback)(void *), void * private_data);
 int pisces_remove_ipi_callback(void (*callback)(void *), void * private_data);

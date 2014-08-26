@@ -136,7 +136,7 @@ pisces_lcall_init( struct pisces_enclave * enclave) {
 
     xbuf_desc = pisces_xbuf_server_init(enclave, (uintptr_t)__va(boot_params->longcall_buf_addr), 
 			    boot_params->longcall_buf_size, 
-			    lcall_handler, STUPID_LINUX_IRQ, apic->cpu_present_to_apicid(0));
+			    lcall_handler, PISCES_LCALL_VECTOR, apic->cpu_present_to_apicid(0));
 
     if (xbuf_desc == NULL) {
 	printk("Error initializing LCALL XBUF server\n");
