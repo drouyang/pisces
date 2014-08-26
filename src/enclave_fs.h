@@ -55,7 +55,8 @@ struct vfs_size_lcall {
 
 struct enclave_fs {
     u32 num_files;
-    struct hashtable * open_files;
+    struct hashtable * open_file_table;
+    struct list_head   open_file_list;
 };
 
 

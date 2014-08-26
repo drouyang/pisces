@@ -4,6 +4,8 @@
 #include "enclave.h"
 #include "enclave_fs.h"
 
+#include <linux/slab.h>
+
 #ifdef DEBUG
 static u64 xbuf_op_idx = 0;
 #define debug(fmt, args...) printk(fmt, args)
@@ -19,6 +21,11 @@ static u32 file_hash_fn(uintptr_t key) {
 static int file_eq_fn(uintptr_t key1, uintptr_t key2) {
     return (key1 == key2);
 }
+
+struct file_list_iter {
+    uintptr_t        file_ptr;
+    struct list_head node;
+};
 
 
 int 
@@ -41,8 +48,19 @@ enclave_vfs_open_lcall(struct pisces_enclave   * enclave,
 	return 0;
     }
 
-    if (!htable_search(fs_state->open_files, (uintptr_t)file_ptr)) {
-	htable_insert(fs_state->open_files, (uintptr_t)file_ptr, (uintptr_t)file_ptr);
+    if (!htable_search(fs_state->open_file_table, (uintptr_t)file_ptr)) {
+	htable_insert(fs_state->open_file_table, (uintptr_t)file_ptr, (uintptr_t)file_ptr);
+
+        /* Add to file list */
+	{
+	    struct file_list_iter * iter = kmalloc(sizeof(struct file_list_iter), GFP_KERNEL);
+	    if (!iter) {
+		printk("OUT OF MEMORY\n");
+	    } else {
+		iter->file_ptr = (uintptr_t)file_ptr;
+		list_add_tail(&(iter->node), &(fs_state->open_file_list));
+	    }
+	}
     }
 
     fs_state->num_files++;
@@ -72,8 +90,7 @@ enclave_vfs_close_lcall(struct pisces_enclave   * enclave,
     debug("closing file %p\n", file_ptr);
 
     
-    if (!htable_search(fs_state->open_files, (uintptr_t)file_ptr)) {
-
+    if (!htable_search(fs_state->open_file_table, (uintptr_t)file_ptr)) {
 	printk("File %p does not exist\n", file_ptr);
 
 	// File does not exist
@@ -85,7 +102,24 @@ enclave_vfs_close_lcall(struct pisces_enclave   * enclave,
 	return 0;
     }
 
-    htable_remove(fs_state->open_files, (uintptr_t)file_ptr, 0);
+    htable_remove(fs_state->open_file_table, (uintptr_t)file_ptr, 0);
+
+    /* Remove from file list */
+    {
+	struct file_list_iter * iter = NULL;
+	struct file_list_iter * next = NULL;
+
+	list_for_each_entry_safe(iter, next, &(fs_state->open_file_list), node) {
+	    if ((uintptr_t)file_ptr == iter->file_ptr) {
+
+		list_del(&(iter->node));
+		kfree(iter);
+
+		break;
+	    }
+	}
+    }
+
     fs_state->num_files--;
 
     file_close(file_ptr);
@@ -113,7 +147,7 @@ enclave_vfs_size_lcall(struct pisces_enclave   * enclave,
     
     debug("Getting file %p size\n", file_ptr);
     
-    if (!htable_search(fs_state->open_files, (uintptr_t)file_ptr)) {
+    if (!htable_search(fs_state->open_file_table, (uintptr_t)file_ptr)) {
 	printk("File %p does not exist\n", file_ptr);
 
 	// File does not exist
@@ -153,9 +187,8 @@ enclave_vfs_read_lcall(struct pisces_enclave   * enclave,
 
     debug("FS: Reading file %p\n", file_ptr);
     
-    if (!htable_search(fs_state->open_files, (uintptr_t)file_ptr)) {
+    if (!htable_search(fs_state->open_file_table, (uintptr_t)file_ptr)) {
 	// File does not exist
-
 	printk("File %p does not exist\n", file_ptr);
 
 	vfs_resp.status   = -1;
@@ -227,7 +260,7 @@ enclave_vfs_write_lcall(struct pisces_enclave   * enclave,
 
     debug("writing file %p\n", file_ptr);    
 
-    if (!htable_search(fs_state->open_files, (uintptr_t)file_ptr)) {
+    if (!htable_search(fs_state->open_file_table, (uintptr_t)file_ptr)) {
 	// File does not exist
 	printk("File %p does not exist\n", file_ptr);
 
@@ -288,7 +321,14 @@ int
 init_enclave_fs(struct pisces_enclave * enclave) 
 {
     struct enclave_fs * fs_state = &(enclave->fs_state);
-    fs_state->open_files         = create_htable(0, &file_hash_fn, &file_eq_fn);
+
+    fs_state->open_file_table = create_htable(0, &file_hash_fn, &file_eq_fn);
+    if (!fs_state->open_file_table) {
+	printk("Cannot create VFS file table\n");
+	return -1;
+    }
+
+    INIT_LIST_HEAD(&(fs_state->open_file_list));
 
     return 0;
 }
@@ -297,10 +337,24 @@ init_enclave_fs(struct pisces_enclave * enclave)
 int 
 deinit_enclave_fs(struct pisces_enclave * enclave)
 {
+    struct enclave_fs * fs_state = &(enclave->fs_state);
 
     /* Iterate through open files and close each one.  */
+    {
+	struct file_list_iter * iter = NULL;
+	struct file_list_iter * next = NULL;
+
+	list_for_each_entry_safe(iter, next, &(fs_state->open_file_list), node) {
+	    struct file * file_ptr = (struct file *)iter->file_ptr;
+	    file_close(file_ptr);
+
+	    list_del(&(iter->node));
+	    kfree(iter);
+	}
+    }
 
     /* Delete htable */
+    free_htable(fs_state->open_file_table, 0, 0);
 
-    return -1;
+    return 0;
 }
