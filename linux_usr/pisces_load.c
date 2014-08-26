@@ -31,5 +31,5 @@ int main(int argc, char ** argv) {
 
     printf("Enclave Created: /dev/pisces-enclave%d\n", enclave_id);
 
-    return 0;
+    return enclave_id;
 }
