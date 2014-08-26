@@ -72,7 +72,7 @@ struct pisces_lcall_state {
 struct pisces_enclave;
 
 int pisces_lcall_init(struct pisces_enclave * enclave);
-int pisces_lcall_connect(struct pisces_enclave * enclave);
+int pisces_lcall_deinit(struct pisces_enclave * enclave);
 
 
 #endif

@@ -30,6 +30,8 @@ struct pisces_xbuf_desc * pisces_xbuf_client_init(struct pisces_enclave * enclav
 						  uintptr_t xbuf_va, 
 						  u32 ipi_vector, u32 target_cpu);
 
+int
+pisces_xbuf_server_deinit(struct pisces_xbuf_desc * desc);
 
 
 int pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc, u8 * data, u32 data_len, 

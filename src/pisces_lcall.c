@@ -57,6 +57,9 @@ static int lcall_kern_thread(void * arg) {
 				 (lcall_state->active_lcall == 1));
 
         //	printk("kernel thread is awake\n");
+	if (kthread_should_stop()) {
+	    break;
+	}
 
         lcall_state->active_lcall = 0;
         mb();
@@ -128,13 +131,12 @@ int
 pisces_lcall_init( struct pisces_enclave * enclave) {
     struct pisces_lcall_state * lcall_state = &(enclave->lcall_state);
     struct pisces_boot_params * boot_params = NULL;
-    struct pisces_xbuf_desc * xbuf_desc = NULL;
+    struct pisces_xbuf_desc   * xbuf_desc   = NULL;
 
     init_waitqueue_head(&lcall_state->kern_waitq);
 
     boot_params = __va(enclave->bootmem_addr_pa);
-
-    xbuf_desc = pisces_xbuf_server_init(enclave, (uintptr_t)__va(boot_params->longcall_buf_addr), 
+    xbuf_desc   = pisces_xbuf_server_init(enclave, (uintptr_t)__va(boot_params->longcall_buf_addr), 
 			    boot_params->longcall_buf_size, 
 			    lcall_handler, PISCES_LCALL_VECTOR, apic->cpu_present_to_apicid(0));
 
@@ -143,8 +145,9 @@ pisces_lcall_init( struct pisces_enclave * enclave) {
 	return -1;
     }
 
-    lcall_state->xbuf_desc = xbuf_desc;
+    lcall_state->xbuf_desc    = xbuf_desc;
     lcall_state->active_lcall = 0;
+
     {
 	char thrd_name[32];
 	memset(thrd_name, 0, 32);
@@ -160,3 +163,17 @@ pisces_lcall_init( struct pisces_enclave * enclave) {
 }
 
 
+int
+pisces_lcall_deinit(struct pisces_enclave * enclave)
+{
+    struct pisces_lcall_state * lcall_state = &(enclave->lcall_state);
+
+    lcall_state->active_lcall = 1;
+    mb();
+
+    kthread_stop(lcall_state->kern_thread);
+
+    pisces_xbuf_server_deinit(lcall_state->xbuf_desc);
+
+    return 0;
+}

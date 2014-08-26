@@ -247,7 +247,7 @@ pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc,
 
     send_data(xbuf, data, data_len);
 
-    debug("DAta fully sent\n");
+    debug("Data fully sent\n");
 
     /* Wait for complete flag to be 1 */
     while (xbuf->complete == 0) {
@@ -377,9 +377,7 @@ ipi_handler(void * private_data)
 	return;
     }
 
-
-    debug("Handling XBUFF request (idx=%llu)\n", xbuf_op_idx++);
-
+    debug("Handling XBUF request (idx=%llu)\n", xbuf_op_idx++);
  
     
     if (desc->recv_handler) {
@@ -442,6 +440,17 @@ pisces_xbuf_server_init(struct pisces_enclave * enclave,
 
     return desc;
 
+}
+
+int
+pisces_xbuf_server_deinit(struct pisces_xbuf_desc * desc)
+{
+    if (pisces_remove_ipi_callback(ipi_handler, desc) != 0) {
+	printk(KERN_ERR "Error removing lcall IPI callback for enclave %d\n", desc->enclave->id);
+	return -1;
+    }
+
+    return 0;
 }
 
 

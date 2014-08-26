@@ -20,7 +20,6 @@
 #include "pisces.h"
 #include "enclave.h"
 #include "enclave_ctrl.h"
-#include "pisces_xpmem.h"
 #include "boot.h"
 #include "pisces_boot_params.h"
 
@@ -536,7 +535,9 @@ pisces_enclave_free(struct pisces_enclave * enclave)
 
     deinit_enclave_fs(enclave);
     deinit_enclave_pci(enclave);
-    
+
+    pisces_lcall_deinit(enclave);
+
     /* Remove Memory descriptors */
     {
 	struct enclave_mem_block * memdesc = NULL;
