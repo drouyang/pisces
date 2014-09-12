@@ -298,7 +298,7 @@ v3_console_connect(struct pisces_enclave * enclave,
     cons->enclave                = enclave;
     cons->vm_id                  = vm_id;
     cons->ring_buf               = __va(cons_buf_pa);
-    cons->ring_buf->kick_apic    = 0;
+    cons->ring_buf->kick_apic    = apic->cpu_present_to_apicid(0);
 
     init_waitqueue_head(&(cons->intr_queue));
     spin_lock_init(&(cons->irq_lock));
