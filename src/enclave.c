@@ -11,6 +11,7 @@
 #include <linux/errno.h>
 #include <linux/anon_inodes.h>
 #include <linux/uaccess.h>
+#include <linux/file.h>
 #include <linux/fs.h>    /* device file */
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -400,9 +401,13 @@ pisces_enclave_create(struct pisces_image * img)
 
     enclave->state        = ENCLAVE_LOADED;
 
-    enclave->kern_path    = img->kern_path;
-    enclave->initrd_path  = img->initrd_path;
-    enclave->kern_cmdline = img->cmd_line;
+
+    enclave->kern_file    = fget(img->kern_fd);
+    enclave->init_file    = fget(img->init_fd);
+    
+    enclave->kern_cmdline = kasprintf(GFP_KERNEL, "%s", img->cmd_line);
+
+    
 
     enclave->id           = enclave_idx;
     
@@ -562,6 +567,10 @@ enclave_last_put(struct kref * kref)
 
     printk("Freeing Enclave\n");
 
+    fput(enclave->kern_file);
+    fput(enclave->init_file);
+
+    kfree(enclave->kern_cmdline);
     kfree(enclave);
 }
 

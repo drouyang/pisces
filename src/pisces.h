@@ -27,9 +27,9 @@ struct enclave_boot_env {
 
 
 struct pisces_image {
-    char kern_path[1024];
-    char initrd_path[1024];
-    char cmd_line[1024];
+    unsigned int kern_fd;
+    unsigned int init_fd;
+    char         cmd_line[1024];
 } __attribute__((packed));
 
 #endif

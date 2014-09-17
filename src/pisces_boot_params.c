@@ -34,12 +34,11 @@ load_kernel(struct pisces_enclave     * enclave,
 	    struct pisces_boot_params * boot_params, 
 	    uintptr_t                   target_addr) 
 {
-
-    struct file * kern_image = file_open(enclave->kern_path, O_RDONLY);
+    struct file * kern_image = enclave->kern_file;
     u64           bytes_read = 0;
     
     if (kern_image == NULL) {
-	printk(KERN_ERR "Error opening kernel image (%s)\n", enclave->kern_path);
+	printk(KERN_ERR "Error opening kernel image\n");
 	return -1;
     }
 
@@ -63,8 +62,6 @@ load_kernel(struct pisces_enclave     * enclave,
 	bytes_read += ret;
     }
 
-    file_close(kern_image);
-
     return 0;
 }
 
@@ -74,13 +71,11 @@ load_initrd(struct pisces_enclave     * enclave,
 	    struct pisces_boot_params * boot_params,
 	    uintptr_t                   target_addr) 
 {
-
-
-    struct file * initrd_image = file_open(enclave->initrd_path, O_RDONLY);
+    struct file * initrd_image = enclave->init_file;
     u64           bytes_read   = 0;
     
     if (initrd_image == NULL) {
-	printk(KERN_ERR "Error opening initrd (%s)\n", enclave->initrd_path);
+	printk(KERN_ERR "Error opening initrd\n");
 	return -1;
     }
 
@@ -104,15 +99,9 @@ load_initrd(struct pisces_enclave     * enclave,
 	bytes_read += ret;
     }
     
-    printk("Loaded INITRD %s (bytes_read = %llu)\n", enclave->initrd_path, bytes_read);
-    printk("INITRD bytes (at %p) = %x\n",            (void *)target_addr, *(unsigned int*)target_addr); 
+    printk("Loaded INITRD (bytes_read = %llu)\n", bytes_read);
+    printk("INITRD bytes (at %p) = %x\n",         (void *)target_addr, *(unsigned int*)target_addr); 
 	   
-	
-
-
-
-    file_close(initrd_image);
-
     return 0;
 }
 

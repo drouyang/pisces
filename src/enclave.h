@@ -33,9 +33,10 @@ struct enclave_mem_block {
 struct pisces_enclave {
     int state;
     int id; 
+    
+    struct file * kern_file;
+    struct file * init_file;
 
-    char * kern_path;
-    char * initrd_path;
     char * kern_cmdline;
 
     dev_t       dev; 

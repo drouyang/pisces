@@ -101,7 +101,10 @@ device_ioctl(struct file  * file,
                 return -EFAULT;
             }
 
-            if (copy_from_user(img, argp, sizeof(struct pisces_image))) {
+	    memset(img, 0, sizeof(struct pisces_image));
+	    
+	    /* Copy one less byte to ensure NULL termination */
+            if (copy_from_user(img, argp, sizeof(struct pisces_image) - 1)) {
                 printk(KERN_ERR "Error copying pisces image from user space\n");
                 return -EFAULT;
             }
@@ -109,6 +112,8 @@ device_ioctl(struct file  * file,
             printk("Creating Enclave\n");
 
             enclave_idx = pisces_enclave_create(img);
+
+	    kfree(img);
 
             if (enclave_idx == -1) {
                 printk(KERN_ERR "Error creating Pisces Enclave\n");
