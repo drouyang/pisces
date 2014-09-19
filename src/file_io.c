@@ -192,7 +192,7 @@ file_close(struct file * file_ptr)
     return 0;
 }
 
-ssize_t
+loff_t
 file_size(struct file * file_ptr) 
 {
     struct kstat s;

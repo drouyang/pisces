@@ -17,7 +17,7 @@ int file_mkdir(const char * pathname, unsigned short perms, int recurse);
 struct file * file_open(const char * path, int mode);
 int file_close(struct file * file_ptr);
 
-ssize_t file_size(struct file * file_ptr);
+loff_t file_size(struct file * file_ptr);
 
 
 ssize_t file_read(struct file * file_ptr, 
