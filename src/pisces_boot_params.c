@@ -46,7 +46,7 @@ load_kernel(struct pisces_enclave     * enclave,
     boot_params->kernel_size = file_size(kern_image);
     
     while (bytes_read < boot_params->kernel_size) {
-	u64 ret = 0;
+	ssize_t ret = 0;
 
 	ret = file_read(kern_image, 
 			(void *)(target_addr + bytes_read), 
@@ -83,7 +83,7 @@ load_initrd(struct pisces_enclave     * enclave,
     boot_params->initrd_size = file_size(initrd_image);
     
     while (bytes_read < boot_params->initrd_size) {
-	u64 ret = 0;
+	ssize_t ret = 0;
 
 	ret = file_read(initrd_image, 
 			(void *)(target_addr + bytes_read), 
