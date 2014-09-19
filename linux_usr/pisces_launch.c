@@ -13,6 +13,7 @@
 static void usage() {
     printf("Usage: pisces_launch <enclave_dev_path> "	\
 	   " [-b, --block=block_id] "			\
+	   " [-m, --num-blocks=N] "			\
 	   " [-c, --cpu=cpu_id] "			\
 	   " [-n, --numa=numa_zone]\n");
     exit(-1);
@@ -24,6 +25,7 @@ int main(int argc, char ** argv) {
     int numa_zone = -1;
     int cpu_id = -1;
     int block_id = -1;
+    int num_blocks = 1;
     int ret = 0;
 
     struct enclave_boot_env boot_env;
@@ -36,12 +38,13 @@ int main(int argc, char ** argv) {
 
 	static struct option long_options[] = {
 	    {"block", required_argument, 0, 'b'},
+	    {"num-blocks", required_argument, 0, 'm'},
 	    {"numa", required_argument, 0, 'n'},
 	    {"cpu", required_argument, 0, 'c'},
 	    {0, 0, 0, 0}
 	};
 
-	while ((c = getopt_long(argc, argv, "b:n:c:", long_options, &opt_index)) != -1) {
+	while ((c = getopt_long(argc, argv, "b:m:n:c:", long_options, &opt_index)) != -1) {
 	    switch (c) {
 		case 'n':
 		    numa_zone = atoi(optarg);
@@ -51,6 +54,9 @@ int main(int argc, char ** argv) {
 		    break;
 		case 'b':
 		    block_id = atoi(optarg);
+		    break;
+		case 'm':
+		    num_blocks = atoi(optarg);
 		    break;
 		case '?':
 		    usage();
@@ -63,24 +69,50 @@ int main(int argc, char ** argv) {
 	    return -1;
 	} 
 
+        if (num_blocks < 1) {
+            printf("Error: number of memory blocks (-m) must greater than 1\n");
+            return -1;
+        }
+
 	enclave_path = argv[optind];
     }
 
 
 
-    /* Allocate 1 memory block from (optional) NUMA zone or as specified on cmd line*/
+    /* Allocate N memory block from (optional) NUMA zone or as specified on cmd line*/
     {	
 	if (block_id == -1) {
-	    struct mem_block block;
-	    memset(&block, 0, sizeof(struct mem_block));
+            struct mem_block * blocks = NULL;
+            int i, ret;
 
-	    if (pet_offline_blocks(1, numa_zone, &block) != 1) {
-		printf("Error: Could not offline memory block for enclave\n");
-		return -1;
-	    }
+            blocks = malloc(sizeof(struct mem_block) * num_blocks);
+            if (blocks == NULL) {
+                printf("Error: Failed to allocated memory for blocks\n");  
+                return -1;
+            }
+            memset(blocks, 0, sizeof(struct mem_block) * num_blocks);
 
-	    boot_env.base_addr = block.base_addr;
-	    boot_env.pages = block.pages;
+            ret = pet_offline_blocks(num_blocks, numa_zone, blocks);
+            if (ret < 1) {
+              printf("Error: Could not offline memory block for enclave\n");
+              return -1;
+            } else if (ret < num_blocks) {
+              printf("Error: %d out of %d blocks allocated\n", ret, num_blocks);
+              pet_online_blocks(ret, blocks);
+            }
+
+            // check continuity
+            for (i = 1; i < num_blocks; i++) {
+                if (blocks[i].base_addr != blocks[i-1].base_addr 
+                    + pet_block_size()) {
+                    printf("Error: Failed to allocate continous memory blocks\n");
+                    pet_online_blocks(num_blocks, blocks);
+                    return -1;
+                }
+            }
+
+	    boot_env.base_addr = blocks[0].base_addr;
+	    boot_env.pages = blocks[0].pages * num_blocks;
 
 	} else {
 	    if (pet_offline_block(block_id) == -1) {
@@ -91,6 +123,8 @@ int main(int argc, char ** argv) {
 	    boot_env.base_addr = (uint64_t)block_id * pet_block_size();
 	    boot_env.pages = pet_block_size() / 4096;
 	}
+
+        printf("Memory blocks offlined: %d\n", num_blocks);
     }
 
 
