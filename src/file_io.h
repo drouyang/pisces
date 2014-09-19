@@ -17,13 +17,15 @@ int file_mkdir(const char * pathname, unsigned short perms, int recurse);
 struct file * file_open(const char * path, int mode);
 int file_close(struct file * file_ptr);
 
-unsigned long long file_size(struct file * file_ptr);
+ssize_t file_size(struct file * file_ptr);
 
 
-unsigned long long file_read(struct file * file_ptr, void * buffer, 
-			     unsigned long long length, 
-			     unsigned long long offset);
+ssize_t file_read(struct file * file_ptr, 
+		  void        * buffer, 
+		  size_t        length, 
+		  loff_t        offset);
 
-unsigned long long file_write(struct file * file_ptr, void * buffer, 
-			      unsigned long long length, 
-			      unsigned long long offset);
+ssize_t file_write(struct file * file_ptr, 
+		   void        * buffer, 
+		   size_t        length, 
+		   loff_t        offset);

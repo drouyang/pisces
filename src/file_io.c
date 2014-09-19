@@ -192,7 +192,7 @@ file_close(struct file * file_ptr)
     return 0;
 }
 
-unsigned long long 
+ssize_t
 file_size(struct file * file_ptr) 
 {
     struct kstat s;
@@ -212,11 +212,11 @@ file_size(struct file * file_ptr)
     return s.size;
 }
 
-unsigned long long 
-file_read(struct file       * file_ptr, 
-	  void              * buffer, 
-	  unsigned long long  length, 
-	  unsigned long long  offset)
+ssize_t 
+file_read(struct file * file_ptr, 
+	  void        * buffer, 
+	  size_t        length, 
+	  loff_t        offset)
 {
     ssize_t      ret;
     mm_segment_t old_fs;
@@ -229,18 +229,18 @@ file_read(struct file       * file_ptr,
     set_fs(old_fs);
 	
     if (ret <= 0) {
-	printk(KERN_ERR "sys_read of %p for %lld bytes at offset %llu failed (ret=%ld)\n", file_ptr, length, offset, ret);
+	printk(KERN_ERR "sys_read of %p for %lu bytes at offset %lld failed (ret=%ld)\n", file_ptr, length, offset, ret);
     }
 	
     return ret;
 }
 
 
-unsigned long long 
-file_write(struct file        * file_ptr, 
-	   void               * buffer, 
-	   unsigned long long   length, 
-	   unsigned long long   offset) 
+ssize_t 
+file_write(struct file * file_ptr, 
+	   void        * buffer, 
+	   size_t        length, 
+	   loff_t        offset) 
 {
     mm_segment_t old_fs;
     ssize_t      ret;
@@ -254,7 +254,7 @@ file_write(struct file        * file_ptr,
 
  
     if (ret <= 0) {
-	printk(KERN_ERR "sys_write for %llu bytes at offset %llu failed (ret=%ld)\n", length, offset, ret);
+	printk(KERN_ERR "sys_write for %lu bytes at offset %lld failed (ret=%ld)\n", length, offset, ret);
     }
 	
     return ret;
