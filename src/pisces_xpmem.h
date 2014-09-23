@@ -8,6 +8,8 @@
 #include "pisces_lcall.h"
 
 #include <xpmem_iface.h>
+#include <xpmem_extended.h>
+#include <xpmem.h>
 
 
 struct pisces_xpmem {
@@ -23,6 +25,9 @@ struct pisces_xpmem {
 
 int
 pisces_xpmem_init(struct pisces_enclave * enclave);
+
+int
+pisces_xpmem_deinit(struct pisces_enclave * enclave);
 
 int
 pisces_xpmem_cmd_lcall(struct pisces_enclave   * enclave, 

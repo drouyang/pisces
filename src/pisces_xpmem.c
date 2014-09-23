@@ -130,6 +130,24 @@ pisces_xpmem_init(struct pisces_enclave * enclave)
     return 0;
 }
 
+/* Kernel deinitialization */
+int
+pisces_xpmem_deinit(struct pisces_enclave * enclave)
+{
+    struct pisces_xpmem * xpmem = &(enclave->xpmem);
+
+    if (!xpmem->part) {
+	return 0;
+    }
+
+    if (xpmem_remove_connection(xpmem->part, xpmem->link) != 0) {
+	printk(KERN_ERR "XPMEM: failed to remove XPMEM connection\n");
+	return -1;
+    }
+
+    return 0;
+}
+
 
 /* Incoming XPMEM command from enclave - copy it out and deliver to xpmem
  * partition
