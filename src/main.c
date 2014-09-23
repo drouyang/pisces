@@ -295,6 +295,7 @@ pisces_exit(void)
     device_destroy(pisces_class, dev_num);
     class_destroy(pisces_class);
 
+    remove_proc_entry("pisces-dbg", pisces_proc_dir);
     remove_proc_entry(PISCES_PROC_DIR, NULL);
 
     pisces_deinit_trampoline();
