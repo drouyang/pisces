@@ -92,24 +92,34 @@ int main(int argc, char ** argv) {
             }
             memset(blocks, 0, sizeof(struct mem_block) * num_blocks);
 
-            ret = pet_offline_blocks(num_blocks, numa_zone, blocks);
-            if (ret < 1) {
-              printf("Error: Could not offline memory block for enclave\n");
-              return -1;
-            } else if (ret < num_blocks) {
-              printf("Error: %d out of %d blocks allocated\n", ret, num_blocks);
-              pet_online_blocks(ret, blocks);
-            }
+	    if (num_blocks > 1) {
 
-            // check continuity
-            for (i = 1; i < num_blocks; i++) {
-                if (blocks[i].base_addr != blocks[i-1].base_addr 
-                    + pet_block_size()) {
-                    printf("Error: Failed to allocate continous memory blocks\n");
-                    pet_online_blocks(num_blocks, blocks);
-                    return -1;
-                }
-            }
+		ret = pet_offline_contig_blocks(num_blocks, numa_zone, (1LL << 21), blocks);
+		if (ret < 0) {
+		    printf("Error: Could not offline %d contiguous memory blocks for enclave\n", num_blocks);
+		    return -1;
+		} 
+
+		// check contiguity
+		/*for (i = 1; i < num_blocks; i++) {
+		    if (blocks[i].base_addr != blocks[i-1].base_addr 
+			+ pet_block_size()) {
+			printf("Error: Failed to allocate contigous memory blocks (block %d: %p, block %d: %p\n",
+			    i - 1,
+			    (void *)blocks[i - 1].base_addr,
+			    i,
+			    (void *)blocks[i].base_addr);
+			pet_online_blocks(num_blocks, blocks);
+			return -1;
+		    }
+		}*/
+	    } else {
+		ret = pet_offline_blocks(num_blocks, numa_zone, blocks);
+		if (ret < 1) {
+		    printf("Error: Could not offline memory block for enclave\n");
+		    return -1;
+		}
+	    }
 
 	    boot_env.base_addr = blocks[0].base_addr;
 	    boot_env.pages = blocks[0].pages * num_blocks;
