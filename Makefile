@@ -2,7 +2,7 @@ KERN_PATH=/usr/src/kernels/`uname -r`
 #KERN_PATH=../linux/
 #KERN_PATH=/home/jarusl/linux-3.11.8-200.fc19.x86_64.debug
 
-XPMEM_KERN_PATH=/home/briankoco/xpmem/kernel
+XPMEM_KERN_PATH=/home/briankoco/xpmem/
 
 PETLIB_PATH=../petlib
 
@@ -33,7 +33,7 @@ pisces-objs :=  src/main.o             \
 
 ifeq ($(XPMEM),y)
   EXTRA_CFLAGS         += -I$(XPMEM_KERN_PATH)/include -DUSING_XPMEM
-  KBUILD_EXTRA_SYMBOLS += $(XPMEM_KERN_PATH)/Module.symvers
+  KBUILD_EXTRA_SYMBOLS += $(XPMEM_KERN_PATH)/mod/Module.symvers
 
   pisces-objs +=  src/pisces_xpmem.o 
 
