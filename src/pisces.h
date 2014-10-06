@@ -21,7 +21,8 @@
 
 struct enclave_boot_env {
     unsigned long long base_addr;
-    unsigned long long pages;
+    unsigned long long block_size;
+    unsigned int       num_blocks;
     unsigned int       cpu_id;
 } __attribute__((packed));
 

@@ -126,6 +126,7 @@ enclave_ioctl(struct file  * filp,
 	    case PISCES_ENCLAVE_LAUNCH:
 		{
 		    struct enclave_boot_env boot_env;
+		    u64                     num_pages = 0;
 		    
 		    memset(&boot_env, 0, sizeof(struct enclave_boot_env));
 		    
@@ -134,14 +135,24 @@ enclave_ioctl(struct file  * filp,
 			ret = -EFAULT;
 			break;
 		    }
+
+		    num_pages = (boot_env.num_blocks * boot_env.block_size) / PAGE_SIZE;
 		    
 		    /* We need to check that these values are legit */
 		    enclave->bootmem_addr_pa =  boot_env.base_addr;
-		    enclave->bootmem_size    =  boot_env.pages * PAGE_SIZE;
+		    enclave->bootmem_size    =  num_pages * PAGE_SIZE;
 		    enclave->boot_cpu        =  boot_env.cpu_id;
 		    
 		    pisces_enclave_add_cpu(enclave, boot_env.cpu_id);
-		    pisces_enclave_add_mem(enclave, boot_env.base_addr, boot_env.pages);
+
+		    /* There may be multiple memory blocks in the boot env */
+		    {
+			int i = 0;
+			for (i = 0; i < boot_env.num_blocks; i++) {
+			    u64 addr = boot_env.base_addr + (i * boot_env.block_size);
+			    pisces_enclave_add_mem(enclave, addr, (boot_env.block_size / PAGE_SIZE));
+			}
+		    }
 		    
 		    
 		    printk(KERN_DEBUG "Launch Pisces Enclave (cpu=%d) (bootmem=%p)\n", 

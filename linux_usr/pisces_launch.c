@@ -114,15 +114,17 @@ int main(int argc, char ** argv) {
 		    }
 		}*/
 	    } else {
-		ret = pet_offline_blocks(num_blocks, numa_zone, blocks);
+		ret = pet_offline_blocks(1, numa_zone, blocks);
 		if (ret < 1) {
 		    printf("Error: Could not offline memory block for enclave\n");
 		    return -1;
 		}
 	    }
 
-	    boot_env.base_addr = blocks[0].base_addr;
-	    boot_env.pages = blocks[0].pages * num_blocks;
+	    boot_env.base_addr  = blocks[0].base_addr;
+	    boot_env.block_size = pet_block_size();
+	    boot_env.num_blocks = num_blocks;
+//	    boot_env.pages = blocks[0].pages * num_blocks;
 
 	} else {
 	    if (pet_offline_block(block_id) == -1) {
@@ -131,7 +133,8 @@ int main(int argc, char ** argv) {
 	    }
 	    
 	    boot_env.base_addr = (uint64_t)block_id * pet_block_size();
-	    boot_env.pages = pet_block_size() / 4096;
+	    boot_env.block_size = pet_block_size();
+	    boot_env.num_blocks = 1;
 	}
 
         printf("Memory blocks offlined: %d\n", num_blocks);
