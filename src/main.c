@@ -89,6 +89,8 @@ device_ioctl(struct file  * file,
 {
     void __user * argp = (void __user *)arg;
 
+    printk("IOCTL %d\n", ioctl);
+
 
     switch (ioctl) {
 
@@ -99,7 +101,7 @@ device_ioctl(struct file  * file,
 	    memset(&img, 0, sizeof(struct pisces_image));
 	    
 	    /* Copy one less byte to ensure NULL termination */
-            if (copy_from_user(&img, argp, sizeof(struct pisces_image)) != 0) {
+            if (copy_from_user(&img, argp, sizeof(struct pisces_image) - 1) != 0) {
                 printk(KERN_ERR "Error copying pisces image from user space\n");
                 return -EFAULT;
             }
@@ -151,7 +153,7 @@ device_ioctl(struct file  * file,
 	    memset(&img, 0, sizeof(struct pisces_image));
 	    
 	    /* Copy one less byte to ensure NULL termination */
-            if (copy_from_user(&img, argp, sizeof(struct pisces_image)) != 0) {
+            if (copy_from_user(&img, argp, sizeof(struct pisces_image) - 1) != 0) {
                 printk(KERN_ERR "Error copying pisces image from user space\n");
                 return -EFAULT;
             }
