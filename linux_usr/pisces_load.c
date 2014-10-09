@@ -36,8 +36,9 @@ int main(int argc, char ** argv) {
 
     img = malloc(sizeof(struct pisces_image));
 
-    img->kern_fd = kern_fd;
-    img->init_fd = init_fd;
+    img->enclave_id = -1;
+    img->kern_fd    = kern_fd;
+    img->init_fd    = init_fd;
     strcpy(img->cmd_line, cmd_line);
 
     enclave_id = pet_ioctl_path("/dev/" DEVICE_NAME, PISCES_LOAD_IMAGE, img);
