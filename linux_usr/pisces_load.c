@@ -36,7 +36,6 @@ int main(int argc, char ** argv) {
 
     img = malloc(sizeof(struct pisces_image));
 
-    img->enclave_id = -1;
     img->kern_fd    = kern_fd;
     img->init_fd    = init_fd;
     strcpy(img->cmd_line, cmd_line);

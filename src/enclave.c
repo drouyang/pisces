@@ -163,6 +163,22 @@ enclave_ioctl(struct file  * filp,
 		    
 		    break;
 		}
+	    case PISCES_ENCLAVE_RESET:
+		{
+
+		    // send INIT IPI to all kitten cores
+		    stop_enclave(enclave);
+
+		    // reset all pci devices
+
+		    // rebuild boot params
+
+		    // restart enclave
+
+		    // readd resources
+
+		    break;
+		}
 	    case PISCES_ENCLAVE_CONS_CONNECT:
 		{
 		    printk(KERN_DEBUG "Open enclave console...\n");

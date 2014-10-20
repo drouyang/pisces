@@ -20,6 +20,8 @@ struct trampoline_data {
 extern struct trampoline_data trampoline_state;
 
 int boot_enclave(struct pisces_enclave * enclave);
+int stop_enclave(struct pisces_enclave * enclave);
+
 
 int pisces_init_trampoline(void);
 int pisces_deinit_trampoline(void);

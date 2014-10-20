@@ -95,32 +95,33 @@ device_ioctl(struct file  * file,
     switch (ioctl) {
 
         case PISCES_LOAD_IMAGE: {
-            struct pisces_image img;
-            int                 enclave_idx = -1;
+            struct pisces_image * img = kmalloc(sizeof(struct pisces_image), GFP_KERNEL);
+            int                   enclave_idx = -1;
 
-	    memset(&img, 0, sizeof(struct pisces_image));
+
+	    if (IS_ERR(img)) {
+                printk(KERN_ERR "Could not allocate space for pisces image\n");
+                return -EFAULT;
+            }
+	    
+	    memset(img, 0, sizeof(struct pisces_image));
 	    
 	    /* Copy one less byte to ensure NULL termination */
-            if (copy_from_user(&img, argp, sizeof(struct pisces_image) - 1) != 0) {
+            if (copy_from_user(img, argp, sizeof(struct pisces_image) - 1) != 0) {
                 printk(KERN_ERR "Error copying pisces image from user space\n");
                 return -EFAULT;
             }
 
             printk("Creating Enclave\n");
 
-            enclave_idx = pisces_enclave_create(&img);
+            enclave_idx = pisces_enclave_create(img);
+
+	    kfree(img);
 
             if (enclave_idx == -1) {
                 printk(KERN_ERR "Error creating Pisces Enclave\n");
                 return -EFAULT;
             }
-
-	    img.enclave_id = enclave_idx;
-
-	    if (copy_to_user(argp, &img, sizeof(struct pisces_image)) != 0) {
-                printk(KERN_ERR "Error copying pisces image to user space\n");
-                return -EFAULT;
-	    }
 
             return enclave_idx;
             break;
@@ -142,53 +143,6 @@ device_ioctl(struct file  * file,
 
 	    pisces_enclave_free(enclave);
 
-	    break;
-	}
-
-	case PISCES_RELOAD_IMAGE: {
-	    struct pisces_enclave * enclave     = NULL;
-            struct pisces_image     img; 
-            int                     enclave_idx = -1;
-
-	    memset(&img, 0, sizeof(struct pisces_image));
-	    
-	    /* Copy one less byte to ensure NULL termination */
-            if (copy_from_user(&img, argp, sizeof(struct pisces_image) - 1) != 0) {
-                printk(KERN_ERR "Error copying pisces image from user space\n");
-                return -EFAULT;
-            }
-
-	    enclave_idx = img.enclave_id;
-
-	    if (enclave_idx < 0 || enclave_idx >= MAX_ENCLAVES) {
-		return -EINVAL;
-	    }
-
-	    enclave = enclave_map[enclave_idx];
-
-	    if (enclave == NULL) {
-		return -EINVAL;
-	    }
-
-	    /* Free the enclave */
-	    pisces_enclave_free(enclave);
-
-	    /* Recreate it */
-	    enclave_idx = pisces_enclave_create(&img);
-
-	    if (enclave_idx == -1) {
-		printk(KERN_ERR "Error rebooting Pisces Enclave\n");
-		return -EFAULT;
-	    }
-
-	    img.enclave_id = enclave_idx;
-
-	    if (copy_to_user(argp, &img, sizeof(struct pisces_image)) != 0) {
-                printk(KERN_ERR "Error copying pisces image to user space\n");
-                return -EFAULT;
-	    }
-
-	    return enclave_idx;
 	    break;
 	}
         default:

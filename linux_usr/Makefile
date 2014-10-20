@@ -10,7 +10,6 @@ libs := 	$(PETLIB_PATH)/petlib.a
 
 execs := 	pisces_load \
 		pisces_launch \
-		pisces_reboot \
 		pisces_shutdown \
 		pisces_ctrl \
 		pisces_cons \
@@ -23,6 +22,7 @@ execs := 	pisces_load \
 		v3_dbg \
 		v3_pci \
 
+#		pisces_reboot \
 
 build = \
 	@if [ -z "$V" ]; then \

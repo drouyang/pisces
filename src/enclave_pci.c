@@ -328,12 +328,16 @@ enclave_pci_remove_dev(struct pisces_enclave  * enclave,
 	return -1;
     }
 
+    
+    iommu_domain_free(pci_dev->iommu_domain);
+
     printk("Removing PCI Device [%s]\n", pci_dev->name);
 
     __reset_hw_dev(pci_dev->dev);
     
     kfree(pci_dev);
-    
+    pci_state->dev_cnt--;
+
     return 0;
 }
 
@@ -446,8 +450,8 @@ enclave_pci_iommu_map(struct pisces_enclave      * enclave,
 
 
 int
-enclave_pci_iommu_unmap(struct pisces_enclave      * enclave,
-			struct pisces_xbuf_desc    * xbuf_desc,
+enclave_pci_iommu_unmap(struct pisces_enclave        * enclave,
+			struct pisces_xbuf_desc      * xbuf_desc,
 			struct pci_iommu_unmap_lcall * lcall)
 {
     struct enclave_pci_state * pci_state = &(enclave->pci_state);
@@ -726,8 +730,6 @@ enclave_pci_cmd(struct pisces_enclave   * enclave,
 }
 
 
-
-
 int
 init_enclave_pci(struct pisces_enclave * enclave) 
 {
@@ -764,9 +766,13 @@ deinit_enclave_pci(struct pisces_enclave * enclave)
 	} 
 	spin_unlock_irqrestore(&(pci_state->lock), flags);
 	
+	iommu_domain_free(pci_dev->iommu_domain);
+
 	__reset_hw_dev(pci_dev->dev);
 
 	kfree(pci_dev);
+	
+	pci_state->dev_cnt--;
     }
 
     return 0;

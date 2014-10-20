@@ -531,3 +531,59 @@ boot_enclave(struct pisces_enclave * enclave)
     return ret;
 }
 
+
+
+int 
+stop_enclave(struct pisces_enclave * enclave)
+{
+    u32 cpu = 0;
+
+    for_each_cpu(cpu, &(enclave->assigned_cpus)) {
+	int apicid = apic->cpu_present_to_apicid(cpu);
+
+	unsigned long send_status = 0;
+	int maxlvt;
+
+	maxlvt = __lapic_get_maxlvt();
+	    
+	printk("Stopping CPU %d\n", cpu);
+		
+
+	/*
+	 * Be paranoid about clearing APIC errors.
+	 */
+	if (APIC_INTEGRATED(apic_version[apicid])) {
+	    if (maxlvt > 3)         /* Due to the Pentium erratum 3AP.  */
+		apic_write(APIC_ESR, 0);
+	    apic_read(APIC_ESR);
+	}
+	
+	pr_debug("Asserting INIT on CPU %d\n", cpu);
+	    
+	/*
+	 * Turn INIT on target chip
+	 */
+	/*
+	 * Send IPI
+	 */
+	apic_icr_write(APIC_INT_LEVELTRIG | APIC_INT_ASSERT | APIC_DM_INIT,
+		       apicid);
+
+	pr_debug("Waiting for send to finish...\n");
+	send_status = safe_apic_wait_icr_idle();
+
+	mdelay(10);
+
+	pr_debug("Deasserting INIT\n");
+
+	/* Target chip */
+	/* Send IPI */
+	apic_icr_write(APIC_INT_LEVELTRIG | APIC_DM_INIT, apicid);
+
+	pr_debug("Waiting for send to finish...\n");
+	send_status = safe_apic_wait_icr_idle();
+
+    }
+
+    return 0;
+}
