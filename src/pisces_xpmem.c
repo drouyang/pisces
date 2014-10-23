@@ -47,7 +47,7 @@ xpmem_cmd_fn(struct xpmem_cmd_ex * cmd,
     int                            status  = 0;
 
     if (!xpmem->connected) {
-	printk(KERN_ERR "Pisces XPMEM: cannot handle command: enclave channel not connected\n");
+	XPMEM_ERR("Cannot handle command: enclave channel not connected");
 	return -1;
     }
 
@@ -58,7 +58,7 @@ xpmem_cmd_fn(struct xpmem_cmd_ex * cmd,
     /* Allocate memory for xpmem ctrl structure */
     ctrl = kmalloc(sizeof(struct pisces_xpmem_cmd_ctrl) + pfn_len, GFP_KERNEL);
     if (!ctrl) {
-	printk(KERN_ERR "Pisces XPMEM: out of memory\n");
+	XPMEM_ERR("Out of memory");
 	return -1;
     }
 
@@ -75,10 +75,10 @@ xpmem_cmd_fn(struct xpmem_cmd_ex * cmd,
 
     /* Perform xbuf send */
     status = pisces_xbuf_send(
-                 xpmem->xbuf_desc, 
-                 (u8 *)ctrl, 
-		 sizeof(struct pisces_xpmem_cmd_ctrl) + pfn_len
-	     );
+	 xpmem->xbuf_desc, 
+	 (u8 *)ctrl, 
+	 sizeof(struct pisces_xpmem_cmd_ctrl) + pfn_len
+     );
 
     /* Free ctrl command */
     kfree(ctrl);
@@ -104,7 +104,6 @@ pisces_xpmem_init(struct pisces_enclave * enclave)
     if (!xpmem->xbuf_desc) {
         return -1;
     }
-
 
     /* Get xpmem partition */
     xpmem->part = xpmem_get_partition();
@@ -167,24 +166,17 @@ pisces_xpmem_cmd_lcall(struct pisces_enclave   * enclave,
     lcall_resp.data_len = 0;
 
     if (!xpmem->connected) {
-        printk(KERN_ERR "Cannot handle enclave XPMEM request - channel not connected\n");
-
+	XPMEM_ERR("Cannot handle enclave XPMEM request - channel not connected");
         lcall_resp.status = -1;
         goto out;
     }
 
     cmd = kmalloc(sizeof(struct xpmem_cmd_ex), GFP_KERNEL);
     if (!cmd) {
-	printk(KERN_ERR "Pisces XPMEM: out of memory\n");
+	XPMEM_ERR("Out of memory");
 	lcall_resp.status = -1;
 	goto out;
     }
-
-    /*
-    printk("Received %d data bytes in LCALL (xpmem_cmd_ex size: %d)\n",
-	   (int)xpmem_lcall->lcall.data_len,
-	   (int)sizeof(struct xpmem_cmd_ex));
-    */
 
     /* Copy command */
     *cmd = xpmem_lcall->xpmem_cmd;
@@ -197,7 +189,7 @@ pisces_xpmem_cmd_lcall(struct pisces_enclave   * enclave,
     if (pfn_len > 0) {
 	cmd->attach.pfns = kmalloc(pfn_len, GFP_KERNEL);
 	if (!cmd->attach.pfns) {
-	    printk(KERN_ERR "Pisces XPMEM: out of memory\n");
+	    XPMEM_ERR("Out of memory");
 	    kfree(cmd);
 	    lcall_resp.status = -1;
 	    goto out;
@@ -210,15 +202,13 @@ pisces_xpmem_cmd_lcall(struct pisces_enclave   * enclave,
     }
     
  out:
-
-    /* We want to signal the end of the xbuf communication as quickly as
-     * possible, because delivering the command may take some time */
     pisces_xbuf_complete(xbuf_desc, 
 			 (u8 *)&lcall_resp,
 			 sizeof(struct pisces_lcall_resp));
 
     /* Deliver command to XPMEM partition if we received everything correctly */
     if (lcall_resp.status == 0) {
+
 	xpmem_cmd_deliver(xpmem->part, xpmem->link, cmd);
 
 	if (pfn_len > 0) {
@@ -229,5 +219,4 @@ pisces_xpmem_cmd_lcall(struct pisces_enclave   * enclave,
     }
 
     return 0;
-
 }

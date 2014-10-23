@@ -448,6 +448,8 @@ pisces_xbuf_server_deinit(struct pisces_xbuf_desc * desc)
 	return -1;
     }
 
+    kfree(desc);
+
     return 0;
 }
 
