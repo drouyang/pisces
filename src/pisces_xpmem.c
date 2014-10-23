@@ -47,7 +47,7 @@ xpmem_cmd_fn(struct xpmem_cmd_ex * cmd,
     int                            status  = 0;
 
     if (!xpmem->connected) {
-	XPMEM_ERR("Cannot handle command: enclave channel not connected");
+	printk(KERN_ERR "Cannot handle command: enclave channel not connected");
 	return -1;
     }
 
@@ -58,7 +58,7 @@ xpmem_cmd_fn(struct xpmem_cmd_ex * cmd,
     /* Allocate memory for xpmem ctrl structure */
     ctrl = kmalloc(sizeof(struct pisces_xpmem_cmd_ctrl) + pfn_len, GFP_KERNEL);
     if (!ctrl) {
-	XPMEM_ERR("Out of memory");
+	printk(KERN_ERR "Out of memory");
 	return -1;
     }
 
@@ -166,14 +166,14 @@ pisces_xpmem_cmd_lcall(struct pisces_enclave   * enclave,
     lcall_resp.data_len = 0;
 
     if (!xpmem->connected) {
-	XPMEM_ERR("Cannot handle enclave XPMEM request - channel not connected");
+	printk(KERN_ERR "Cannot handle enclave XPMEM request - channel not connected");
         lcall_resp.status = -1;
         goto out;
     }
 
     cmd = kmalloc(sizeof(struct xpmem_cmd_ex), GFP_KERNEL);
     if (!cmd) {
-	XPMEM_ERR("Out of memory");
+	printk(KERN_ERR "Out of memory");
 	lcall_resp.status = -1;
 	goto out;
     }
@@ -189,7 +189,7 @@ pisces_xpmem_cmd_lcall(struct pisces_enclave   * enclave,
     if (pfn_len > 0) {
 	cmd->attach.pfns = kmalloc(pfn_len, GFP_KERNEL);
 	if (!cmd->attach.pfns) {
-	    XPMEM_ERR("Out of memory");
+	    printk(KERN_ERR "Out of memory");
 	    kfree(cmd);
 	    lcall_resp.status = -1;
 	    goto out;
