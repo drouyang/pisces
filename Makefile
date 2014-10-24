@@ -70,11 +70,11 @@ all: version_exec
 version_exec: version.c $(VERSION_CMD)
 	gcc -I$(KERN_PATH)/include version.c -o $(VERSION_CMD)
 
-clean:
+clean: 
 	make -C $(KERN_PATH) M=$(PWD) clean
 	make -C linux_usr/ clean
-	rm $(VERSION_CMD)
-
+	rm -f $(shell find src/ -name "*.o")
+	rm -f  $(VERSION_CMD)
 
 .PHONY: tags
 tags:
