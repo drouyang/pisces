@@ -13,6 +13,7 @@ execs := 	pisces_load \
 		pisces_shutdown \
 		pisces_ctrl \
 		pisces_cons \
+		pisces_run \
 		v3_create \
 		v3_free \
 		v3_launch \

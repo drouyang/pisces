@@ -59,6 +59,8 @@ struct pisces_resp {
 
 #define ENCLAVE_CMD_FREE_V3_PCI        190
 
+#define ENCLAVE_CMD_LAUNCH_JOB         200
+
 
 #define ENCLAVE_CMD_XPMEM_CMD_EX       300
 
@@ -74,6 +76,7 @@ struct vm_path {
     uint8_t file_name[256];
     uint8_t vm_name[128];
 } __attribute__((packed));
+
 
 struct pisces_pci_spec {
     u8  name[128];
@@ -97,6 +100,28 @@ struct pisces_dbg_spec {
     u32 cmd;
 } __attribute__((packed));
 
+
+
+struct pisces_job_spec {
+    char name[64];
+    char exe_path[256];
+    char argv[256];
+    char envp[256];
+
+    union {
+	u64 flags;
+	struct {
+	    u64   use_large_pages : 1;
+	    u64   use_smartmap    : 1;
+	    u64   rsvd            : 62;
+	} __attribute__((packed));
+    } __attribute__((packed));
+
+    u8   num_ranks;
+    u64  cpu_mask;
+    u64  heap_size;
+    u64  stack_size;
+} __attribute__((packed));
 
 
 
@@ -165,15 +190,15 @@ struct cmd_free_pci_dev {
 
 
 
+struct cmd_launch_job {
+    struct pisces_cmd      hdr;
+    struct pisces_job_spec spec;
+} __attribute__((packed));
+
 
 
 #endif
 
 /* ** */
-
-
-/* 
- * Enclave -> Linux Command Structures
- */
 
 #endif

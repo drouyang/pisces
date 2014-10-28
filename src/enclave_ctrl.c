@@ -329,6 +329,43 @@ ctrl_ioctl(struct file   * filp,
 
 		break;
 	    }
+	    case ENCLAVE_CMD_LAUNCH_JOB: {
+		struct cmd_launch_job cmd;
+		
+		memset(&cmd, 0, sizeof(struct pisces_cmd));
+
+		cmd.hdr.cmd      = ENCLAVE_CMD_LAUNCH_JOB;
+		cmd.hdr.data_len = ( sizeof(struct cmd_launch_job) - 
+				     sizeof(struct pisces_cmd));
+
+		if (copy_from_user(&(cmd.spec), argp, sizeof(struct pisces_job_spec))) {
+		    printk(KERN_ERR "Could not copy job spec from user space\n");
+		    ret = -EFAULT;
+		    break;
+		}
+
+		printk("Launching Job %s\n", cmd.spec.name);
+
+		ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_launch_job), (u8 **)&resp, &resp_len);
+
+		if (ret == 0) {
+		    status = resp->status;
+		    kfree(resp);
+		} else {
+		    status = -1;
+		}
+
+		if (status < 0) {
+		    printk(KERN_ERR "Error launching job (%s) [ret=%d, status=%d]\n",
+			   cmd.spec.name, ret, status);
+		    ret = -1;
+		    break;
+		}
+
+		ret = status;
+
+		break;
+	    }
 	    case ENCLAVE_CMD_CREATE_VM: {
 		struct cmd_create_vm cmd;
 
