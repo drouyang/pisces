@@ -624,7 +624,10 @@ pisces_ctrl_init(struct pisces_enclave * enclave)
 int 
 pisces_ctrl_deinit(struct pisces_enclave * enclave)
 {
-    //    struct pisces_ctrl * ctrl = &(enclave->ctrl);
+    struct pisces_ctrl * ctrl = &(enclave->ctrl);
+
+
+    pisces_xbuf_client_deinit(ctrl->xbuf_desc);
 
     return 0;
 }

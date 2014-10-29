@@ -13,6 +13,7 @@ execs := 	pisces_load \
 		pisces_shutdown \
 		pisces_ctrl \
 		pisces_cons \
+		pisces_reset \
 		pisces_run \
 		v3_create \
 		v3_free \
@@ -23,7 +24,6 @@ execs := 	pisces_load \
 		v3_dbg \
 		v3_pci \
 
-#		pisces_reboot \
 
 build = \
 	@if [ -z "$V" ]; then \

@@ -481,8 +481,11 @@ pisces_xbuf_client_init(struct pisces_enclave * enclave,
     return desc;
 }
 
-
-
+void
+pisces_xbuf_client_deinit(struct pisces_xbuf_desc * desc)
+{
+    kfree(desc);
+}
 
 
 

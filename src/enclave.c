@@ -168,12 +168,15 @@ enclave_ioctl(struct file  * filp,
 		    // send INIT IPI to all kitten cores
 		    stop_enclave(enclave);
 
-
+		    pisces_ctrl_deinit(enclave);
+		    pisces_lcall_deinit(enclave);
+#ifdef USING_XPMEM
+		    pisces_xpmem_deinit(enclave);
+#endif
 		    printk("Stopped CPUs\n");
 
 		    // reset all pci devices
 		    reset_enclave_pci(enclave);
-
 
 
 		    // restart enclave
@@ -185,7 +188,6 @@ enclave_ioctl(struct file  * filp,
 		    }
 
 		    printk("Enclave Relaunched\n");
-		    break;
 
 		    // readd resources
 		    {
