@@ -27,7 +27,7 @@ int pisces_ctrl_deinit(struct pisces_enclave * enclave);
 int pisces_ctrl_connect(struct pisces_enclave * enclave);
 
 int ctrl_add_mem(struct pisces_enclave * enclave, struct memory_range * reg);
-int ctrl_add_cpu(struct pisces_enclave * enclave, int cpu_id);
+int ctrl_add_cpu(struct pisces_enclave * enclave, u64 cpu_id);
 int ctrl_add_pci(struct pisces_enclave * enclave, struct pisces_pci_spec * pci_spec);
 
 
