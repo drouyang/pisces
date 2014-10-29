@@ -88,6 +88,34 @@ send_vm_cmd(struct pisces_xbuf_desc * xbuf_desc,
 }
 
 
+int 
+ctrl_add_mem(struct pisces_enclave * enclave, 
+	     struct memory_range   * reg)
+{
+
+
+    return -1;
+}
+
+
+int 
+ctrl_add_cpu(struct pisces_enclave * enclave, 
+	     int                     cpu_id)
+{
+
+    return -1;
+}
+
+
+int 
+ctrl_add_pci(struct pisces_enclave  * enclave,
+	     struct pisces_pci_spec * pci_spec)
+{
+
+    return -1;
+}
+
+
 // Allow high level control commands over ioctl
 static long 
 ctrl_ioctl(struct file   * filp, 

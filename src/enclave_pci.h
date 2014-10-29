@@ -65,6 +65,9 @@ init_enclave_pci(struct pisces_enclave * enclave);
 int 
 deinit_enclave_pci(struct pisces_enclave * enclave);
 
+int 
+reset_enclave_pci(struct pisces_enclave * enclave);
+
 int
 enclave_pci_add_dev(struct pisces_enclave  * enclave,
 		    struct pisces_pci_spec * spec);

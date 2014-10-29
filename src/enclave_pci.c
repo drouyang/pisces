@@ -123,6 +123,83 @@ send_resp(struct pisces_xbuf_desc * xbuf_desc,
 			 sizeof(struct pisces_lcall_resp));
 }
 
+
+
+static int
+__deinit_pci_dev(struct pisces_pci_dev * pci_dev) 
+{
+
+    pci_dev->ready = 0;
+
+    /* 
+     * DMA and Mem-mapped I/O should already be disabled
+     * All IOMMU mappings should be destroyed and device should be detached from IOMMU context
+     */
+    
+    iommu_domain_free(pci_dev->iommu_domain);
+
+
+    /* Free BAR regions */
+    pci_release_regions(pci_dev->dev);
+    
+    /* Reset Device State */
+    pci_reset_function(pci_dev->dev);
+
+    pci_restore_state(pci_dev->dev);
+    pci_disable_device(pci_dev->dev);
+
+    return 0;
+}
+
+
+static int
+__init_pci_dev(struct pisces_pci_dev * pci_dev)
+{
+    int ret = 0;
+
+    /*
+    ret = probe_sysfs_permissions(dev);
+    if (ret)
+        goto out_put;
+    */
+
+    if (pci_enable_device(pci_dev->dev)) {
+        printk(KERN_ERR "Could not enable PCI device\n");
+	ret = -EBUSY;
+        goto out_return;
+    }
+
+    ret = pci_request_regions(pci_dev->dev, "pisces_pci_device");
+
+    if (ret) {
+        printk(KERN_INFO "Could not get access to device regions\n");
+        goto out_disable;
+    }
+
+    pci_reset_function(pci_dev->dev);
+
+    pci_dev->iommu_domain = iommu_domain_alloc(&pci_bus_type);
+
+    if (!pci_dev->iommu_domain) {
+        printk(KERN_ERR "iommu_domain_alloc error\n");
+        ret = -ENOMEM;
+        goto out_iommu;
+    }
+
+    pci_dev->iommu_enabled = 1;
+    pci_dev->ready         = 1;
+
+
+    return 0;
+
+ out_iommu:
+    pci_release_regions(pci_dev->dev);
+ out_disable:
+    pci_disable_device(pci_dev->dev);
+ out_return:
+    return ret;
+}
+
 /*
  * Grab a PCI device and initialize it
  *  - ensures existence, non-bridge type, IOMMU enabled
@@ -194,61 +271,32 @@ enclave_pci_add_dev(struct pisces_enclave  * enclave,
         goto out_put;
     }
 
-
-
-    /*
-    ret = probe_sysfs_permissions(dev);
-    if (ret)
-        goto out_put;
-    */
-
-    if (pci_enable_device(dev)) {
-        printk(KERN_ERR "Could not enable PCI device\n");
-        ret = -EBUSY;
-        goto out_put;
-    }
-
-    ret = pci_request_regions(dev, "pisces_pci_device");
-
-    if (ret) {
-        printk(KERN_INFO "Could not get access to device regions\n");
-        goto out_disable;
-    }
-
-    pci_reset_function(dev);
-
     /* Maybe save device state here? */
-
-    pci_dev->dev = dev;
-
 
 
     /* iommu init */
     if (!iommu_present(&pci_bus_type)) {
         printk(KERN_ERR "IOMMU not found\n");
         ret = -ENODEV;
-        goto out_iommu;
+        goto out_put;
     }
 
-    pci_dev->iommu_domain = iommu_domain_alloc(&pci_bus_type);
 
-    if (!pci_dev->iommu_domain) {
-        printk(KERN_ERR "iommu_domain_alloc error\n");
-        ret = -ENOMEM;
-        goto out_iommu;
+    pci_dev->dev = dev;
+
+    ret = __init_pci_dev(pci_dev);
+
+    if (ret != 0) {
+	printk("Could not initialize hardware PCI device\n");
+	goto out_put;
     }
 
-    pci_dev->iommu_enabled = 1;
-    pci_dev->ready         = 1;
 
     printk(KERN_INFO "Device %s initialized, iommu_domain allocated.\n", pci_dev->name);
 
     return 0;
 
- out_iommu:
-    pci_release_regions(dev);
- out_disable:
-    pci_disable_device(dev);
+
  out_put:
     pci_dev_put(dev);
  out_del_list:
@@ -283,26 +331,7 @@ __unregister_device(struct pisces_enclave  * enclave,
     return -1;
 }
 
-static int
-__reset_hw_dev(struct pci_dev * dev)
-{
 
-    /* 
-     * DMA and Mem-mapped I/O should already be disabled
-     * All IOMMU mappings should be destroyed and device should be detached from IOMMU context
-     */
-
-    /* Free BAR regions */
-    pci_release_regions(dev);
-    
-    /* Reset Device State */
-    pci_reset_function(dev);
-
-    pci_restore_state(dev);
-    pci_disable_device(dev);
-
-    return 0;
-}
 
 int
 enclave_pci_remove_dev(struct pisces_enclave  * enclave,
@@ -329,11 +358,11 @@ enclave_pci_remove_dev(struct pisces_enclave  * enclave,
     }
 
     
-    iommu_domain_free(pci_dev->iommu_domain);
+    __deinit_pci_dev(pci_dev);
 
     printk("Removing PCI Device [%s]\n", pci_dev->name);
 
-    __reset_hw_dev(pci_dev->dev);
+
     
     kfree(pci_dev);
     pci_state->dev_cnt--;
@@ -766,14 +795,38 @@ deinit_enclave_pci(struct pisces_enclave * enclave)
 	} 
 	spin_unlock_irqrestore(&(pci_state->lock), flags);
 	
-	iommu_domain_free(pci_dev->iommu_domain);
-
-	__reset_hw_dev(pci_dev->dev);
+	__deinit_pci_dev(pci_dev);
 
 	kfree(pci_dev);
 	
 	pci_state->dev_cnt--;
     }
 
+    return 0;
+}
+
+
+int 
+reset_enclave_pci(struct pisces_enclave * enclave) 
+{
+    struct enclave_pci_state * pci_state = &(enclave->pci_state);
+    struct pisces_pci_dev    * pci_dev   = NULL;
+    unsigned long flags;
+
+
+    spin_lock_irqsave(&(pci_state->lock), flags);
+    {
+	list_for_each_entry(pci_dev, &(pci_state->dev_list), dev_node) {
+	    
+	    __deinit_pci_dev(pci_dev);
+	    
+	    __init_pci_dev(pci_dev);
+	    
+	}
+    } 
+    spin_unlock_irqrestore(&(pci_state->lock), flags);
+    
+    
+    
     return 0;
 }

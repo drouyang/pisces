@@ -165,17 +165,99 @@ enclave_ioctl(struct file  * filp,
 		}
 	    case PISCES_ENCLAVE_RESET:
 		{
-
 		    // send INIT IPI to all kitten cores
 		    stop_enclave(enclave);
 
-		    // reset all pci devices
 
-		    // rebuild boot params
+		    printk("Stopped CPUs\n");
+
+		    // reset all pci devices
+		    reset_enclave_pci(enclave);
+
+
 
 		    // restart enclave
+		    ret = pisces_enclave_launch(enclave);
+		    
+		    if (ret != 0) {
+			printk(KERN_ERR "Error launching enclave after reset\n");
+			break;
+		    }
+
+		    printk("Enclave Relaunched\n");
+		    break;
 
 		    // readd resources
+		    {
+
+			/* Memory */
+			{
+			    struct enclave_mem_block * iter    = NULL;
+			    struct memory_range reg;
+
+			    list_for_each_entry(iter, &(enclave->memdesc_list), node) 
+			    {
+
+				if ((iter->base_addr >= enclave->bootmem_addr_pa) && 
+				    (iter->base_addr <  (enclave->bootmem_addr_pa + enclave->bootmem_size))) {
+				    /* Don't add boot memory */
+				    continue;
+				} 
+
+				memset(&reg, 0, sizeof(struct memory_range));
+			
+				reg.base_addr = iter->base_addr;
+				reg.pages     = iter->pages;
+
+				if (ctrl_add_mem(enclave, &reg) != 0) {
+				    printk(KERN_ERR "Error: Could not readd memory [%p] after reset\n",
+					   (void *)reg.base_addr);
+				}
+			    }
+			    
+			}
+
+
+			/* CPUs */
+			{
+			    u64 cpu_id = 0;
+
+			    for_each_cpu(cpu_id, &(enclave->assigned_cpus)) {
+
+				/* Don't add the boot CPU */
+				if (cpu_id == enclave->boot_cpu) continue;
+
+				if (ctrl_add_cpu(enclave, cpu_id) != 0) {
+				    printk(KERN_ERR "Error: Could not readd CPU [%llu] after reset\n",
+					   cpu_id);
+				}
+			    }
+			
+			}
+			
+			/* PCI Devices */
+			{
+			    struct pisces_pci_dev * dev = NULL;
+			    struct pisces_pci_spec pci_spec;
+
+			    list_for_each_entry(dev, &(enclave->pci_state.dev_list), dev_node) {
+				memset(&pci_spec, 0, sizeof(struct pisces_pci_spec));
+				
+				strncpy(pci_spec.name, dev->name, sizeof(pci_spec.name));
+				pci_spec.bus  = dev->bus;
+				pci_spec.dev  = PCI_SLOT(dev->devfn);
+				pci_spec.func = PCI_FUNC(dev->devfn);
+
+				if (ctrl_add_pci(enclave, &pci_spec) != 0) {
+				    printk(KERN_ERR "Error: Could not readd PCI device [%s]\n", 
+					   pci_spec.name);
+				}				
+			    }
+			}
+
+		    }
+
+
 
 		    break;
 		}

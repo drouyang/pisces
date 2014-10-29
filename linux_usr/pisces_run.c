@@ -16,8 +16,8 @@
 
 #define DEFAULT_NUM_RANKS       1
 #define DEFAULT_CPU_LIST        NULL
-#define DEFAULT_USE_LARGE_PAGES 1
-#define DEFAULT_USE_SMARTMAP    1
+#define DEFAULT_USE_LARGE_PAGES 0
+#define DEFAULT_USE_SMARTMAP    0
 #define DEFAULT_HEAP_SIZE       (16 * 1024 * 1024)
 #define DEFAULT_STACK_SIZE      (256 * 1024)
 #define DEFAULT_ENVP            ""
@@ -51,8 +51,8 @@ static void usage() {
 	   " Options: \n"						           \
 	   "\t[-np <ranks>]               (default: 1)        : Number of ranks  \n" \
 	   "\t[--cpulist=<cpus>]          (default: 0,1,2...) : comma separated list of target CPUs \n"  \
-	   "\t[--use_large_pages]         (default: y)        : Use large pages  \n"		\
-	   "\t[--use_smartmap]            (default: y)        : Use smartmap     \n"	                   \
+	   "\t[--use_large_pages]         (default: n)        : Use large pages  \n"		\
+	   "\t[--use_smartmap]            (default: n)        : Use smartmap     \n"	                   \
 	   "\t[--heap_size=<size in MB>]  (default: 16MB)     : Heap size in MB  \n"            	   \
 	   "\t[--stack_size=<size in MB>] (default: 256KB)    : Stack size in MB \n" 		           \
 	   "\t[--name=<name>]             (default: exe name) : Name of Job      \n"		           \
