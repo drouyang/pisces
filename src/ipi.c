@@ -1,14 +1,22 @@
 /*
- * Pisces cross domain call
- * Author: Jianan Ouyang (ouyang@cs.pitt.edu)
- * Date: 04/2013
+ * Routines for registering IPI callbacks.
+ *
+ * Somehow, Linux does not provide an interface by which IDT vectors can be dynamically
+ * allocated. So, our approach is to figure out which vectors are free (by using the Linux
+ * 'used_vectors' bitmap) and insert callbacks into the IDT at runtime. All interrupt
+ * handlers are loaded dynamically from a custom IDT table 'generic_ipi_table' defined in
+ * idt.S. These handlers all direct to the 'do_generic_ipi_handler' function below.
+ *
+ * It should be noted that registered callbacks now execute in interrupt context, so be
+ * careful when registering handlers.
+ *
+ * (c) Brian Kocoloski, 2014 (briankoco@cs.pitt.edu)
+ * (c) Jaianan Ouyang,  2013 (ouyang@cs.pitt.edu)
+ *
  */
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/pci.h>
-#include <linux/sched.h>
-#include <linux/wait.h>
-#include <linux/kthread.h>
 #include <asm/desc.h>
 #include <asm/ipi.h>
 
@@ -17,136 +25,171 @@
 #include "enclave.h"
 #include "ipi.h"
 #include "enclave_ctrl.h"
-
 #include "linux_syms.h"
 
+
+/* Table of IDT handlers found in idt.S */
+extern void (*generic_ipi_table[NR_VECTORS])(void);
+
+
+/* While anything at or above FIRST_EXTERNAL_VECTOR will work, Linux may have trouble
+ * offlining CPUs if we choose lower vectors, as it needs to find a range of free vectors
+ * in order to migrate IRQs during CPU offlines
+ */
+#define PISCES_FIRST_EXTERNAL_VECTOR FIRST_EXTERNAL_VECTOR + 64
+
+#if PISCES_FIRST_EXTERNAL_VECTOR < FIRST_EXTERNAL_VECTOR
+#error PISCES_FIRST_EXTENAL_VECTOR MUST BE AT LEAST AT LARGE AS FIRST_EXTERNAL_VECTOR
+#endif
+
+
 struct ipi_callback {
-    void (*callback)(void * private_data);
+    void  (*callback)(void * private_data);
     void * private_data;
-    struct list_head node;
+    int    allocated;
 };
 
-
-static LIST_HEAD(ipi_callbacks);
+static struct ipi_callback ipi_callbacks[NR_VECTORS];
 static DEFINE_SPINLOCK(ipi_lock);
+static int orig_first_system_vector = 0;
 
-static wait_queue_head_t    notifier_waitq;
-static struct task_struct * notifier_thread = NULL;
+static void
+__do_generic_ipi_handler(unsigned int vector)
+{
+    struct ipi_callback * cb = &(ipi_callbacks[vector]);
 
-static u64 ipis_recvd    = 0;
-static u64 notifications = 0;
+    if (unlikely(cb->allocated == 0)) {
+	pr_emerg_ratelimited("Received IPI on unallocated vector! (%u)\n", vector);
+	return;
+    }
+
+    cb->callback(cb->private_data);
+}
+
+__visible void
+do_generic_ipi_handler(struct pt_regs * regs,
+                       unsigned int     vector)
+{
+    struct pt_regs * old_regs = set_irq_regs(regs);
+    
+    linux_irq_enter();
+    linux_exit_idle();
+
+    __do_generic_ipi_handler(vector);
+
+    linux_irq_exit();
+    if (vector >= FIRST_EXTERNAL_VECTOR)
+	ack_APIC_irq();
+
+    set_irq_regs(old_regs);
+}
+
+static void
+pisces_set_intr_gate(unsigned int vector)
+{
+    gate_desc   s;
+    void      * idt_handler = (void *)((uintptr_t)(&generic_ipi_table) + (vector * 16));
+
+    pack_gate(&s, GATE_INTERRUPT, (unsigned long)idt_handler, 0, 0, __KERNEL_CS);
+
+    write_idt_entry(linux_idt_table, vector, &s);
+}
+
+static int
+pisces_register_ipi_vector(void)
+{
+    unsigned long flags  = 0;
+    int           vector = 0;
+
+    spin_lock_irqsave(&ipi_lock, flags);
+    {
+	/* Find a verctor that Linux/Pisces is not yet using */
+        vector = find_next_zero_bit(used_vectors, NR_VECTORS, PISCES_FIRST_EXTERNAL_VECTOR);
+
+	if (vector < NR_VECTORS) {
+	    /* Tell Linux the vector is no longer free */
+	    set_bit(vector, used_vectors);
+	    if (*linux_first_system_vector > vector) { 
+		*linux_first_system_vector = vector;
+	    }
+
+	    /* Install the ipi handler in the idt */
+	    pisces_set_intr_gate(vector);
+	} else {
+	    vector = -1;
+	}
+
+    }
+    spin_unlock_irqrestore(&ipi_lock, flags);
+
+    /* Return the vector */
+    return vector;
+}
+
+static void
+pisces_free_ipi_vector(unsigned int vector)
+{
+    unsigned long flags = 0;
+
+    spin_lock_irqsave(&ipi_lock, flags);
+    {
+	clear_bit(vector, used_vectors);
+	/* TODO: put do_IRQ back in the idt? */
+    }
+    spin_unlock_irqrestore(&ipi_lock, flags);
+}
 
 
 int 
-pisces_register_ipi_callback(void (*callback)(void *),
-			     void * private_data) 
+pisces_request_ipi_vector(void   (*callback)(void *),
+                          void * private_data)
 {
-    struct ipi_callback * new_cb = NULL;
-    unsigned long flags;
+    struct ipi_callback * cb     = NULL;
+    int                   vector = 0;
 
-    new_cb = kmalloc(sizeof(struct ipi_callback), GFP_KERNEL);
-
-    if (IS_ERR(new_cb)) {
-	printk(KERN_ERR "Error allocating new IPI callback structure\n");
+    vector = pisces_register_ipi_vector();
+    if (vector == -1) {
 	return -1;
     }
 
-    new_cb->callback     = callback;
-    new_cb->private_data = private_data;
+    cb = &(ipi_callbacks[vector]);
 
-    spin_lock_irqsave(&ipi_lock, flags);
-    {
-	list_add_tail(&(new_cb->node), &ipi_callbacks);
-    }
-    spin_unlock_irqrestore(&ipi_lock, flags);
+    cb->callback     = callback;
+    cb->private_data = private_data;
+    cb->allocated    = 1;
 
-    return 0;
+    return vector;
 }
 
 
-int 
-pisces_remove_ipi_callback(void (*callback)(void *), 
-			   void * private_data) 
+int
+pisces_release_ipi_vector(int vector) 
 {
-    struct ipi_callback * cb = NULL;
-    struct ipi_callback * tmp = NULL;
-    unsigned long flags;
 
-    spin_lock_irqsave(&ipi_lock, flags);
-    {
-
-	list_for_each_entry_safe(cb, tmp, &ipi_callbacks, node) {
-	    if ((cb->callback == callback) && 
-		(cb->private_data == private_data)) {
-		list_del(&(cb->node));
-		kfree(cb);
-	    }
-	}
-    }
-    spin_unlock_irqrestore(&ipi_lock, flags);
+    pisces_free_ipi_vector(vector);
+    memset(&(ipi_callbacks[vector]), 0, sizeof(struct ipi_callback));
 
     return 0;
-}
-
-
-int 
-notifier_thread_fn(void * arg) 
-{
-    struct ipi_callback * iter = NULL;
-//    printk("Handling IPI callbacks\n");
-
-    while (1) {
-	wait_event_interruptible(notifier_waitq, (notifications < ipis_recvd));
-	    
-	if (notifications < ipis_recvd) {
-
-	    notifications = ipis_recvd;
-
-	    spin_lock(&ipi_lock);
-	    {
-		list_for_each_entry(iter, &(ipi_callbacks), node) {
-		    iter->callback(iter->private_data);
-		}
-	    }
-	    spin_unlock(&ipi_lock);
-	}
-    }
-   
-    return 0;
-}
-
-
-static void 
-platform_ipi_handler(void) 
-{
-    ipis_recvd++;
-
-    mb();
-    wake_up_interruptible(&notifier_waitq);
-
-    return;
 }
 
 
 int 
 pisces_ipi_init(void)
 {
+    memset(&ipi_callbacks, 0, sizeof(struct ipi_callback) * NR_VECTORS);
+    spin_lock_init(&ipi_lock);
 
-    if (linux_x86_platform_ipi_callback == NULL) {
-	panic("Platform IPI symbol not initialized\n");
-        return -1;
-    }
+    orig_first_system_vector = *linux_first_system_vector;
 
-   INIT_LIST_HEAD(&ipi_callbacks);
-   spin_lock_init(&ipi_lock);
-   init_waitqueue_head(&notifier_waitq);
+    return 0;
+}
 
-   notifier_thread = kthread_create(notifier_thread_fn, NULL, "pisces_notifyd");
-   wake_up_process(notifier_thread);
+int
+pisces_ipi_deinit(void)
+{
+    *linux_first_system_vector = orig_first_system_vector;
 
-   *linux_x86_platform_ipi_callback = platform_ipi_handler;
-   
-   return 0;
+    return 0;
 }
 
 
@@ -156,7 +199,7 @@ pisces_send_ipi(struct pisces_enclave * enclave,
 		int                     cpu_id, 
 		unsigned int            vector)
 {
-    unsigned long flags;
+    unsigned long flags = 0;
 
     if (cpu_id != 0) {
 	printk(KERN_ERR "Currently we only allow sending IPI's to the boot CPU\n");
@@ -171,5 +214,6 @@ pisces_send_ipi(struct pisces_enclave * enclave,
 
     return 0;
 }
+
 
 

@@ -395,11 +395,11 @@ pisces_xbuf_server_init(struct pisces_enclave * enclave,
 			uintptr_t               xbuf_va, 
 			u32                     total_bytes, 
 			void (*recv_handler)(struct pisces_enclave *, struct pisces_xbuf_desc *), 
-			u32                     ipi_vector,
 			u32                     target_cpu) 
 {
     struct pisces_xbuf      * xbuf = (struct pisces_xbuf *)xbuf_va;
     struct pisces_xbuf_desc * desc = NULL;
+    int ipi_vector = 0;
 
     if (xbuf->ready == 1) {
 	printk(KERN_ERR "XBUF has already been initialized\n");
@@ -416,6 +416,13 @@ pisces_xbuf_server_init(struct pisces_enclave * enclave,
     memset(desc, 0, sizeof(struct pisces_xbuf_desc));
     memset(xbuf, 0, sizeof(struct pisces_xbuf));
 
+    ipi_vector = pisces_request_ipi_vector(ipi_handler, desc);
+    if (ipi_vector < 0) {
+	printk(KERN_ERR "Unable to allocate IPI vector\n");
+	kfree(desc);
+	return NULL;
+    }
+
     xbuf->host_apic   = target_cpu;
     xbuf->host_vector = ipi_vector;
     xbuf->total_size  = total_bytes - sizeof(struct pisces_xbuf);
@@ -426,14 +433,8 @@ pisces_xbuf_server_init(struct pisces_enclave * enclave,
     spin_lock_init(&(desc->xbuf_lock));
     init_waitqueue_head(&(desc->xbuf_waitq));
 
-    printk("Registering Handler for Pisces Control IPIs\n");
+    printk("Registered Handler for Pisces Control IPIs on vector %d\n", ipi_vector);
 
-    if (pisces_register_ipi_callback(ipi_handler, desc) != 0) {
-	printk(KERN_ERR "Error registering lcall IPI callback for enclave %d\n", enclave->id);
-	kfree(desc);
-	return NULL;
-    }
-    
     set_flags(xbuf, XBUF_READY);
 
     return desc;
@@ -443,7 +444,8 @@ pisces_xbuf_server_init(struct pisces_enclave * enclave,
 int
 pisces_xbuf_server_deinit(struct pisces_xbuf_desc * desc)
 {
-    if (pisces_remove_ipi_callback(ipi_handler, desc) != 0) {
+    if (pisces_release_ipi_vector(desc->xbuf->host_vector) != 0) {
+    //if (pisces_remove_ipi_callback(ipi_handler, desc) != 0) {
 	printk(KERN_ERR "Error removing lcall IPI callback for enclave %d\n", desc->enclave->id);
 	return -1;
     }

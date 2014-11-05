@@ -254,7 +254,8 @@ console_release(struct inode * i,
     // disconnect console
     ret = pisces_xbuf_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_vm_ctrl));
 
-    pisces_remove_ipi_callback(cons_kick, cons);
+    pisces_release_ipi_vector(cons->ring_buf->kick_ipi_vec);
+//    pisces_remove_ipi_callback(cons_kick, cons);
 
     if (ret != 0) {
 	printk(KERN_ERR "Error sending disconnect message to VM %d on enclave (%d)\n", 
@@ -300,16 +301,18 @@ v3_console_connect(struct pisces_enclave * enclave,
     cons->ring_buf               = __va(cons_buf_pa);
     cons->ring_buf->kick_apic    = apic->cpu_present_to_apicid(0);
 
+    cons->ring_buf->kick_ipi_vec = pisces_request_ipi_vector(cons_kick, cons);
+
+    if (cons->ring_buf->kick_ipi_vec < 0) {
+	printk(KERN_WARNING "Failed to allocate IPI vector\n");
+	kfree(cons);
+	return -1;
+    }
+
     init_waitqueue_head(&(cons->intr_queue));
     spin_lock_init(&(cons->irq_lock));
 
-    pisces_register_ipi_callback(cons_kick, cons);
-
     __asm__ __volatile__ ("" ::: "memory");
-
-    cons->ring_buf->kick_ipi_vec = PISCES_LCALL_VECTOR;
-
-
 
     cons_fd = anon_inode_getfd("v3-cons", &cons_fops, cons, O_RDWR);
 

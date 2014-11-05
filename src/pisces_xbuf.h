@@ -25,7 +25,7 @@ struct pisces_xbuf_desc * pisces_xbuf_server_init(struct pisces_enclave * enclav
 						  uintptr_t xbuf_va, u32 total_bytes, 
 						  void (*recv_handler)(struct pisces_enclave * enclave, 
 								       struct pisces_xbuf_desc * desc), 
-						  u32 ipi_vector, u32 target_cpu);
+						  u32 target_cpu);
 struct pisces_xbuf_desc * pisces_xbuf_client_init(struct pisces_enclave * enclave, 
 						  uintptr_t xbuf_va, 
 						  u32 ipi_vector, u32 target_cpu);

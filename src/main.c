@@ -226,13 +226,16 @@ pisces_init(void)
     }
 
     if (pisces_ipi_init() != 0) {
-        printk(KERN_ERR "Could not initialize Pisces IPI handler\n");
+        printk(KERN_ERR "Could not initialize Pisces IPI management\n");
+	pisces_deinit_trampoline();
         return -1;
     }
 
 
     if (alloc_chrdev_region(&dev_num, 0, MAX_ENCLAVES + 1, "pisces") < 0) {
         printk(KERN_ERR "Error allocating Pisces Char device region\n");
+	pisces_ipi_deinit();
+	pisces_deinit_trampoline();
         return -1;
     }
 
@@ -245,6 +248,8 @@ pisces_init(void)
         printk(KERN_ERR "Error creating Pisces Device Class\n");
 
         unregister_chrdev_region(dev_num, 1);
+	pisces_ipi_deinit();
+	pisces_deinit_trampoline();
         return -1;
     }
 
@@ -253,6 +258,8 @@ pisces_init(void)
 
         class_destroy(pisces_class);
         unregister_chrdev_region(dev_num, MAX_ENCLAVES + 1);
+	pisces_ipi_deinit();
+	pisces_deinit_trampoline();
         return -1;
     }
 
@@ -264,6 +271,8 @@ pisces_init(void)
         device_destroy(pisces_class, dev_num);
         class_destroy(pisces_class);
         unregister_chrdev_region(dev_num, MAX_ENCLAVES + 1);
+	pisces_ipi_deinit();
+	pisces_deinit_trampoline();
         return -1;
     }
 
@@ -312,6 +321,7 @@ pisces_exit(void)
     remove_proc_entry("pisces-dbg", pisces_proc_dir);
     remove_proc_entry(PISCES_PROC_DIR, NULL);
 
+    pisces_ipi_deinit();
     pisces_deinit_trampoline();
 }
 
