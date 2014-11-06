@@ -11,7 +11,7 @@
  * careful when registering handlers.
  *
  * (c) Brian Kocoloski, 2014 (briankoco@cs.pitt.edu)
- * (c) Jaianan Ouyang,  2013 (ouyang@cs.pitt.edu)
+ * (c) Jiannan Ouyang,  2013 (ouyang@cs.pitt.edu)
  *
  */
 #include <linux/interrupt.h>
@@ -51,7 +51,7 @@ struct ipi_callback {
 
 static struct ipi_callback ipi_callbacks[NR_VECTORS];
 static DEFINE_SPINLOCK(ipi_lock);
-static int orig_first_system_vector = 0;
+//static int orig_first_system_vector = 0;
 
 static void
 __do_generic_ipi_handler(unsigned int vector)
@@ -179,7 +179,7 @@ pisces_ipi_init(void)
     memset(&ipi_callbacks, 0, sizeof(struct ipi_callback) * NR_VECTORS);
     spin_lock_init(&ipi_lock);
 
-    orig_first_system_vector = *linux_first_system_vector;
+    //orig_first_system_vector = *linux_first_system_vector;
 
     return 0;
 }
@@ -187,7 +187,7 @@ pisces_ipi_init(void)
 int
 pisces_ipi_deinit(void)
 {
-    *linux_first_system_vector = orig_first_system_vector;
+//    *linux_first_system_vector = orig_first_system_vector;
 
     return 0;
 }
