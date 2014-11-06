@@ -402,7 +402,7 @@ _host_pci_intx_irq_handler(int    irq,
     spin_unlock(&(pci_dev->intx_lock));
 
 
-    pisces_send_ipi(pci_dev->enclave, 0, pci_dev->device_ipi_vector);
+    pisces_send_enclave_ipi(pci_dev->enclave, pci_dev->device_ipi_vector);
 
     return IRQ_HANDLED;
 }

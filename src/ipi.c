@@ -44,7 +44,7 @@ extern void (*generic_ipi_table[NR_VECTORS])(void);
 
 
 struct ipi_callback {
-    void  (*callback)(void * private_data);
+    void  (*callback)(unsigned int vector, void * private_data);
     void * private_data;
     int    allocated;
 };
@@ -63,7 +63,7 @@ __do_generic_ipi_handler(unsigned int vector)
 	return;
     }
 
-    cb->callback(cb->private_data);
+    cb->callback(vector, cb->private_data);
 }
 
 __visible void
@@ -141,7 +141,7 @@ pisces_free_ipi_vector(unsigned int vector)
 
 
 int 
-pisces_request_ipi_vector(void   (*callback)(void *),
+pisces_request_ipi_vector(void   (*callback)(unsigned int, void *),
                           void * private_data)
 {
     struct ipi_callback * cb     = NULL;
@@ -161,6 +161,8 @@ pisces_request_ipi_vector(void   (*callback)(void *),
     return vector;
 }
 
+EXPORT_SYMBOL(pisces_request_ipi_vector);
+
 
 int
 pisces_release_ipi_vector(int vector) 
@@ -171,6 +173,8 @@ pisces_release_ipi_vector(int vector)
 
     return 0;
 }
+
+EXPORT_SYMBOL(pisces_release_ipi_vector);
 
 
 int 
@@ -193,26 +197,26 @@ pisces_ipi_deinit(void)
 }
 
 
-
-int 
-pisces_send_ipi(struct pisces_enclave * enclave,
-		int                     cpu_id, 
-		unsigned int            vector)
+void
+pisces_send_ipi(unsigned int cpu,
+                unsigned int vector)
 {
     unsigned long flags = 0;
 
-    if (cpu_id != 0) {
-	printk(KERN_ERR "Currently we only allow sending IPI's to the boot CPU\n");
-	return -1;
-    }
-
     local_irq_save(flags);
     {
-	__default_send_IPI_dest_field(apic->cpu_present_to_apicid(enclave->boot_cpu), vector, APIC_DEST_PHYSICAL);
+	__default_send_IPI_dest_field(apic->cpu_present_to_apicid(cpu), vector, APIC_DEST_PHYSICAL);
     }
     local_irq_restore(flags);
+}
 
-    return 0;
+EXPORT_SYMBOL(pisces_send_ipi);
+
+void 
+pisces_send_enclave_ipi(struct pisces_enclave * enclave,
+		        unsigned int            vector)
+{
+    return pisces_send_ipi(enclave->boot_cpu, vector);
 }
 
 

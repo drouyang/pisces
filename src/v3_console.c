@@ -90,7 +90,8 @@ struct palacios_console {
 };
 
 
-static void cons_kick(void * arg) {
+static void cons_kick(unsigned int   vector,
+                     void          * arg) {
     struct palacios_console * cons = arg;
     u32 entries = 0;
 

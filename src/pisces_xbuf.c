@@ -242,7 +242,7 @@ pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc,
 
 
     debug("Sending IPI %d to cpu %d\n", xbuf->enclave_vector, xbuf->enclave_cpu);
-    pisces_send_ipi(desc->enclave, xbuf->enclave_cpu, xbuf->enclave_vector);
+    pisces_send_enclave_ipi(desc->enclave, xbuf->enclave_vector);
     debug("IPI completed\n");
 
     send_data(xbuf, data, data_len);
@@ -355,7 +355,8 @@ pisces_xbuf_complete(struct pisces_xbuf_desc * desc,
 
 
 static void 
-ipi_handler(void * private_data)
+ipi_handler(unsigned int   vector,
+            void         * private_data)
 {	
     struct pisces_xbuf_desc * desc = private_data;
     struct pisces_xbuf      * xbuf = desc->xbuf;

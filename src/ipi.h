@@ -8,12 +8,13 @@
 struct pisces_enclave;
 
 
-int pisces_request_ipi_vector(void (*callback)(void *), void * private_data);
+int pisces_request_ipi_vector(void (*callback)(unsigned int, void *), void * private_data);
 int pisces_release_ipi_vector(int vector);
 
 int pisces_ipi_init(void);
 int pisces_ipi_deinit(void);
 
-int pisces_send_ipi(struct pisces_enclave * enclave, int cpu_id, unsigned int vector);
+void pisces_send_enclave_ipi(struct pisces_enclave * enclave, unsigned int vector);
+void pisces_send_ipi(unsigned int vector, unsigned int cpu);
 
 #endif
