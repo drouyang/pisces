@@ -16,7 +16,7 @@
 #include <linux/spinlock.h>
 
 #include "util-queue.h"
-#include "ipi.h"
+#include "pisces_irq.h"
 #include "pisces_lock.h"
 #include "enclave.h"
 #include "ctrl_cmds.h"
@@ -84,14 +84,16 @@ struct palacios_console {
 
     spinlock_t irq_lock;
     wait_queue_head_t intr_queue;
+    int irq;
 
     struct cons_ring_buf * ring_buf;
 
 };
 
 
-static void cons_kick(unsigned int   vector,
-                     void          * arg) {
+static irqreturn_t 
+cons_kick(int    irq,
+          void * arg) {
     struct palacios_console * cons = arg;
     u32 entries = 0;
 
@@ -101,7 +103,7 @@ static void cons_kick(unsigned int   vector,
 	wake_up_interruptible(&(cons->intr_queue));
     }
 
-    return;
+    return IRQ_HANDLED;
 }
 
 
@@ -255,7 +257,7 @@ console_release(struct inode * i,
     // disconnect console
     ret = pisces_xbuf_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_vm_ctrl));
 
-    pisces_release_ipi_vector(cons->ring_buf->kick_ipi_vec);
+    pisces_release_irq(cons->irq, cons);
 //    pisces_remove_ipi_callback(cons_kick, cons);
 
     if (ret != 0) {
@@ -302,10 +304,16 @@ v3_console_connect(struct pisces_enclave * enclave,
     cons->ring_buf               = __va(cons_buf_pa);
     cons->ring_buf->kick_apic    = apic->cpu_present_to_apicid(0);
 
-    cons->ring_buf->kick_ipi_vec = pisces_request_ipi_vector(cons_kick, cons);
+    cons->irq = pisces_request_irq(cons_kick, cons);
+    if (cons->irq < 0) {
+	printk(KERN_WARNING "Failed to allocate IRQ\n");
+	kfree(cons);
+	return -1;
+    }
 
+    cons->ring_buf->kick_ipi_vec = pisces_irq_to_vector(cons->irq);
     if (cons->ring_buf->kick_ipi_vec < 0) {
-	printk(KERN_WARNING "Failed to allocate IPI vector\n");
+	printk(KERN_WARNING "Failed to convert IRQ %d to IPI vector\n", cons->irq);
 	kfree(cons);
 	return -1;
     }

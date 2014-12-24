@@ -18,7 +18,6 @@
 #include "boot.h"
 #include "util-hashtable.h"
 #include "enclave_fs.h"
-#include "ipi.h"
 #include "pisces_xbuf.h"
 #include "enclave_pci.h"
 #include "pisces_xpmem.h"

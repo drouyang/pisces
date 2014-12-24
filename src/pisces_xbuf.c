@@ -8,7 +8,7 @@
 #include "enclave.h"
 #include "util-hashtable.h"
 #include "pisces_xbuf.h"
-#include "ipi.h"
+#include "pisces_irq.h"
 
 #ifdef DEBUG
 static u64 xbuf_op_idx = 0;
@@ -349,14 +349,9 @@ pisces_xbuf_complete(struct pisces_xbuf_desc * desc,
 }
 
 
-
-
-
-
-
-static void 
-ipi_handler(unsigned int   vector,
-            void         * private_data)
+static irqreturn_t 
+irq_handler(int    irq,
+            void * private_data)
 {	
     struct pisces_xbuf_desc * desc = private_data;
     struct pisces_xbuf      * xbuf = desc->xbuf;
@@ -373,7 +368,7 @@ ipi_handler(unsigned int   vector,
     spin_unlock_irqrestore(&(desc->xbuf_lock), flags);
 
     if (!valid_ipi) {
-	return;
+	return IRQ_NONE;
     }
 
     debug("Handling XBUF request (idx=%llu)\n", xbuf_op_idx++);
@@ -386,7 +381,7 @@ ipi_handler(unsigned int   vector,
 	raise_flag(xbuf, XBUF_COMPLETE);
     }
 
-    return;
+    return IRQ_HANDLED;
 }
 
 
@@ -400,7 +395,8 @@ pisces_xbuf_server_init(struct pisces_enclave * enclave,
 {
     struct pisces_xbuf      * xbuf = (struct pisces_xbuf *)xbuf_va;
     struct pisces_xbuf_desc * desc = NULL;
-    int ipi_vector = 0;
+    int irq    = 0;
+    int vector = 0;
 
     if (xbuf->ready == 1) {
 	printk(KERN_ERR "XBUF has already been initialized\n");
@@ -417,24 +413,33 @@ pisces_xbuf_server_init(struct pisces_enclave * enclave,
     memset(desc, 0, sizeof(struct pisces_xbuf_desc));
     memset(xbuf, 0, sizeof(struct pisces_xbuf));
 
-    ipi_vector = pisces_request_ipi_vector(ipi_handler, desc);
-    if (ipi_vector < 0) {
-	printk(KERN_ERR "Unable to allocate IPI vector\n");
+    irq = pisces_request_irq(irq_handler, desc);
+    if (irq < 0) {
+	printk(KERN_ERR "Unable to allocate IRQ\n");
+	kfree(desc);
+	return NULL;
+    }
+
+    vector = pisces_irq_to_vector(irq);
+    if (vector < 0) {
+	printk(KERN_ERR "Unable to convert irq %d to vector\n", irq);
+	pisces_release_irq(irq, desc);
 	kfree(desc);
 	return NULL;
     }
 
     xbuf->host_apic   = target_cpu;
-    xbuf->host_vector = ipi_vector;
+    xbuf->host_vector = vector;
     xbuf->total_size  = total_bytes - sizeof(struct pisces_xbuf);
     
     desc->xbuf         = xbuf;
     desc->recv_handler = recv_handler;
     desc->enclave      = enclave;
+    desc->irq          = irq;
     spin_lock_init(&(desc->xbuf_lock));
     init_waitqueue_head(&(desc->xbuf_waitq));
 
-    printk("Registered Handler for Pisces Control IPIs on vector %d\n", ipi_vector);
+    printk("Registered Handler for Pisces Control IPIs (irq:%d, vector:%d)\n", irq, vector);
 
     set_flags(xbuf, XBUF_READY);
 
@@ -445,11 +450,12 @@ pisces_xbuf_server_init(struct pisces_enclave * enclave,
 int
 pisces_xbuf_server_deinit(struct pisces_xbuf_desc * desc)
 {
-    if (pisces_release_ipi_vector(desc->xbuf->host_vector) != 0) {
-    //if (pisces_remove_ipi_callback(ipi_handler, desc) != 0) {
+    if (pisces_release_irq(desc->irq, desc) != 0) {
 	printk(KERN_ERR "Error removing lcall IPI callback for enclave %d\n", desc->enclave->id);
 	return -1;
     }
+
+    printk("Removed Handler for Pisces Control IPIs (irq:%d, vector:%d)\n", desc->irq, desc->xbuf->host_vector); 
 
     kfree(desc);
 

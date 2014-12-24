@@ -14,9 +14,8 @@
 #include "ctrl_cmds.h"
 #include "enclave_pci.h"
 #include "pisces_lcall.h"
+#include "pisces_irq.h"
 #include "enclave.h"
-#include "ipi.h"
-
 
 
 

@@ -17,14 +17,13 @@ pisces-objs :=  src/main.o             \
 		src/boot.o             \
 		src/enclave_cons.o     \
 		src/enclave_ctrl.o     \
+		src/enclave_fs.o       \
+		src/enclave.o          \
 		src/pisces_lcall.o     \
 		src/pisces_xbuf.o      \
-		src/enclave_fs.o       \
-		src/ipi.o              \
-		src/idt.o              \
-		src/enclave.o          \
 		src/pisces_lock.o      \
 		src/pisces_ringbuf.o   \
+		src/pisces_irq.o       \
 		src/file_io.o          \
 		src/linux_syms.o       \
 		src/launch_code.o      \

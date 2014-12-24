@@ -15,6 +15,7 @@ struct pisces_xbuf_desc {
     wait_queue_head_t xbuf_waitq;
     spinlock_t xbuf_lock;
     struct pisces_enclave * enclave;
+    int irq;
 
     void (*recv_handler)(struct pisces_enclave * enclave, struct pisces_xbuf_desc * desc);
 

@@ -9,7 +9,6 @@
 #include "pisces.h"
 #include "pisces_boot_params.h"
 #include "enclave_ctrl.h"
-#include "ipi.h"
 #include "enclave.h"
 #include "boot.h"
 #include "ctrl_cmds.h"
