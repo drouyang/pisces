@@ -25,7 +25,6 @@ pisces-objs :=  src/main.o             \
 		src/pisces_ringbuf.o   \
 		src/pisces_irq.o       \
 		src/file_io.o          \
-		src/linux_syms.o       \
 		src/launch_code.o      \
 		src/pgtables.o         \
 		src/util-hashtable.o   \

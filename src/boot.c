@@ -1,16 +1,9 @@
 #include <linux/delay.h>
-
 #include <linux/mutex.h>
 
-
-#include "linux_syms.h"
 #include "enclave.h"
 #include "pisces_boot_params.h"
-
 #include "pgtables.h"
-#include "linux_syms.h"
-
-
 #include "boot.h"
 
 
