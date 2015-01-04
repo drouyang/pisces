@@ -1,4 +1,5 @@
 #include <linux/kallsyms.h>
+#include <linux/version.h>
 #include "linux_syms.h"
 
 int  (*linux_create_irq) (void);
@@ -12,6 +13,7 @@ pisces_linux_symbol_init(void)
 {
     unsigned long symbol_addr = 0;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,16,0)
     /* Symbol:
      *	--  create_irq
      */
@@ -39,6 +41,7 @@ pisces_linux_symbol_init(void)
 
 	linux_destroy_irq = (void (*)(unsigned int))symbol_addr;
     }
+#endif
 
     return 0;
 }
