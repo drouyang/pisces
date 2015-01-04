@@ -19,6 +19,7 @@
 
 #include "enclave.h"
 #include "pisces_irq.h"
+#include "linux_syms.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,1,0)
 static void 
@@ -88,24 +89,24 @@ pisces_alloc_irq(void)
 {
     int irq;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,1,0) 
-    irq = create_irq();
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,16,0) 
+    irq = linux_create_irq();
+#else
+    irq = irq_alloc_hwirq(-1);
+#endif
 
     if (irq > 0) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,1,0)
         struct irq_desc * desc = irq_to_desc(irq);
         if (desc == NULL) {
             printk(KERN_ERR "No desc for irq %d\n", irq);
-            destroy_irq(irq);
+            linux_destroy_irq(irq);
             return -1;
         }
 
         desc->status &= ~IRQ_LEVEL;
         set_irq_chip_and_handler(irq, &ipi_chip, handle_edge_irq);
-    }
 #else
-    irq = irq_alloc_hwirq(-1);
-
-    if (irq > 0) {
         irq_clear_status_flags(irq, IRQ_LEVEL);
         irq_set_chip_and_handler(irq, &ipi_chip, handle_edge_irq);
     }
@@ -117,8 +118,8 @@ pisces_alloc_irq(void)
 static void
 pisces_free_irq(int irq)
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,1,0) 
-    destroy_irq(irq);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,16,0) 
+    linux_destroy_irq(irq);
 #else
     irq_free_hwirq(irq);
 #endif

@@ -20,6 +20,7 @@
 #include <linux/version.h>
 
 #include "pisces.h"                /* device file ioctls*/
+#include "linux_syms.h"
 #include "pisces_mod.h"
 #include "enclave.h"
 #include "boot.h"
@@ -212,6 +213,11 @@ pisces_init(void)
     dev_t dev_num   = MKDEV(0, 0); // <major , minor> 
 
     pisces_proc_dir = proc_mkdir(PISCES_PROC_DIR, NULL);
+
+    if (pisces_linux_symbol_init() != 0) {
+        printk(KERN_ERR "Could not initialize Pisces Linux symbol\n");
+        return -1;
+    }
 
     if (pisces_init_trampoline() != 0) {
 	printk(KERN_ERR "Could not initialize trampoline\n");

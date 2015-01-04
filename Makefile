@@ -29,7 +29,8 @@ pisces-objs :=  src/main.o             \
 		src/pgtables.o         \
 		src/util-hashtable.o   \
 		src/util-queue.o       \
-		src/v3_console.o 
+		src/v3_console.o       \
+		src/linux_syms.o
 
 ifeq ($(XPMEM),y)
   EXTRA_CFLAGS         += -I$(XPMEM_KERN_PATH)/include -DUSING_XPMEM
