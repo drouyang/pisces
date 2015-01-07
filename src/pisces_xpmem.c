@@ -20,70 +20,63 @@
 
 #include "pisces_xpmem.h"
 
-/* Longcall structures */
+/* Longcall structure */
 struct pisces_xpmem_cmd_lcall {
     struct pisces_lcall lcall;
-    
     struct xpmem_cmd_ex xpmem_cmd;
-    u8                  pfn_list[0];
-} __attribute__((packed));
-
-/* Ctrl command structures */
-struct pisces_xpmem_cmd_ctrl {
-    struct xpmem_cmd_ex xpmem_cmd;
-    u8                  pfn_list[0];
 } __attribute__((packed));
 
 
+/* Incoming XPMEM command from enclave - copy out and deliver to partition */
+int
+pisces_xpmem_cmd_lcall(struct pisces_enclave   * enclave,
+                       struct pisces_xbuf_desc * xbuf_desc,
+		       struct pisces_lcall     * lcall)
+{
+    struct pisces_xpmem           * xpmem       = &(enclave->xpmem);
+    struct pisces_xpmem_cmd_lcall * xpmem_lcall = (struct pisces_xpmem_cmd_lcall *)lcall;
+    struct pisces_lcall_resp        lcall_resp;
+    struct xpmem_cmd_ex             cmd;
 
-/* We use the XPMEM control channel to send commands */
+    lcall_resp.status   = 0;
+    lcall_resp.data_len = 0;
+
+    if (!xpmem->connected) {
+	printk(KERN_ERR "Cannot handle enclave XPMEM request - channel not connected");
+        lcall_resp.status = -1;
+        goto out;
+    }
+
+    /* Copy command */
+    memcpy(&cmd, &(xpmem_lcall->xpmem_cmd), sizeof(struct xpmem_cmd_ex));
+
+out:
+    pisces_xbuf_complete(xbuf_desc, 
+			 (u8 *)&lcall_resp,
+			 sizeof(struct pisces_lcall_resp));
+
+    /* Deliver command to XPMEM partition if we received everything correctly */
+    if (lcall_resp.status == 0) {
+	xpmem_cmd_deliver(xpmem->part, xpmem->link, &cmd);
+    }
+
+    return 0;
+
+}
+
+/* Use the XPMEM xbuf to send commands */
 static int
 xpmem_cmd_fn(struct xpmem_cmd_ex * cmd,
              void                * priv_data)
 {
-    struct pisces_xpmem          * xpmem = (struct pisces_xpmem *)priv_data;
-    struct pisces_xpmem_cmd_ctrl * ctrl    = NULL;
-    u64                            pfn_len = 0;
-    int                            status  = 0;
-
-    if (!xpmem->connected) {
-	printk(KERN_ERR "Cannot handle command: enclave channel not connected");
-	return -1;
-    }
-
-    if (cmd->type == XPMEM_ATTACH_COMPLETE) {
-	pfn_len = cmd->attach.num_pfns * sizeof(u64);
-    }
-
-    /* Allocate memory for xpmem ctrl structure */
-    ctrl = kmalloc(sizeof(struct pisces_xpmem_cmd_ctrl) + pfn_len, GFP_KERNEL);
-    if (!ctrl) {
-	printk(KERN_ERR "Out of memory");
-	return -1;
-    }
-
-    /* Copy command */
-    ctrl->xpmem_cmd = *cmd;
-
-    /* Copy pfn list */
-    if (pfn_len > 0) {
-	memcpy(ctrl->pfn_list, 
-               cmd->attach.pfns,
-	       cmd->attach.num_pfns * sizeof(u64)
-	);
-    }
+    struct pisces_xpmem * xpmem = (struct pisces_xpmem *)priv_data;
 
     /* Perform xbuf send */
-    status = pisces_xbuf_send(
+    return pisces_xbuf_send(
 	 xpmem->xbuf_desc, 
-	 (u8 *)ctrl, 
-	 sizeof(struct pisces_xpmem_cmd_ctrl) + pfn_len
-     );
-
-    /* Free ctrl command */
-    kfree(ctrl);
-
-    return status;
+	 (u8 *)cmd, 
+	 sizeof(struct xpmem_cmd_ex)
+    );
 }
 
 
@@ -117,6 +110,7 @@ pisces_xpmem_init(struct pisces_enclave * enclave)
 	    xpmem->part,
 	    XPMEM_CONN_REMOTE,
 	    xpmem_cmd_fn,
+	    NULL,
 	    xpmem);
 
     if (xpmem->link <= 0) {
@@ -142,80 +136,6 @@ pisces_xpmem_deinit(struct pisces_enclave * enclave)
     if (xpmem_remove_connection(xpmem->part, xpmem->link) != 0) {
 	printk(KERN_ERR "XPMEM: failed to remove XPMEM connection\n");
 	return -1;
-    }
-
-    return 0;
-}
-
-
-/* Incoming XPMEM command from enclave - copy it out and deliver to xpmem
- * partition
- */
-int 
-pisces_xpmem_cmd_lcall(struct pisces_enclave   * enclave, 
-		       struct pisces_xbuf_desc * xbuf_desc, 
-		       struct pisces_lcall     * lcall) 
-{
-    struct pisces_xpmem           * xpmem            = &(enclave->xpmem);
-    struct pisces_xpmem_cmd_lcall * xpmem_lcall      = (struct pisces_xpmem_cmd_lcall *)lcall;
-    struct xpmem_cmd_ex           * cmd              = NULL;
-    struct pisces_lcall_resp        lcall_resp;
-    u64                             pfn_len          = 0;
-
-    lcall_resp.status   = 0;
-    lcall_resp.data_len = 0;
-
-    if (!xpmem->connected) {
-	printk(KERN_ERR "Cannot handle enclave XPMEM request - channel not connected");
-        lcall_resp.status = -1;
-        goto out;
-    }
-
-    cmd = kmalloc(sizeof(struct xpmem_cmd_ex), GFP_KERNEL);
-    if (!cmd) {
-	printk(KERN_ERR "Out of memory");
-	lcall_resp.status = -1;
-	goto out;
-    }
-
-    /* Copy command */
-    *cmd = xpmem_lcall->xpmem_cmd;
-
-    /* Copy any pfns lists, if present */
-    if (cmd->type == XPMEM_ATTACH_COMPLETE) {
-	pfn_len = cmd->attach.num_pfns * sizeof(u64);
-    }
-
-    if (pfn_len > 0) {
-	cmd->attach.pfns = kmalloc(pfn_len, GFP_KERNEL);
-	if (!cmd->attach.pfns) {
-	    printk(KERN_ERR "Out of memory");
-	    kfree(cmd);
-	    lcall_resp.status = -1;
-	    goto out;
-	}
-
-	memcpy(cmd->attach.pfns, 
-	       xpmem_lcall->pfn_list, 
-	       cmd->attach.num_pfns * sizeof(u64)
-	);
-    }
-    
- out:
-    pisces_xbuf_complete(xbuf_desc, 
-			 (u8 *)&lcall_resp,
-			 sizeof(struct pisces_lcall_resp));
-
-    /* Deliver command to XPMEM partition if we received everything correctly */
-    if (lcall_resp.status == 0) {
-
-	xpmem_cmd_deliver(xpmem->part, xpmem->link, cmd);
-
-	if (pfn_len > 0) {
-	    kfree(cmd->attach.pfns);
-	}
-
-	kfree(cmd);
     }
 
     return 0;
