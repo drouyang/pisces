@@ -21,6 +21,7 @@
 static void usage() {
     printf("Usage: pisces_ctrl [options] <enclave_dev>\n"	\
 	   " [-m, --mem=blocks]\n"	\
+	   " [-M, --contig_mem=blocks]\n"	\
 	   " [-c, --cpu=cores]\n"	      	\
 	   " [-n, --numa=numa_zone]\n"	\
 	   " [-e, --explicit]\n"		\
@@ -33,6 +34,7 @@ static void usage() {
 int main(int argc, char* argv[]) {
     char * enclave_path = NULL;
     int ctrl_fd = 0;
+    int contig  = 0;
 
     int explicit = 0;
     int remove = 0;
@@ -50,6 +52,7 @@ int main(int argc, char* argv[]) {
 
 	static struct option long_options[] = {
 	    {"mem", required_argument, 0, 'm'},
+	    {"contig_mem", required_argument, 0, 'M'},
 	    {"cpu", required_argument, 0, 'c'},
 	    {"numa", required_argument, 0, 'n'},
 	    {"explicit", no_argument, 0, 'e'},
@@ -57,8 +60,10 @@ int main(int argc, char* argv[]) {
 	     {0, 0, 0, 0}
 	};
 
-	while ((c = getopt_long(argc, argv, "m:c:n:e:r", long_options, &opt_index)) != -1) {
+	while ((c = getopt_long(argc, argv, "m:M:c:n:e:r", long_options, &opt_index)) != -1) {
 	    switch (c) {
+		case 'M':
+		    contig  = 1;
 		case 'm':
 		    mem_str = optarg;
 		    break;
@@ -142,7 +147,15 @@ int main(int argc, char* argv[]) {
 		ret = pet_offline_node(numa_zone, block_arr);
 		cnt = ret;
 	    } else {
-		ret = pet_offline_blocks(cnt, numa_zone, block_arr);
+		if (contig) {
+		    ret = pet_offline_contig_blocks(cnt, numa_zone, pet_block_size(), block_arr);
+
+                    /* offline contig returns 0 on success */
+		    if (ret == 0) 
+			ret = cnt;
+		} else  {
+		    ret = pet_offline_blocks(cnt, numa_zone, block_arr);
+		}
 	    }
 
 	    if (ret != cnt) {
