@@ -6,6 +6,7 @@
 
 #include <linux/slab.h>
 
+#define DEBUG
 #ifdef DEBUG
 static u64 xbuf_op_idx = 0;
 #define debug(fmt, args...) printk(fmt, args)
@@ -204,19 +205,22 @@ enclave_vfs_read_lcall(struct pisces_enclave   * enclave,
 	u32 desc_bytes_read        = 0;
 	u32 desc_bytes_left        = desc->size;
 
-	u64 ret = 0;
+	int64_t ret = 0;
 	
 	if (total_bytes_read >= read_len) {
 	    break;
 	}
 
 	while (desc_bytes_left > 0) {
+            debug("phys_addr %llx, va addr %llx\n", 
+                (unsigned long long) desc->phys_addr, 
+                (unsigned long long) __va(desc->phys_addr + desc_bytes_read));
 	    ret = file_read(file_ptr, 
 			    __va(desc->phys_addr + desc_bytes_read), 
 			    desc_bytes_left, 
 			    offset);
 
-	    if (ret == 0) {
+	    if (ret <= 0) {
 		break;
 	    }
 
@@ -276,7 +280,7 @@ enclave_vfs_write_lcall(struct pisces_enclave   * enclave,
 	struct vfs_buf_desc * desc = &(lcall->descs[i]);
 	u32 desc_bytes_written     = 0;
 	u32 desc_bytes_left        = desc->size;
-	u64 ret = 0;
+	int64_t ret = 0;
 	
 	if (total_bytes_written >= write_len) {
 	    break;
@@ -288,7 +292,7 @@ enclave_vfs_write_lcall(struct pisces_enclave   * enclave,
 			     desc_bytes_left, 
 			     offset);
 
-	    if (ret == 0) {
+	    if (ret <= 0) {
 		break;
 	    }
 
