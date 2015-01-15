@@ -110,7 +110,6 @@ pisces_xpmem_init(struct pisces_enclave * enclave)
 	    xpmem->part,
 	    XPMEM_CONN_REMOTE,
 	    xpmem_cmd_fn,
-	    NULL,
 	    xpmem);
 
     if (xpmem->link <= 0) {
