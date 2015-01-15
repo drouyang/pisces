@@ -6,7 +6,7 @@
 
 #include <linux/slab.h>
 
-#define DEBUG
+//#define DEBUG
 #ifdef DEBUG
 static u64 xbuf_op_idx = 0;
 #define debug(fmt, args...) printk(fmt, args)
