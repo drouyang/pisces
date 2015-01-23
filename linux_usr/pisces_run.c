@@ -8,11 +8,9 @@
 #include <getopt.h>
 
 
-#include <pet_ioctl.h>
 
-#include "../src/pisces.h"
-#include "../src/ctrl_cmds.h"
-
+#include "pisces_ctrl.h"
+#include "pisces.h"
 
 #define DEFAULT_NUM_RANKS       1
 #define DEFAULT_CPU_LIST        NULL
@@ -64,14 +62,11 @@ static void usage() {
 
 
 int main(int argc, char ** argv) {
-    char * enclave_path = NULL;
-    int    ctrl_fd      = 0;
-    int    use_job_file = 0;
-    
-    struct pisces_job_spec job_spec;
-
-    int    ret          = 0;
- 
+    int       pisces_id    = -1;
+    int       ctrl_fd      =  0;
+    int       use_job_file =  0;
+    int       ret          =  0;
+    uint64_t  cpu_mask     =  0;
 
     /* Parse Options */
     {
@@ -205,13 +200,13 @@ int main(int argc, char ** argv) {
 		usage();
 	    }
 	    
-	    enclave_path = argv[optind];
+	    pisces_id = get_pisces_id_from_path(argv[optind]);
 	    
 	} else {
 	    int i = 0;
 
-	    enclave_path = argv[optind];
-	    exe_path     = argv[optind + 1];
+	    pisces_id = get_pisces_id_from_path(argv[optind]);
+	    exe_path  = argv[optind + 1];
 	    
 	    for (i = 0; i < argc - (optind + 2); i++) {
 
@@ -245,49 +240,9 @@ int main(int argc, char ** argv) {
     }
 
 
-    memset(&job_spec, 0, sizeof(struct pisces_job_spec));
-
-    if (strlen(name) > 63) {
-	printf("Error: Name is too large (MAX=63)\n");
-	return -1;
-    }
-
-    if (strlen(exe_path) > 255) {
-	printf("Error: exe path is too large (MAX=255)\n");
-	return -1;
-    }
-
-    strncpy(job_spec.name,     name,     63);
-    strncpy(job_spec.exe_path, exe_path, 255);
-    
-    if (exe_argv) {
-
-	if (strlen(exe_argv) > 255) {
-	    printf("Error: ARGV string is too large (MAX SIZE=255)\n");
-	    return -1;
-	}
-
-	strncpy(job_spec.argv, exe_argv, 255);
-    }
-
-    if (envp) {
-	
-	if (strlen(envp) > 255) {
-	    printf("Error: ENVP string is too large (MAX=255)\n");
-	    return -1;
-	}
-
-	strncpy(job_spec.envp, envp, 255);
-    }
-
-
-    job_spec.use_large_pages = use_large_pages;
-    job_spec.use_smartmap    = use_smartmap;
-
-    job_spec.num_ranks       = num_ranks;
 
     if (cpu_list == NULL) {
-	job_spec.cpu_mask = 0xffffffffffffffffULL;
+	cpu_mask = 0xffffffffffffffffULL;
     } else {
 	char * iter_str = NULL;
 	
@@ -300,30 +255,21 @@ int main(int argc, char ** argv) {
 		return -1;
 	    }
 
-	    job_spec.cpu_mask |= (0x1ULL << idx);
+	    cpu_mask |= (0x1ULL << idx);
 	}
     }
 
-    job_spec.heap_size  = heap_size;
-    job_spec.stack_size = stack_size;
+    
 
-
-
-    ctrl_fd = pet_ioctl_path(enclave_path, PISCES_ENCLAVE_CTRL_CONNECT, NULL);
-
-    if (ctrl_fd < 0) {
-        printf("Error opening enclave control channel (%s)\n", enclave_path);
-        return -1;
-    }
-
-    ret = pet_ioctl_fd(ctrl_fd, ENCLAVE_CMD_LAUNCH_JOB, &job_spec);
-
-    if (ret != 0) {
-        printf("Error: Could not LAUNCH Job (reg = %d)\n", ret);
-        return -1;
-    }
-
-    close(ctrl_fd);
-
-    return ret;
+    return pisces_run_job(pisces_id, 
+			  name, 
+			  exe_path, 
+			  exe_argv, 
+			  envp, 
+			  use_large_pages, 
+			  use_smartmap, 
+			  num_ranks, 
+			  cpu_mask,
+			  heap_size, 
+			  stack_size);
 }

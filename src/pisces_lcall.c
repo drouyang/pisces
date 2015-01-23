@@ -11,7 +11,6 @@
 #include <linux/slab.h>
 #include <linux/kthread.h>
 
-#include "pisces.h"
 #include "pisces_boot_params.h"
 #include "pisces_lcall.h"
 #include "enclave.h"

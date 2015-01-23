@@ -5,7 +5,6 @@
 #include <linux/spinlock.h>
 #include <linux/sched.h>
 
-#include "pisces.h"
 
 struct pisces_xbuf;
 struct pisces_enclave;

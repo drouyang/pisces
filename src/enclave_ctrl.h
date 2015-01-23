@@ -6,8 +6,7 @@
 #include <linux/interrupt.h>
 #include <asm/irq_vectors.h>
 
-#include "pisces.h"
-#include "ctrl_cmds.h"
+#include "ctrl_ioctl.h"
 
 
 

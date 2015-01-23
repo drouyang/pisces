@@ -12,7 +12,6 @@
 #include <linux/slab.h>
 #include <linux/poll.h>
 
-#include "pisces.h"
 #include "pisces_boot_params.h"
 #include "pisces_lcall.h"
 #include "pisces_xbuf.h"

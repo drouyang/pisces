@@ -17,8 +17,8 @@
 #include <ezxml.h>
 #include <pet_types.h>
 
-#include "../src/ctrl_cmds.h"
-#include "../src/pisces.h"
+#include "ctrl_ioctl.h"
+#include "pisces_ioctl.h"
 
 struct cfg_value {
     char * tag;

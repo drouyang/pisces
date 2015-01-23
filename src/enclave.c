@@ -18,7 +18,7 @@
 #include <linux/version.h>
 #include <linux/pci.h>
 
-#include "pisces.h"
+#include "pisces_ioctl.h"
 #include "enclave.h"
 #include "enclave_ctrl.h"
 #include "boot.h"

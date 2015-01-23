@@ -19,7 +19,7 @@
 #include "pisces_irq.h"
 #include "pisces_lock.h"
 #include "enclave.h"
-#include "ctrl_cmds.h"
+#include "ctrl_ioctl.h"
 #include "pisces_xbuf.h"
 #include "enclave_ctrl.h"
 

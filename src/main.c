@@ -19,7 +19,7 @@
 #include <linux/seq_file.h>
 #include <linux/version.h>
 
-#include "pisces.h"                /* device file ioctls*/
+#include "pisces_ioctl.h"                /* device file ioctls*/
 #include "linux_syms.h"
 #include "pisces_mod.h"
 #include "enclave.h"

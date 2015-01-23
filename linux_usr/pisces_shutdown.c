@@ -12,8 +12,8 @@
 
 #include "list.h"
 
-#include "../src/pisces.h"
-#include "../src/ctrl_cmds.h"
+#include "pisces_ioctl.h"
+#include "ctrl_ioctl.h"
 
 #define PISCES_PATH "/dev/pisces"
 #define DEV_PATH    "/dev/pisces-enclave"

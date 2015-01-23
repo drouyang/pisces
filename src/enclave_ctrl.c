@@ -6,12 +6,12 @@
 #include <linux/slab.h>
 
 
-#include "pisces.h"
+#include "pisces_ioctl.h"
 #include "pisces_boot_params.h"
 #include "enclave_ctrl.h"
 #include "enclave.h"
 #include "boot.h"
-#include "ctrl_cmds.h"
+#include "ctrl_ioctl.h"
 #include "pisces_xbuf.h"
 #include "enclave_pci.h"
 

@@ -6,7 +6,7 @@
 #ifndef _PISCES_PCI_H_
 #define _PISCES_PCI_H_
 
-#include "pisces.h"
+#include "pisces_ioctl.h"
 
 
 struct pisces_enclave;

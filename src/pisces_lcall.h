@@ -8,7 +8,6 @@
 
 #include <linux/wait.h>
 #include <linux/types.h>
-#include "pisces.h"
 #include "pisces_xbuf.h"
 
 #define KERN_LCALL_START 10000

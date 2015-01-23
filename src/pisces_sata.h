@@ -6,7 +6,6 @@
 #ifndef _PISCES_SATA_H_
 #define _PISCES_SATA_H_
 
-#include "pisces.h"
 #include "enclave.h"
 #include "pisces_cmds.h"
 

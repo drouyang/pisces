@@ -22,8 +22,8 @@
 #include <pet_types.h>
 #include <pet_ioctl.h>
 
-#include "../src/pisces.h"
-#include "../src/ctrl_cmds.h"
+#include "pisces_ioctl.h"
+#include "ctrl_ioctl.h"
 
 static int use_curses = 0;
 static int debug_enable = 0;

@@ -9,7 +9,7 @@
 
 #include <pet_ioctl.h>
 
-#include "../src/pisces.h"
+#include "pisces.h"
 
 
 
@@ -24,12 +24,15 @@ static void usage() {
 int main(int argc, char ** argv) {
     char * enclave_path  = argv[1];
 
+    if (argc < 2) {
+	usage();
+	return -1;
+    }
+
     printf("Sending shutdown command to enclave (%s)\n", enclave_path);
 
-    /* Send shutdown request to Enclave */
-
-    pet_ioctl_path(enclave_path, PISCES_ENCLAVE_RESET, NULL);
-	
+    /* Send reset request to Enclave */
+    pisces_reset(get_pisces_id_from_path(enclave_path));
 
     return 0;
 }

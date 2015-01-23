@@ -10,13 +10,11 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
-#include "../src/pisces.h"
+#include "pisces.h"
 #define INBUF_SIZE 4096
 
 int main(int argc, char* argv[]) {
-    int enclave_fd;
-    int cons_fd;
-    char * enclave_dev = NULL;
+    int  cons_fd;
     char inbuf[INBUF_SIZE + 1];
 
     if (argc < 2) {
@@ -24,16 +22,7 @@ int main(int argc, char* argv[]) {
       return -1;
     }
 
-    enclave_dev = argv[1];
-    enclave_fd = open(enclave_dev, O_RDONLY);
-    if (enclave_fd == -1) {
-      printf("Error opening enclave device: %s\n", enclave_dev);
-      return -1;
-    }
-
-    cons_fd = ioctl(enclave_fd, PISCES_ENCLAVE_CONS_CONNECT, NULL); 
-
-    close(enclave_fd);
+    cons_fd = pisces_get_cons_fd(get_pisces_id_from_path(argv[1]));
 
     if (cons_fd < 0) {
       printf("Error opening enclave console\n");

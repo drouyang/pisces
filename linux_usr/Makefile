@@ -1,17 +1,18 @@
 
-
 CFLAGS = -I$(PETLIB_PATH) -L$(PETLIB_PATH)
 
 
 CC = gcc
 AR = ar
 
-libs := 	$(PETLIB_PATH)/petlib.a
+libs := 	libpisces.a 
+
+ext_libs := $(PETLIB_PATH)/petlib.a 
 
 execs := 	pisces_load \
 		pisces_launch \
 		pisces_shutdown \
-		pisces_ctrl \
+		pisces_add \
 		pisces_cons \
 		pisces_reset \
 		pisces_run \
@@ -23,6 +24,9 @@ execs := 	pisces_load \
 		v3_cons_nosc \
 		v3_dbg \
 		v3_pci \
+
+
+libpisces-objs := pisces.o pisces_ctrl.o
 
 
 build = \
@@ -43,9 +47,12 @@ endif
 
 all: $(execs) $(libs)
 
+libpisces.a: $(libpisces-objs)
+	$(call build,AR,$(AR) rcs $@ $^)
+
 
 % : %.c $(libs)
-	$(call build,CC,$(CC) $(CFLAGS)  $<  $(libs) -o $@)
+	$(call build,CC,$(CC) $(CFLAGS)  $<  $(libs) $(ext_libs) -o $@)
 
 %.o : %.c
 	$(call build,CC,$(CC) $(CFLAGS) -c $<  -o $@)
@@ -56,12 +63,12 @@ all: $(execs) $(libs)
 
 
 v3_cons_sc: v3_cons_sc.c
-	$(call build,CC,$(CC) $(CFLAGS) $< $(libs) -lcurses -ltinfo -o $@)
+	$(call build,CC,$(CC) $(CFLAGS) $< $(libs) $(ext_libs) -lcurses -ltinfo -o $@)
 
 v3_cons_nosc: v3_cons_nosc.c
-	$(call build,CC,$(CC) $(CFLAGS) $< $(libs) -lcurses -ltinfo -o $@)
+	$(call build,CC,$(CC) $(CFLAGS) $< $(libs) $(ext_libs) -lcurses -ltinfo -o $@)
 
 
 
 clean:
-	rm -f $(wildcard  $(execs))
+	rm -f $(wildcard  $(execs)) $(wildcard $(libpisces-objs)) *.a
