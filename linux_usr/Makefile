@@ -26,7 +26,7 @@ execs := 	pisces_load \
 		v3_pci \
 
 
-libpisces-objs := pisces.o pisces_ctrl.o
+libpisces-objs := pisces.o pisces_ctrl.o teardown.o
 
 
 build = \

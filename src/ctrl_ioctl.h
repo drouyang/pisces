@@ -73,8 +73,8 @@ struct memory_range {
 } __attribute__((packed));
 
 struct vm_path {
-    uint8_t file_name[256];
-    uint8_t vm_name[128];
+    u8 file_name[256];
+    u8 vm_name[128];
 } __attribute__((packed));
 
 

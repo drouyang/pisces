@@ -22,11 +22,11 @@ int pisces_launch(int pisces_id,
 		  int num_blocks);
 
 
-int 
-pisces_get_cons_fd(int pisces_id);
+int pisces_get_cons_fd(int pisces_id);
 
-int 
-pisces_reset(int pisces_id);
+int pisces_reset(int pisces_id);
+
+int pisces_teardown(int pisces_id);
 
 
 static inline char * 
