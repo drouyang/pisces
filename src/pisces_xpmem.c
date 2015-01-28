@@ -109,6 +109,7 @@ pisces_xpmem_init(struct pisces_enclave * enclave)
 	    xpmem->part,
 	    XPMEM_CONN_REMOTE,
 	    xpmem_cmd_fn,
+	    NULL,
 	    xpmem);
 
     if (xpmem->link <= 0) {
@@ -131,10 +132,7 @@ pisces_xpmem_deinit(struct pisces_enclave * enclave)
 	return 0;
     }
 
-    if (xpmem_remove_connection(xpmem->part, xpmem->link) != 0) {
-	printk(KERN_ERR "XPMEM: failed to remove XPMEM connection\n");
-	return -1;
-    }
+    xpmem_remove_connection(xpmem->part, xpmem->link);
 
     return 0;
 }
