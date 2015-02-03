@@ -40,10 +40,11 @@ pisces_xpmem_cmd_lcall(struct pisces_enclave   * enclave,
     lcall_resp.status   = 0;
     lcall_resp.data_len = 0;
 
-    if (!xpmem->connected) {
-	printk(KERN_ERR "Cannot handle enclave XPMEM request - channel not connected");
-        lcall_resp.status = -1;
-        goto out;
+    xpmem = xpmem_get_link_data(xpmem->link);
+    if (xpmem == NULL) {
+	printk(KERN_ERR "Piscex XPMEM: cannot handle enclave XPMEM request\n");
+	lcall_resp.status = -1;
+	goto out;
     }
 
     /* Copy command */
@@ -56,7 +57,8 @@ out:
 
     /* Deliver command to XPMEM partition if we received everything correctly */
     if (lcall_resp.status == 0) {
-	xpmem_cmd_deliver(xpmem->part, xpmem->link, &cmd);
+	xpmem_cmd_deliver(xpmem->link, &cmd);
+	xpmem_put_link_data(xpmem->link);
     }
 
     return 0;
@@ -78,7 +80,6 @@ xpmem_cmd_fn(struct xpmem_cmd_ex * cmd,
     );
 }
 
-
 /* Kernel initialization */
 int 
 pisces_xpmem_init(struct pisces_enclave * enclave)
@@ -97,27 +98,18 @@ pisces_xpmem_init(struct pisces_enclave * enclave)
         return -1;
     }
 
-    /* Get xpmem partition */
-    xpmem->part = xpmem_get_partition();
-    if (!xpmem->part) {
-	printk(KERN_ERR "Pisces XPMEM: cannot retrieve local XPMEM partition\n");
-	return -1;
-    }
-
     /* Add connection link for enclave */
     xpmem->link = xpmem_add_connection(
-	    xpmem->part,
 	    XPMEM_CONN_REMOTE,
+	    (void *)xpmem,
 	    xpmem_cmd_fn,
 	    NULL,
-	    xpmem);
+	    NULL);
 
     if (xpmem->link <= 0) {
 	printk(KERN_ERR "Pisces XPMEM: cannot create XPMEM connection\n");
 	return -1;
     }
-
-    xpmem->connected = 1;
 
     return 0;
 }
@@ -128,11 +120,7 @@ pisces_xpmem_deinit(struct pisces_enclave * enclave)
 {
     struct pisces_xpmem * xpmem = &(enclave->xpmem);
 
-    if (!xpmem->part) {
-	return 0;
-    }
-
-    xpmem_remove_connection(xpmem->part, xpmem->link);
+    xpmem_remove_connection(xpmem->link);
 
     return 0;
 }

@@ -17,9 +17,7 @@ struct pisces_xpmem {
     struct pisces_xbuf_desc      * xbuf_desc;
 
     /* XPMEM kernel interface */
-    int                            connected;
     xpmem_link_t                   link;
-    struct xpmem_partition_state * part;
 };
 
 
