@@ -109,8 +109,8 @@ pisces_alloc_irq(void)
 #else
         irq_clear_status_flags(irq, IRQ_LEVEL);
         irq_set_chip_and_handler(irq, &ipi_chip, handle_edge_irq);
-    }
 #endif
+    }
 
     return irq;
 }
