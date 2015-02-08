@@ -100,7 +100,6 @@ pisces_xpmem_init(struct pisces_enclave * enclave)
 
     /* Add connection link for enclave */
     xpmem->link = xpmem_add_connection(
-	    XPMEM_CONN_REMOTE,
 	    (void *)xpmem,
 	    xpmem_cmd_fn,
 	    NULL,
