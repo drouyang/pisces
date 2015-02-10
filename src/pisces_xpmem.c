@@ -8,7 +8,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/anon_inodes.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
 

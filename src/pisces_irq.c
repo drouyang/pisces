@@ -97,7 +97,7 @@ pisces_alloc_irq(void)
 
     if (irq > 0) {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,1,0)
-        struct irq_desc * desc = irq_to_desc(irq);
+        struct irq_desc * desc = linux_irq_to_desc(irq);
         if (desc == NULL) {
             printk(KERN_ERR "No desc for irq %d\n", irq);
             linux_destroy_irq(irq);
@@ -105,10 +105,11 @@ pisces_alloc_irq(void)
         }
 
         desc->status &= ~IRQ_LEVEL;
-        set_irq_chip_and_handler(irq, &ipi_chip, handle_edge_irq);
+	set_irq_chip(irq, &ipi_chip);
+        __set_irq_handler(irq, linux_handle_edge_irq, 0, NULL);
 #else
         irq_clear_status_flags(irq, IRQ_LEVEL);
-        irq_set_chip_and_handler(irq, &ipi_chip, handle_edge_irq);
+        irq_set_chip_and_handler(irq, &ipi_chip, linux_handle_edge_irq);
 #endif
     }
 
@@ -172,7 +173,7 @@ pisces_irq_to_vector(int irq)
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,1,0)
     {
-        struct irq_desc * desc = irq_to_desc(irq);
+        struct irq_desc * desc = linux_irq_to_desc(irq);
         if (desc == NULL) {
             printk(KERN_ERR "No desc for irq %d\n", irq);
             return -1;
