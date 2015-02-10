@@ -175,9 +175,10 @@ enclave_ioctl(struct file  * filp,
 #endif
 		    printk("Stopped CPUs\n");
 
+#ifdef PCI_ENABLED
 		    // reset all pci devices
 		    reset_enclave_pci(enclave);
-
+#endif
 
 		    // restart enclave
 		    ret = pisces_enclave_launch(enclave);
