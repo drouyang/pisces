@@ -18,8 +18,8 @@
 #include <termios.h>
 #include <linux/kd.h>
 #include <linux/keyboard.h>
+#include <stdint.h>
 
-#include <pet_types.h>
 #include <pet_ioctl.h>
 
 #include "pisces_ioctl.h"

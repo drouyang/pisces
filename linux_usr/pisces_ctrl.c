@@ -7,10 +7,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 #include <pet_mem.h>
 #include <pet_cpu.h>
-#include <pet_types.h>
 
 #include "pisces.h"
 #include "pisces_ioctl.h"

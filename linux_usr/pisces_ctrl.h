@@ -5,7 +5,7 @@
 #ifndef __PISCES_CTRL_H__
 #define __PISCES_CTRL_H__
 
-#include <pet_types.h>
+#include <stdint.h>
 
 int 
 pisces_add_mem_node(int pisces_id, 

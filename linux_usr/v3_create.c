@@ -12,10 +12,10 @@
 #include <unistd.h> 
 #include <string.h>
 #include <getopt.h> 
+#include <stdint.h>
 
 
 #include <ezxml.h>
-#include <pet_types.h>
 
 #include "ctrl_ioctl.h"
 #include "pisces_ioctl.h"

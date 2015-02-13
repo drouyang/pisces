@@ -12,8 +12,8 @@
 #include <sys/types.h> 
 #include <unistd.h> 
 #include <string.h>
- 
-#include <pet_types.h>
+#include <stdint.h>
+
 #include <pet_ioctl.h>
 
 #include "pisces_ioctl.h"

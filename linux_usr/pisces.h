@@ -5,7 +5,7 @@
 #ifndef __PISCES_H__
 #define __PISCES_H__
 
-#include <pet_types.h>
+#include <stdint.h>
 
 
 #define PISCES_ANY_CPU       -1

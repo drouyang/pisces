@@ -5,6 +5,7 @@
 #include <getopt.h>
 #include <regex.h>
 #include <errno.h>
+#include <stdint.h>
 
 
 #include "list.h"
@@ -12,7 +13,6 @@
 #include "pisces_ioctl.h"
 #include "ctrl_ioctl.h"
 
-#include <pet_types.h>
 #include <pet_ioctl.h>
 #include <pet_mem.h>
 #include <pet_cpu.h>
