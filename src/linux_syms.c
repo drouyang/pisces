@@ -1,5 +1,7 @@
 #include <linux/kallsyms.h>
 #include <linux/version.h>
+#include <linux/irq.h>
+
 #include "linux_syms.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,16,0)
@@ -10,9 +12,6 @@ void (*linux_destroy_irq)(unsigned int);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0)
 void (*linux_handle_edge_irq)(unsigned int, struct irq_desc *);
 struct irq_desc * (*linux_irq_to_desc)(unsigned int);
-#else
-#define linux_handle_edge_irq handle_edge_irq
-#define linux_irq_to_desc irq_to_desc
 #endif
 
 /*
