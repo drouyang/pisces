@@ -14,6 +14,7 @@
 #include "pisces_boot_params.h"
 #include "pisces_lcall.h"
 #include "pisces_xbuf.h"
+#include "pisces_irq.h"
 #include "enclave.h"
 
 #include "pisces_xpmem.h"
@@ -79,6 +80,29 @@ xpmem_cmd_fn(struct xpmem_cmd_ex * cmd,
     );
 }
 
+static int
+xpmem_segid_fn(xpmem_segid_t segid,
+               xpmem_sigid_t sigid,
+	       xpmem_domid_t domid,
+	       void        * priv_data)
+{
+    struct pisces_xpmem   * xpmem   = (struct pisces_xpmem *)priv_data;
+    struct pisces_enclave * enclave = xpmem->enclave;
+    struct xpmem_signal   * sig     = (struct xpmem_signal *)&sigid;
+
+    pisces_send_enclave_ipi(enclave, sig->vector);
+
+    return 0;
+}
+
+static void
+xpmem_kill_fn(void * priv_data)
+{
+    struct pisces_xpmem * xpmem = (struct pisces_xpmem *)priv_data;
+
+    pisces_xbuf_client_deinit(xpmem->xbuf_desc);
+}
+
 /* Kernel initialization */
 int 
 pisces_xpmem_init(struct pisces_enclave * enclave)
@@ -87,6 +111,8 @@ pisces_xpmem_init(struct pisces_enclave * enclave)
     struct pisces_boot_params * boot_params = NULL;
 
     memset(xpmem, 0, sizeof(struct pisces_xpmem));
+
+    xpmem->enclave = enclave;
 
     boot_params = __va(enclave->bootmem_addr_pa);
 
@@ -101,8 +127,8 @@ pisces_xpmem_init(struct pisces_enclave * enclave)
     xpmem->link = xpmem_add_connection(
 	    (void *)xpmem,
 	    xpmem_cmd_fn,
-	    NULL,
-	    NULL);
+	    xpmem_segid_fn,
+	    xpmem_kill_fn);
 
     if (xpmem->link <= 0) {
 	printk(KERN_ERR "Pisces XPMEM: cannot create XPMEM connection\n");

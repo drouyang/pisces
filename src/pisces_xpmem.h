@@ -13,8 +13,11 @@
 
 
 struct pisces_xpmem {
+    /* Enclave pointer */
+    struct pisces_enclave   * enclave;
+
     /* xbuf for IPI-based communication */
-    struct pisces_xbuf_desc      * xbuf_desc;
+    struct pisces_xbuf_desc * xbuf_desc;
 
     /* XPMEM kernel interface */
     xpmem_link_t                   link;
