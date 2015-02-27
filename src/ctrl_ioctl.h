@@ -60,6 +60,8 @@ struct pisces_resp {
 #define ENCLAVE_CMD_FREE_V3_PCI        190
 
 #define ENCLAVE_CMD_LAUNCH_JOB         200
+#define ENCLAVE_CMD_LOAD_FILE          201
+#define ENCLAVE_CMD_STORE_FILE         202
 
 
 #define ENCLAVE_CMD_XPMEM_CMD_EX       300
@@ -124,6 +126,11 @@ struct pisces_job_spec {
 } __attribute__((packed));
 
 
+struct pisces_file_pair {
+    char lnx_file[128];
+    char lwk_file[128];
+} __attribute__((packed));
+
 
 
 /* Kernel Space command Structures */
@@ -167,7 +174,6 @@ struct cmd_vm_cons_keycode {
 } __attribute__((packed));
 
 
-
 struct cmd_vm_debug {
     struct pisces_cmd      hdr;
     struct pisces_dbg_spec dbg_spec;
@@ -195,6 +201,16 @@ struct cmd_launch_job {
     struct pisces_job_spec spec;
 } __attribute__((packed));
 
+
+struct cmd_load_file {
+    struct pisces_cmd       hdr;
+    struct pisces_file_pair file_pair;
+} __attribute__((packed));
+
+struct cmd_store_file {
+    struct pisces_cmd       hdr;
+    struct pisces_file_pair file_pair;
+} __attribute__((packed));
 
 
 #endif

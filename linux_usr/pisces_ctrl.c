@@ -283,3 +283,27 @@ pisces_run_job(int         pisces_id,
 
     return pisces_send_ctrl_cmd(pisces_id, ENCLAVE_CMD_LAUNCH_JOB, &job_spec);
 }
+
+
+
+int 
+pisces_load_file(int    pisces_id,
+		 char * local_file, 
+		 char * remote_file)
+{
+    struct pisces_file_pair file_pair;
+   
+    memset(&file_pair, 0, sizeof(struct pisces_file_pair));
+
+    if ((strlen(local_file)  > 127) || 
+	(strlen(remote_file) > 127)) {
+	printf("Error: File paths are too long\n");
+	return -1;
+    }
+
+    strncpy(file_pair.lnx_file, local_file,  127);
+    strncpy(file_pair.lwk_file, remote_file, 127);
+    
+
+    return pisces_send_ctrl_cmd(pisces_id, ENCLAVE_CMD_LOAD_FILE, &file_pair);
+}

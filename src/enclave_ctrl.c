@@ -426,6 +426,80 @@ ctrl_ioctl(struct file   * filp,
 
 		break;
 	    }
+	    case ENCLAVE_CMD_LOAD_FILE: {
+		struct cmd_load_file cmd;
+
+		memset(&cmd, 0, sizeof(struct cmd_load_file));
+
+		cmd.hdr.cmd      = ENCLAVE_CMD_LOAD_FILE;
+		cmd.hdr.data_len = ( sizeof(struct cmd_load_file) - 
+				     sizeof(struct pisces_cmd));
+
+		if (copy_from_user(&(cmd.file_pair), argp, sizeof(struct pisces_file_pair))) {
+		    printk(KERN_ERR "Could not copy file names from user space\n");
+		    ret = -EFAULT;
+		    break;
+		}
+		
+		printk("Loading file into Kitten\n");
+
+		ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_load_file), (u8 **)&resp, &resp_len);
+
+		if (ret == 0) {
+		    status = resp->status;
+		    kfree(resp);
+		} else {
+		    status = -1;
+		}
+
+		if (status < 0) {
+		    printk(KERN_ERR "Error loading file (%s) [ret=%d, status=%d]\n",
+			   cmd.file_pair.lnx_file, ret, status);
+		    ret = -1;
+		    break;
+		}
+
+		ret = status;
+
+		break;
+	    } 
+	    case ENCLAVE_CMD_STORE_FILE: {
+		struct cmd_store_file cmd;
+
+		memset(&cmd, 0, sizeof(struct cmd_store_file));
+
+		cmd.hdr.cmd      = ENCLAVE_CMD_STORE_FILE;
+		cmd.hdr.data_len = ( sizeof(struct cmd_store_file) - 
+				     sizeof(struct pisces_cmd));
+
+		if (copy_from_user(&(cmd.file_pair), argp, sizeof(struct pisces_file_pair))) {
+		    printk(KERN_ERR "Could not copy file names from user space\n");
+		    ret = -EFAULT;
+		    break;
+		}
+		
+		printk("Loading file into Kitten\n");
+
+		ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct cmd_store_file), (u8 **)&resp, &resp_len);
+
+		if (ret == 0) {
+		    status = resp->status;
+		    kfree(resp);
+		} else {
+		    status = -1;
+		}
+
+		if (status < 0) {
+		    printk(KERN_ERR "Error loading file (%s) [ret=%d, status=%d]\n",
+			   cmd.file_pair.lnx_file, ret, status);
+		    ret = -1;
+		    break;
+		}
+
+		ret = status;
+
+		break;
+	    }
 	    case ENCLAVE_CMD_CREATE_VM: {
 		struct cmd_create_vm cmd;
 
