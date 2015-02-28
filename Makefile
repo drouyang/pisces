@@ -4,7 +4,7 @@ KERN_PATH=/usr/src/kernels/`uname -r`
 
 BUILD_DIR=$(PWD)
 
-XPMEM_KERN_PATH=$(BUILD_DIR)/../xpmem/
+XPMEM_PATH=$(BUILD_DIR)/../xpmem/
 PETLIB_PATH=$(BUILD_DIR)/../petlib
 
 
@@ -33,7 +33,7 @@ pisces-objs :=  src/main.o             \
 		src/linux_syms.o
 
 ifeq ($(XPMEM),y)
-  EXTRA_CFLAGS         += -I$(XPMEM_KERN_PATH)/include -DUSING_XPMEM
+  EXTRA_CFLAGS         += -I$(XPMEM_PATH)/include -DUSING_XPMEM
   KBUILD_EXTRA_SYMBOLS += $(XPMEM_KERN_PATH)/mod/Module.symvers
 
   pisces-objs +=  src/pisces_xpmem.o 
