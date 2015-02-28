@@ -34,7 +34,7 @@ pisces-objs :=  src/main.o             \
 
 ifeq ($(XPMEM),y)
   EXTRA_CFLAGS         += -I$(XPMEM_PATH)/include -DUSING_XPMEM
-  KBUILD_EXTRA_SYMBOLS += $(XPMEM_KERN_PATH)/mod/Module.symvers
+  KBUILD_EXTRA_SYMBOLS += $(XPMEM_PATH)/mod/Module.symvers
 
   pisces-objs +=  src/pisces_xpmem.o 
 
