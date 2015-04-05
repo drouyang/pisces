@@ -16,6 +16,7 @@
 #include <pet_ioctl.h>
 #include <pet_mem.h>
 #include <pet_cpu.h>
+#include <pet_pci.h>
 
 #define PISCES_PATH "/dev/pisces"
 #define DEV_PATH    "/dev/pisces-enclave"

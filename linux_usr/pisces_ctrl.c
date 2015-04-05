@@ -7,10 +7,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <stdint.h>
+
 
 #include <pet_mem.h>
 #include <pet_cpu.h>
+#include <pet_ioctl.h>
 
 #include "pisces.h"
 #include "pisces_ioctl.h"
@@ -162,11 +165,10 @@ pisces_add_cpus(int pisces_id,
     for (i = 0; i < num_cpus; i++) {
 	cpu_id = cpu_arr[i].cpu_id;
 	
-	printf("Adding CPU %d to enclave %d\n", 
-	       (void *)cpu_id, pisces_id);
+	printf("Adding CPU %lu to enclave %d\n", cpu_id, pisces_id);
 	
 	if (pisces_send_ctrl_cmd(pisces_id, ENCLAVE_CMD_ADD_CPU, (void *)cpu_id) != 0) {
-	    printf("Error: Could not add CPU %d to enclave %d\n", cpu_id, pisces_id);
+	    printf("Error: Could not add CPU %lu to enclave %d\n", cpu_id, pisces_id);
 	    pet_online_cpu(cpu_id);
 	    continue;
 	}
@@ -185,13 +187,13 @@ pisces_add_cpu(int      pisces_id,
 {
 
     if (pet_offline_cpu(cpu_id) == -1) {
-	printf("Error: Could not offline CPU %d\n", cpu_id);
+	printf("Error: Could not offline CPU %lu\n", cpu_id);
 	return -1;
     }
     
 
     if (pisces_send_ctrl_cmd(pisces_id, ENCLAVE_CMD_ADD_CPU, (void *)cpu_id) != 0) {
-	printf("Error: Could not add CPU %llu to enclave\n", cpu_id);
+	printf("Error: Could not add CPU %lu to enclave\n", cpu_id);
 	pet_online_cpu(cpu_id);
 	return -1;
     }
@@ -205,7 +207,7 @@ pisces_remove_cpu(int      pisces_id,
 		  uint64_t cpu_id)
 {
     if (pisces_send_ctrl_cmd(pisces_id, ENCLAVE_CMD_REMOVE_CPU, (void *)cpu_id) != 0) {
-	printf("Error: Could not remove CPU %llu from enclave\n", cpu_id);
+	printf("Error: Could not remove CPU %lu from enclave\n", cpu_id);
 	return -1;
     }
 

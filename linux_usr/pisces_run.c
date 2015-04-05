@@ -6,7 +6,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <getopt.h>
-
+#include <ctype.h>
 
 
 #include "pisces_ctrl.h"
@@ -63,9 +63,7 @@ static void usage() {
 
 int main(int argc, char ** argv) {
     int       pisces_id    = -1;
-    int       ctrl_fd      =  0;
     int       use_job_file =  0;
-    int       ret          =  0;
     uint64_t  cpu_mask     =  0;
 
     /* Parse Options */
@@ -246,7 +244,7 @@ int main(int argc, char ** argv) {
     } else {
 	char * iter_str = NULL;
 	
-	while (iter_str = strsep(&cpu_list, ",")) {
+	while ((iter_str = strsep(&cpu_list, ","))) {
 
 	    int idx = atoi(iter_str);
 	    

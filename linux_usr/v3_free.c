@@ -24,7 +24,6 @@ int main(int argc, char* argv[]) {
     char * enclave_path = argv[1];
     int vm_id = atoi(argv[2]);
     int ctrl_fd;
-    int err;
 
     if (argc <= 2) {
 	printf("usage: v3_free <pisces-enclave> <vm-id>\n");

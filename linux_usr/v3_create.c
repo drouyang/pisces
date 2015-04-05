@@ -15,6 +15,7 @@
 #include <stdint.h>
 
 
+#include <pet_ioctl.h>
 #include <ezxml.h>
 
 #include "ctrl_ioctl.h"
@@ -138,56 +139,6 @@ static ezxml_t open_xml_file(char * filename) {
 }
 
 
-static int find_xml_options(ezxml_t xml,  struct xml_option ** opts) {
-    int num_opts = 0;
-    ezxml_t child = xml->child;
-    struct xml_option * next_opt = NULL;
-
-    char * opt = (char *)ezxml_attr(xml, "opt_tag");
-
-    if (opt) {
-	next_opt = malloc(sizeof(struct xml_option));
-
-	memset(next_opt, 0, sizeof(struct xml_option));
-
-	next_opt->tag = opt;
-	next_opt->location = xml;
-	next_opt->next = NULL;
-
-//	printf("Option found: %s\n", opt);
-
-	*opts = next_opt;
-	num_opts++;
-    }
-
-
-    while (child) {
-
-	fflush(stdout);
-
-	if (next_opt != 0x0) {
-	    num_opts += find_xml_options(child, &(next_opt->next));
-	} else {
-	    num_opts += find_xml_options(child, opts);
-
-	    if (*opts) {
-		next_opt = *opts;
-	    }
-	}
-
-	if (next_opt) {
-	    while (next_opt->next) {
-		next_opt = next_opt->next;
-	    }
-	}
-
-	child = child->ordered;
-    }
-    
-    return num_opts;
-
-}
-
 
 static char * get_val(ezxml_t cfg, char * tag) {
     char * attrib = (char *)ezxml_attr(cfg, tag);
@@ -240,47 +191,20 @@ static int parse_aux_files(ezxml_t cfg_input) {
     return 0;
 }
 
-static char * build_image(char * vm_name, char * filename, 
-			     struct cfg_value * cfg_vals, 
-			     int num_options) {
-    int i = 0;
-    ezxml_t xml = NULL;
-    struct xml_option * xml_opts = NULL;
-    int num_xml_opts = 0;
+static char * 
+build_image(char             * vm_name, 
+	    char             * filename, 
+	    struct cfg_value * cfg_vals, 
+	    int                num_options)
+{
     uint8_t * guest_img_data = NULL;
-    int guest_img_size = 0;
+    int       guest_img_size = 0;
+    ezxml_t   xml = NULL;
 
 
     xml = open_xml_file(filename);
     
-    // parse options
-    num_xml_opts = find_xml_options(xml, &xml_opts);
-    
-    //  printf("%d options\n", num_xml_opts);
-
-    // apply options
-    for (i = 0; i < num_options; i++) {
-	struct cfg_value * cfg_val = &cfg_vals[i];
-	struct xml_option * xml_opt = xml_opts;
-
-	while (xml_opt) {
-	    if (strcasecmp(cfg_val->tag, xml_opt->tag) == 0) {
-		break;
-	    }
-	    
-	    xml_opt = xml_opt->next;
-	}
-
-
-	if (!xml_opt) {
-	    printf("Could not find Config option (%s) in XML file\n", cfg_val->tag);
-	    return NULL;
-	}
-
-	ezxml_set_txt(xml_opt->location, cfg_val->value);
-    }
-    
-
+   
 
     // parse files
     parse_aux_files(xml);

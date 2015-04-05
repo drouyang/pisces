@@ -30,7 +30,6 @@ int main(int argc, char* argv[]) {
     }
 
     while (1) {
-        int ret;
         int bytes_read = 0;
 
         bytes_read = read(cons_fd, inbuf, INBUF_SIZE);

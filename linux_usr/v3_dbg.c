@@ -52,9 +52,7 @@ int main(int argc, char* argv[]) {
     char * enclave_path   = NULL;
 
     int ctrl_fd           = 0;
-    int exit_mode_disable = 0;
     int num_opts          = 0;
-    int err               = 0;
     int c                 = 0;
 
     memset(&cmd, 0, sizeof(struct pisces_dbg_spec));

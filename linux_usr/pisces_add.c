@@ -31,8 +31,6 @@ int main(int argc, char* argv[]) {
     char * cpu_str = NULL;
     char * mem_str = NULL;
 
-    int ret = 0;
-
     /* Parse options */
     {
 	char c = 0;
@@ -82,7 +80,7 @@ int main(int argc, char* argv[]) {
 
 	    char * iter_str = NULL;	    
 	    
-	    while (iter_str = strsep(&mem_str, ",")) {
+	    while ((iter_str = strsep(&mem_str, ","))) {
 		int idx = atoi(iter_str);
 		if (pisces_add_mem_explicit(pisces_id, idx) == -1) {
 		    printf("Error: Could not add memory block %d\n", idx);
@@ -104,7 +102,7 @@ int main(int argc, char* argv[]) {
 	if (explicit) {
 	    char * iter_str = NULL;	    
 
-	    while (iter_str = strsep(&cpu_str, ",")) {
+	    while ((iter_str = strsep(&cpu_str, ","))) {
 		phys_cpu_id = atoi(iter_str);
 
 		if (pisces_add_cpu(pisces_id, phys_cpu_id) == -1) {

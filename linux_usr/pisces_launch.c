@@ -20,14 +20,13 @@ static void usage() {
 }
 
 
-int main(int argc, char ** argv) {
-
-    char * enclave_path =  NULL;
+int 
+main(int argc, char ** argv) 
+{
     int    numa_zone    = PISCES_ANY_NUMA_ZONE;
     int    cpu_id       = PISCES_ANY_CPU;
     int    block_id     = PISCES_ANY_MEMBLOCK;
     int    num_blocks   =  1;
-    int    ret          =  0;
     int    enclave_id   = -1;
 
 

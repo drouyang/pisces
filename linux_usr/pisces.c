@@ -19,7 +19,7 @@
 #include <pet_mem.h>
 #include <pet_cpu.h>
 
-int 
+int
 pisces_load(char * kern, 
 	    char * initrd, 
 	    char * cmd_line) 
@@ -85,7 +85,7 @@ pisces_launch(int pisces_id,
     {	
 	if (block_id == PISCES_ANY_MEMBLOCK) {
             struct mem_block * blocks = NULL;
-            int i, ret;
+            int ret = 0;
 
             blocks = malloc(sizeof(struct mem_block) * num_blocks);
 

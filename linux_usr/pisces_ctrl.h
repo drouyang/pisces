@@ -48,4 +48,10 @@ pisces_run_job(int         pisces_id,
 	       uint64_t    heap_size,
 	       uint64_t    stack_size);
 
+int 
+pisces_load_file(int    pisces_id,
+                 char * local_file, 
+                 char * remote_file);
+
+
 #endif

@@ -23,7 +23,6 @@ static void usage() {
 
 int main(int argc, char ** argv) {
     int    pisces_id   = -1;
-    int    ctrl_fd     =  0;
     char * local_file  = NULL;
     char * remote_file = NULL;
 

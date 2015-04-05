@@ -1,5 +1,5 @@
 
-CFLAGS = -I$(PETLIB_PATH) -L$(PETLIB_PATH)
+CFLAGS = -Wall -Werror -D_GNU_SOURCE -I$(PETLIB_PATH) -L$(PETLIB_PATH)
 
 
 CC = gcc
