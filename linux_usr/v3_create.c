@@ -99,8 +99,8 @@ static int create_vm(char * enclave_path, char * vm_name, char * filename) {
     
     memset(&vm, 0, sizeof(struct vm_path));
 
-    strncpy(vm.file_name, filename, 256);
-    strncpy(vm.vm_name, vm_name, 128);
+    strncpy((char *)vm.file_name, filename, 256);
+    strncpy((char *)vm.vm_name, vm_name, 128);
 
     ctrl_fd = pet_ioctl_path(enclave_path, PISCES_ENCLAVE_CTRL_CONNECT, NULL);
 

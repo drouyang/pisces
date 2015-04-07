@@ -142,7 +142,7 @@ int main(int argc, char ** argv) {
 	dev_spec.bus  = bus;
 	dev_spec.dev  = dev;
 	dev_spec.func = fn;
-	strncpy(dev_spec.name, name, 128);
+	strncpy((char *)dev_spec.name, name, 128);
 
 	ctrl_fd = pet_ioctl_path(enclave_path, PISCES_ENCLAVE_CTRL_CONNECT, NULL);
 
@@ -189,7 +189,7 @@ int main(int argc, char ** argv) {
 	dev_spec.bus  = bus;
 	dev_spec.dev  = dev;
 	dev_spec.func = fn;
-	strncpy(dev_spec.name, name, 128);
+	strncpy((char *)dev_spec.name, name, 128);
 	
 	ctrl_fd = pet_ioctl_path(enclave_path, PISCES_ENCLAVE_CTRL_CONNECT, NULL);
 
