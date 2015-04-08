@@ -75,13 +75,13 @@ struct memory_range {
 } __attribute__((packed));
 
 struct vm_path {
-    u8 file_name[256];
-    u8 vm_name[128];
+    char file_name[256];
+    char vm_name[128];
 } __attribute__((packed));
 
 
 struct pisces_pci_spec {
-    u8  name[128];
+    char  name[128];
     u32 bus;
     u32 dev;
     u32 func;
@@ -89,7 +89,7 @@ struct pisces_pci_spec {
 
 
 struct pisces_sata_dev {
-    u8  name[128];
+    char  name[128];
     u32 bus;
     u32 dev;
     u32 func;

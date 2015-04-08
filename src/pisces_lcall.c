@@ -157,6 +157,8 @@ pisces_lcall_init( struct pisces_enclave * enclave) {
     }
 
 
+    pisces_xbuf_enable(xbuf_desc);
+
     return 0;
 }
 
@@ -166,8 +168,11 @@ pisces_lcall_deinit(struct pisces_enclave * enclave)
 {
     struct pisces_lcall_state * lcall_state = &(enclave->lcall_state);
 
+
     lcall_state->active_lcall = 1;
     mb();
+
+    pisces_xbuf_disable(lcall_state->xbuf_desc);
 
     kthread_stop(lcall_state->kern_thread);
 

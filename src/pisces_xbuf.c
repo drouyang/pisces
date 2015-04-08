@@ -48,6 +48,16 @@ struct pisces_xbuf {
 } __attribute__((packed));
 
 
+static void reset_flags(struct pisces_xbuf * xbuf) {
+        u64 flags = XBUF_READY;
+
+    __asm__ __volatile__ ("lock andq %1, %0;"
+			  : "+m"(xbuf->flags)
+			  : "r"(flags)
+			  : "memory");
+
+}
+
 static void set_flags(struct pisces_xbuf * xbuf, u64 new_flags) {
     __asm__ __volatile__ ("lock xchgq %1, %0;"
 			  : "+m"(xbuf->flags), "+r"(new_flags)
@@ -76,7 +86,7 @@ static void lower_flag(struct pisces_xbuf * xbuf, u64 flags) {
 
 
 
-int 
+ int 
 pisces_xbuf_pending(struct pisces_xbuf_desc * desc)
 {
     return desc->xbuf->pending;
@@ -112,8 +122,25 @@ send_data(struct pisces_xbuf * xbuf,
     while (bytes_left > 0) {
 	u32 staged_len = (bytes_left > xbuf_size) ? xbuf_size : bytes_left;
 	
+
+	    __asm__ __volatile__ ("":::"memory");
+	if (!xbuf->ready) {
+	    printk(KERN_ERR "XBUF disabled during data transfer\n");
+	    return 0;
+	}
+
+
 	while (xbuf->staged == 1) {
+
+
+	    __asm__ __volatile__ ("":::"memory");
+	    if (!xbuf->ready) {
+		printk(KERN_ERR "XBUF disabled during data transfer\n");
+		return 0;
+	    }
+
 	    schedule();
+
 	    __asm__ __volatile__ ("":::"memory");
 	}
 
@@ -149,11 +176,23 @@ recv_data(struct pisces_xbuf  * xbuf,
     while (bytes_left > 0) {
 	u32 staged_len = (bytes_left > xbuf_size) ? xbuf_size : bytes_left;
 
-
+	    __asm__ __volatile__ ("":::"memory");
+	if (!xbuf->ready) {
+	    printk(KERN_ERR "XBUF disabled during data transfer\n");
+	    return 0;
+	}
+	
 	iter_cnt = 0;
 
 	while (xbuf->staged == 0) {
 	    __asm__ __volatile__ ("":::"memory");
+
+
+	    __asm__ __volatile__ ("":::"memory");
+	    if (!xbuf->ready) {
+		printk(KERN_ERR "XBUF disabled during data transfer\n");
+		return 0;
+	    }
 
 	    if (iter_cnt == 1000000) {
 		printk("XBUF recv Stall detected!\n");
@@ -206,17 +245,21 @@ pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc,
     unsigned long flags       = 0;
     int acquired              = 0;
     
-    if (xbuf->ready == 0) {
-        printk(KERN_ERR "Attempted sync_send to unready xbuf\n");
-        return -1;
-    }
 
     while (acquired == 0) {
 	spin_lock_irqsave(&(desc->xbuf_lock), flags);
 	
+	__asm__ __volatile__ ("":::"memory");
+	if (xbuf->ready == 0) {
+	    printk(KERN_ERR "Attempted sync_send to unready xbuf\n");
+	    spin_unlock_irqrestore(&(desc->xbuf_lock), flags);
+	    goto err;
+	}
+
 	if (xbuf->pending == 0) {
 	    // clear all flags and signal that message is pending */
-	    set_flags(xbuf, XBUF_READY | XBUF_PENDING);
+	    reset_flags(xbuf);
+	    raise_flag(xbuf, XBUF_PENDING);
 	    mb();
 	    acquired = 1;
 	}
@@ -228,6 +271,8 @@ pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc,
             wait_event_interruptible(desc->xbuf_waitq, (xbuf->pending == 0));
         }
     }
+
+	
 
     if ((data != NULL) && (data_len > 0)) {
 	u32 bytes_staged = 0;
@@ -251,6 +296,12 @@ pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc,
 
     /* Wait for complete flag to be 1 */
     while (xbuf->complete == 0) {
+
+	__asm__ __volatile__ ("":::"memory");
+	if (!xbuf->ready) {
+	    printk(KERN_ERR "XBUF was disabled before completion\n");
+	    goto err;
+	}
 	schedule();
         __asm__ __volatile__ ("":::"memory");
     }
@@ -264,17 +315,21 @@ pisces_xbuf_sync_send(struct pisces_xbuf_desc * desc,
 	debug("Receiving Response Data\n");
 
 	if (recv_data(xbuf, resp_data, resp_len) == 0) {
-	    return -1;
+	    goto err;
 	}
     }
 
     debug("CMD IS NOW READY\n");
-    set_flags(xbuf, XBUF_READY);
+    reset_flags(xbuf);
     mb();
     
     wake_up_interruptible(&(desc->xbuf_waitq));
 
     return 0;
+
+ err:
+    wake_up_interruptible(&(desc->xbuf_waitq));
+    return -1;
 }
 
 
@@ -441,8 +496,6 @@ pisces_xbuf_server_init(struct pisces_enclave * enclave,
 
     printk("Registered Handler for Pisces Control IPIs (irq:%d, vector:%d)\n", irq, vector);
 
-    set_flags(xbuf, XBUF_READY);
-
     return desc;
 
 }
@@ -506,3 +559,39 @@ pisces_xbuf_client_deinit(struct pisces_xbuf_desc * desc)
 
 
 
+
+
+int 
+pisces_xbuf_disable(struct pisces_xbuf_desc * desc)
+{
+	struct pisces_xbuf * xbuf = desc->xbuf;
+
+	__asm__ __volatile__ ("":::"memory");
+	if ( !xbuf->ready ) {
+		printk(KERN_ERR "Tried to disable an already disabled xbuf\n");
+		return -1;
+	}
+
+	lower_flag(xbuf, XBUF_READY);
+
+	return 0;
+}
+
+
+int 
+pisces_xbuf_enable(struct pisces_xbuf_desc * desc)
+{
+	struct pisces_xbuf * xbuf = desc->xbuf;
+	
+
+	    
+	__asm__ __volatile__ ("":::"memory");
+	if (xbuf->ready) {
+		printk(KERN_ERR "Tried to enable an already enabled xbuf\n");
+		return -1;
+	}
+
+	set_flags(xbuf, XBUF_READY);
+
+	return 0;
+}
