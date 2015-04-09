@@ -50,6 +50,11 @@ static int lcall_kern_thread(void * arg) {
     int ret        = 0;
     
     while (1) {
+
+	if (kthread_should_stop()) {
+	    break;
+	}
+
         //  printk("LCALL Kernel thread going to sleep on cmd buf\n");
         wait_event_interruptible(lcall_state->kern_waitq, 
 				 (lcall_state->active_lcall == 1));
@@ -65,6 +70,15 @@ static int lcall_kern_thread(void * arg) {
         // grab the lcall from the xbuf
         ret = pisces_xbuf_recv(xbuf_desc, (u8 **)&cur_lcall, &lcall_size);
         
+
+	if (ret == -1) {
+	    printk("LCALL XBUF Error\n");
+	    return -1;
+	}
+
+	if (kthread_should_stop()) {
+	    break;
+	}
 
         //	printk("Xbuf data received (ret==%d) (%u byte)\n", ret, lcall_size);
 
@@ -135,8 +149,8 @@ pisces_lcall_init( struct pisces_enclave * enclave) {
 
     boot_params = __va(enclave->bootmem_addr_pa);
     xbuf_desc   = pisces_xbuf_server_init(enclave, (uintptr_t)__va(boot_params->longcall_buf_addr), 
-			    boot_params->longcall_buf_size, 
-			    lcall_handler, apic->cpu_present_to_apicid(0));
+					  boot_params->longcall_buf_size, 
+					  lcall_handler, apic->cpu_present_to_apicid(0));
 
     if (xbuf_desc == NULL) {
 	printk("Error initializing LCALL XBUF server\n");
@@ -168,13 +182,13 @@ pisces_lcall_deinit(struct pisces_enclave * enclave)
 {
     struct pisces_lcall_state * lcall_state = &(enclave->lcall_state);
 
+    kthread_stop(lcall_state->kern_thread);
 
     lcall_state->active_lcall = 1;
+    pisces_xbuf_disable(lcall_state->xbuf_desc);
     mb();
 
-    pisces_xbuf_disable(lcall_state->xbuf_desc);
 
-    kthread_stop(lcall_state->kern_thread);
 
     pisces_xbuf_server_deinit(lcall_state->xbuf_desc);
 
