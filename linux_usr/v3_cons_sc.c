@@ -441,7 +441,7 @@ int main(int argc, char* argv[]) {
 	return -1;
     }
 
-    cons_fd = pet_ioctl_fd(ctrl_fd, ENCLAVE_CMD_VM_CONS_CONNECT, (void *)(uint64_t)vm_id); 
+    cons_fd = pet_ioctl_fd(ctrl_fd, PISCES_CMD_VM_CONS_CONNECT, (void *)(uint64_t)vm_id); 
 
     close(ctrl_fd);
 

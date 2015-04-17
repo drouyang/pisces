@@ -112,7 +112,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    if (pet_ioctl_fd(ctrl_fd, ENCLAVE_CMD_VM_DBG, &cmd) != 0) {
+    if (pet_ioctl_fd(ctrl_fd, PISCES_CMD_VM_DBG, &cmd) != 0) {
 	printf("Error: Could not send debug request to VM\n");
 	return -1;
     }

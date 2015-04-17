@@ -342,7 +342,7 @@ static int writeit(int fd, char c)  {
 
 	printf("0x%x\n", c);
 
-	if (pet_ioctl_fd(fd, ENCLAVE_CMD_VM_CONS_KEYCODE, (void *)(uint64_t)c) != 0) { 
+	if (pet_ioctl_fd(fd, PISCES_CMD_VM_CONS_KEYCODE, (void *)(uint64_t)c) != 0) { 
 	    return -1; 
 	} 
 

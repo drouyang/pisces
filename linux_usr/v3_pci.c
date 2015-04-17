@@ -152,7 +152,7 @@ int main(int argc, char ** argv) {
 	    return -1;
 	}
 	
-	if (pet_ioctl_fd(ctrl_fd, ENCLAVE_CMD_ADD_V3_PCI,  &dev_spec) != 0) {
+	if (pet_ioctl_fd(ctrl_fd, PISCES_CMD_ADD_V3_PCI,  &dev_spec) != 0) {
 	    printf("Error: Could not add device to Palacios\n");
 	    pet_online_pci(bus, dev, fn);
 	    return -1;
@@ -194,7 +194,7 @@ int main(int argc, char ** argv) {
 	ctrl_fd = pet_ioctl_path(enclave_path, PISCES_ENCLAVE_CTRL_CONNECT, NULL);
 
 	if (ctrl_fd >= 0) {
-	    if (pet_ioctl_fd(ctrl_fd, ENCLAVE_CMD_FREE_V3_PCI,  &dev_spec) != 0) {
+	    if (pet_ioctl_fd(ctrl_fd, PISCES_CMD_FREE_V3_PCI,  &dev_spec) != 0) {
 		printf("Error: Could not remove device from Palacios\n");
 	    }
 	}

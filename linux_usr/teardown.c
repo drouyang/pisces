@@ -321,7 +321,7 @@ pisces_teardown(int pisces_id)
 	    return -1;
 	}
 	
-	if (pet_ioctl_fd(ctrl_fd, ENCLAVE_CMD_SHUTDOWN, 0) != 0) {
+	if (pet_ioctl_fd(ctrl_fd, PISCES_CMD_SHUTDOWN, 0) != 0) {
 	    printf("Error: Could not LAUNCH VM\n");
 	    return -1;
 	}

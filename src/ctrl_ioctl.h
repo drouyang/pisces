@@ -31,43 +31,43 @@ struct pisces_resp {
  * For the most part these are identical to the user-space ioctl numbers 
  */
 
-#define ENCLAVE_CMD_ADD_CPU            100
-#define ENCLAVE_CMD_ADD_MEM            101
+#define PISCES_CMD_ADD_CPU            100
+#define PISCES_CMD_ADD_MEM            101
 
-#define ENCLAVE_CMD_REMOVE_CPU         110
-#define ENCLAVE_CMD_REMOVE_MEM         111
-
-
-#define ENCLAVE_CMD_CREATE_VM          120
-#define ENCLAVE_CMD_FREE_VM            121
-#define ENCLAVE_CMD_LAUNCH_VM          122
-#define ENCLAVE_CMD_STOP_VM            123
-#define ENCLAVE_CMD_PAUSE_VM           124
-#define ENCLAVE_CMD_CONTINUE_VM        125
-#define ENCLAVE_CMD_SIMULATE_VM        126
-
-#define ENCLAVE_CMD_VM_MOVE_CORE       140
-#define ENCLAVE_CMD_VM_DBG             141
+#define PISCES_CMD_REMOVE_CPU         110
+#define PISCES_CMD_REMOVE_MEM         111
 
 
-#define ENCLAVE_CMD_VM_CONS_CONNECT    150
-#define ENCLAVE_CMD_VM_CONS_DISCONNECT 151
-#define ENCLAVE_CMD_VM_CONS_KEYCODE    152  /* Not accessible via an IOCTL */
+#define PISCES_CMD_CREATE_VM          120
+#define PISCES_CMD_FREE_VM            121
+#define PISCES_CMD_LAUNCH_VM          122
+#define PISCES_CMD_STOP_VM            123
+#define PISCES_CMD_PAUSE_VM           124
+#define PISCES_CMD_CONTINUE_VM        125
+#define PISCES_CMD_SIMULATE_VM        126
 
-#define ENCLAVE_CMD_ADD_V3_PCI         180
-#define ENCLAVE_CMD_ADD_V3_SATA        181
-
-#define ENCLAVE_CMD_FREE_V3_PCI        190
-
-#define ENCLAVE_CMD_LAUNCH_JOB         200
-#define ENCLAVE_CMD_LOAD_FILE          201
-#define ENCLAVE_CMD_STORE_FILE         202
+#define PISCES_CMD_VM_MOVE_CORE       140
+#define PISCES_CMD_VM_DBG             141
 
 
-#define ENCLAVE_CMD_XPMEM_CMD_EX       300
+#define PISCES_CMD_VM_CONS_CONNECT    150
+#define PISCES_CMD_VM_CONS_DISCONNECT 151
+#define PISCES_CMD_VM_CONS_KEYCODE    152  /* Not accessible via an IOCTL */
+
+#define PISCES_CMD_ADD_V3_PCI         180
+#define PISCES_CMD_ADD_V3_SATA        181
+
+#define PISCES_CMD_FREE_V3_PCI        190
+
+#define PISCES_CMD_LAUNCH_JOB         200
+#define PISCES_CMD_LOAD_FILE          201
+#define PISCES_CMD_STORE_FILE         202
 
 
-#define ENCLAVE_CMD_SHUTDOWN           900
+#define PISCES_CMD_XPMEM_CMD_EX       300
+
+
+#define PISCES_CMD_SHUTDOWN           900
 
 struct memory_range {
     u64 base_addr;

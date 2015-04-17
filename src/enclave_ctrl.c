@@ -102,7 +102,7 @@ ctrl_add_mem(struct pisces_enclave * enclave,
 
     memset(&cmd, 0, sizeof(struct cmd_mem_add));
 
-    cmd.hdr.cmd      = ENCLAVE_CMD_ADD_MEM;
+    cmd.hdr.cmd      = PISCES_CMD_ADD_MEM;
     cmd.hdr.data_len = ( sizeof(struct cmd_mem_add) - 
 			 sizeof(struct pisces_cmd));
 
@@ -140,7 +140,7 @@ ctrl_add_cpu(struct pisces_enclave * enclave,
 
     memset(&cmd, 0, sizeof(struct cmd_cpu_add));
 
-    cmd.hdr.cmd      = ENCLAVE_CMD_ADD_CPU;
+    cmd.hdr.cmd      = PISCES_CMD_ADD_CPU;
     cmd.hdr.data_len = ( sizeof(struct cmd_cpu_add) - 
 			 sizeof(struct pisces_cmd));
     cmd.phys_cpu_id  = cpu_id;
@@ -193,7 +193,7 @@ ctrl_add_pci(struct pisces_enclave  * enclave,
 
     printk("Adding V3 PCI device\n");
 
-    cmd.hdr.cmd      = ENCLAVE_CMD_ADD_V3_PCI;
+    cmd.hdr.cmd      = PISCES_CMD_ADD_V3_PCI;
     cmd.hdr.data_len = ( sizeof(struct cmd_add_pci_dev) - 
 			 sizeof(struct pisces_cmd));
 
@@ -249,7 +249,7 @@ ctrl_ioctl(struct file   * filp,
 	printk("CTRL IOCTL (%d)\n", ioctl);
 
 	switch (ioctl) {
-	    case ENCLAVE_CMD_ADD_CPU: {
+	    case PISCES_CMD_ADD_CPU: {
 	
 		u64 cpu_id = (u64)arg;
 	    
@@ -263,13 +263,13 @@ ctrl_ioctl(struct file   * filp,
 
 		break;
 	    }
-	    case ENCLAVE_CMD_REMOVE_CPU: {
+	    case PISCES_CMD_REMOVE_CPU: {
 		struct cmd_cpu_add  cmd;
 		u64 cpu_id = (u64)arg;
 
 		memset(&cmd, 0, sizeof(struct cmd_cpu_add));
 
-		cmd.hdr.cmd      = ENCLAVE_CMD_REMOVE_CPU;
+		cmd.hdr.cmd      = PISCES_CMD_REMOVE_CPU;
 		cmd.hdr.data_len = ( sizeof(struct cmd_cpu_add) -
 				     sizeof(struct pisces_cmd));
 		cmd.phys_cpu_id  = cpu_id;
@@ -297,7 +297,7 @@ ctrl_ioctl(struct file   * filp,
 		break;
 	    }
 
-	    case ENCLAVE_CMD_ADD_MEM: {
+	    case PISCES_CMD_ADD_MEM: {
 		struct memory_range reg;
 
 		memset(&reg, 0, sizeof(struct memory_range));
@@ -319,14 +319,14 @@ ctrl_ioctl(struct file   * filp,
 
 		break;
 	    }
-	    case ENCLAVE_CMD_REMOVE_MEM: {
+	    case PISCES_CMD_REMOVE_MEM: {
 
 		printk("Removing memory is not supported\n");
 		ret = -1;
 		break;
 		
 	    }
-	    case ENCLAVE_CMD_ADD_V3_PCI: {
+	    case PISCES_CMD_ADD_V3_PCI: {
 		struct pisces_pci_spec spec;
 
 		memset(&spec, 0, sizeof(struct pisces_pci_spec));
@@ -351,10 +351,10 @@ ctrl_ioctl(struct file   * filp,
 
 		break;
 	    }
-	    case ENCLAVE_CMD_FREE_V3_PCI: {
+	    case PISCES_CMD_FREE_V3_PCI: {
 		struct cmd_free_pci_dev   cmd;
 
-		cmd.hdr.cmd      = ENCLAVE_CMD_FREE_V3_PCI;
+		cmd.hdr.cmd      = PISCES_CMD_FREE_V3_PCI;
 		cmd.hdr.data_len = ( sizeof(struct cmd_free_pci_dev) - 
 				     sizeof(struct pisces_cmd));
 	    
@@ -389,12 +389,12 @@ ctrl_ioctl(struct file   * filp,
 
 		break;
 	    }
-	    case ENCLAVE_CMD_LAUNCH_JOB: {
+	    case PISCES_CMD_LAUNCH_JOB: {
 		struct cmd_launch_job cmd;
 		
 		memset(&cmd, 0, sizeof(struct pisces_cmd));
 
-		cmd.hdr.cmd      = ENCLAVE_CMD_LAUNCH_JOB;
+		cmd.hdr.cmd      = PISCES_CMD_LAUNCH_JOB;
 		cmd.hdr.data_len = ( sizeof(struct cmd_launch_job) - 
 				     sizeof(struct pisces_cmd));
 
@@ -426,12 +426,12 @@ ctrl_ioctl(struct file   * filp,
 
 		break;
 	    }
-	    case ENCLAVE_CMD_LOAD_FILE: {
+	    case PISCES_CMD_LOAD_FILE: {
 		struct cmd_load_file cmd;
 
 		memset(&cmd, 0, sizeof(struct cmd_load_file));
 
-		cmd.hdr.cmd      = ENCLAVE_CMD_LOAD_FILE;
+		cmd.hdr.cmd      = PISCES_CMD_LOAD_FILE;
 		cmd.hdr.data_len = ( sizeof(struct cmd_load_file) - 
 				     sizeof(struct pisces_cmd));
 
@@ -463,12 +463,12 @@ ctrl_ioctl(struct file   * filp,
 
 		break;
 	    } 
-	    case ENCLAVE_CMD_STORE_FILE: {
+	    case PISCES_CMD_STORE_FILE: {
 		struct cmd_store_file cmd;
 
 		memset(&cmd, 0, sizeof(struct cmd_store_file));
 
-		cmd.hdr.cmd      = ENCLAVE_CMD_STORE_FILE;
+		cmd.hdr.cmd      = PISCES_CMD_STORE_FILE;
 		cmd.hdr.data_len = ( sizeof(struct cmd_store_file) - 
 				     sizeof(struct pisces_cmd));
 
@@ -500,12 +500,12 @@ ctrl_ioctl(struct file   * filp,
 
 		break;
 	    }
-	    case ENCLAVE_CMD_CREATE_VM: {
+	    case PISCES_CMD_CREATE_VM: {
 		struct cmd_create_vm cmd;
 
 		memset(&cmd, 0, sizeof(struct cmd_create_vm));
 
-		cmd.hdr.cmd      = ENCLAVE_CMD_CREATE_VM;
+		cmd.hdr.cmd      = PISCES_CMD_CREATE_VM;
 		cmd.hdr.data_len = ( sizeof(struct cmd_create_vm) -
 				     sizeof(struct pisces_cmd));
 
@@ -536,11 +536,11 @@ ctrl_ioctl(struct file   * filp,
 
 		break;
 	    }
-	    case ENCLAVE_CMD_LAUNCH_VM:
-	    case ENCLAVE_CMD_STOP_VM:
-	    case ENCLAVE_CMD_FREE_VM:
-	    case ENCLAVE_CMD_PAUSE_VM:
-	    case ENCLAVE_CMD_CONTINUE_VM: {
+	    case PISCES_CMD_LAUNCH_VM:
+	    case PISCES_CMD_STOP_VM:
+	    case PISCES_CMD_FREE_VM:
+	    case PISCES_CMD_PAUSE_VM:
+	    case PISCES_CMD_CONTINUE_VM: {
 
 		if (send_vm_cmd(xbuf_desc, ioctl, arg) != 0) {
 		    printk("Error Stopping VM (%lu)\n", arg);
@@ -551,10 +551,10 @@ ctrl_ioctl(struct file   * filp,
 		break;
 	    }
 
-	    case ENCLAVE_CMD_VM_CONS_CONNECT: {
+	    case PISCES_CMD_VM_CONS_CONNECT: {
 		long long cons_pa = 0;
 
-		cons_pa = send_vm_cmd(xbuf_desc, ENCLAVE_CMD_VM_CONS_CONNECT, arg);
+		cons_pa = send_vm_cmd(xbuf_desc, PISCES_CMD_VM_CONS_CONNECT, arg);
 
 		if (cons_pa <= 0) {
 		    printk("Could not acquire console ring buffer\n");
@@ -569,13 +569,13 @@ ctrl_ioctl(struct file   * filp,
 		break;
 	    }
 
-	    case ENCLAVE_CMD_VM_DBG: {
+	    case PISCES_CMD_VM_DBG: {
 		struct cmd_vm_debug cmd;
 
 		memset(&cmd, 0, sizeof(struct cmd_vm_debug));
 
 	    
-		cmd.hdr.cmd      = ENCLAVE_CMD_VM_DBG;
+		cmd.hdr.cmd      = PISCES_CMD_VM_DBG;
 		cmd.hdr.data_len = ( sizeof(struct cmd_vm_debug) - 
 				     sizeof(struct pisces_cmd) );
 
@@ -599,12 +599,12 @@ ctrl_ioctl(struct file   * filp,
 		break;
 	    }
 
-	    case ENCLAVE_CMD_SHUTDOWN: {
+	    case PISCES_CMD_SHUTDOWN: {
 		struct pisces_cmd cmd;
 
 		memset(&cmd, 0, sizeof(struct pisces_cmd));
 
-		cmd.cmd      = ENCLAVE_CMD_SHUTDOWN;
+		cmd.cmd      = PISCES_CMD_SHUTDOWN;
 		cmd.data_len = 0;
 	    
 		ret = pisces_xbuf_sync_send(xbuf_desc, (u8 *)&cmd, sizeof(struct pisces_cmd), (u8 **)&resp, &resp_len);

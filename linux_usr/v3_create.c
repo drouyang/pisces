@@ -109,7 +109,7 @@ static int create_vm(char * enclave_path, char * vm_name, char * filename) {
         return -1;
     }
 
-    vm_id = pet_ioctl_fd(ctrl_fd, ENCLAVE_CMD_CREATE_VM, (void *)&vm);
+    vm_id = pet_ioctl_fd(ctrl_fd, PISCES_CMD_CREATE_VM, (void *)&vm);
 
     if (vm_id < 0) {
 	printf("Error: Could not create VM\n");

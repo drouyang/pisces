@@ -40,7 +40,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    if (pet_ioctl_fd(ctrl_fd, ENCLAVE_CMD_STOP_VM, (void *)(uint64_t)vm_id) != 0) {
+    if (pet_ioctl_fd(ctrl_fd, PISCES_CMD_STOP_VM, (void *)(uint64_t)vm_id) != 0) {
 	printf("Error: Could not STOP VM\n");
 	return -1;
     }

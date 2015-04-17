@@ -190,7 +190,7 @@ console_write(struct file       * filp,
     memset(&cmd, 0, sizeof(struct cmd_vm_cons_keycode));
 
 
-    cmd.hdr.cmd      = ENCLAVE_CMD_VM_CONS_KEYCODE;
+    cmd.hdr.cmd      = PISCES_CMD_VM_CONS_KEYCODE;
     cmd.hdr.data_len = (sizeof(struct cmd_vm_cons_keycode) - sizeof(struct pisces_cmd));
     cmd.vm_id        = cons->vm_id;
   
@@ -250,7 +250,7 @@ console_release(struct inode * i,
 
     memset(&cmd, 0, sizeof(struct cmd_vm_ctrl));
     
-    cmd.hdr.cmd      = ENCLAVE_CMD_VM_CONS_DISCONNECT;
+    cmd.hdr.cmd      = PISCES_CMD_VM_CONS_DISCONNECT;
     cmd.hdr.data_len = (sizeof(struct cmd_vm_ctrl) - sizeof(struct pisces_cmd));
     cmd.vm_id        = cons->vm_id;
  

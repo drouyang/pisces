@@ -66,7 +66,7 @@ pisces_add_mem_node(int pisces_id,
 	printf("Adding memory range (%p) to enclave %d\n", 
 	       (void *)mem_range.base_addr, pisces_id);
 	
-	if (pisces_send_ctrl_cmd(pisces_id, ENCLAVE_CMD_ADD_MEM, &mem_range) == -1) {
+	if (pisces_send_ctrl_cmd(pisces_id, PISCES_CMD_ADD_MEM, &mem_range) == -1) {
 	    printf("Error: Could not add memory to enclave (%d)\n", pisces_id);
 	}
     }
@@ -105,7 +105,7 @@ pisces_add_mem(int pisces_id,
 	printf("Adding memory range (%p) to enclave %d\n", 
 	       (void *)mem_range.base_addr, pisces_id);
 	
-	if (pisces_send_ctrl_cmd(pisces_id, ENCLAVE_CMD_ADD_MEM, &mem_range) == -1) {
+	if (pisces_send_ctrl_cmd(pisces_id, PISCES_CMD_ADD_MEM, &mem_range) == -1) {
 	    printf("Error: Could not add memory to enclave (%d)\n", pisces_id);
 	}
     }
@@ -129,7 +129,7 @@ pisces_add_mem_explicit(int pisces_id,
     mem_range.base_addr = pet_block_size() * block_id;
     mem_range.pages     = pet_block_size() / 4096;
     
-    if (pisces_send_ctrl_cmd(pisces_id, ENCLAVE_CMD_ADD_MEM, &mem_range) == -1) {
+    if (pisces_send_ctrl_cmd(pisces_id, PISCES_CMD_ADD_MEM, &mem_range) == -1) {
 	printf("Error: Could not add explicit memory block (block_id: %d)\n", block_id); 
 	pet_online_block(block_id);
 	return -1;
@@ -167,7 +167,7 @@ pisces_add_cpus(int pisces_id,
 	
 	printf("Adding CPU %lu to enclave %d\n", cpu_id, pisces_id);
 	
-	if (pisces_send_ctrl_cmd(pisces_id, ENCLAVE_CMD_ADD_CPU, (void *)cpu_id) != 0) {
+	if (pisces_send_ctrl_cmd(pisces_id, PISCES_CMD_ADD_CPU, (void *)cpu_id) != 0) {
 	    printf("Error: Could not add CPU %lu to enclave %d\n", cpu_id, pisces_id);
 	    pet_online_cpu(cpu_id);
 	    continue;
@@ -192,7 +192,7 @@ pisces_add_cpu(int      pisces_id,
     }
     
 
-    if (pisces_send_ctrl_cmd(pisces_id, ENCLAVE_CMD_ADD_CPU, (void *)cpu_id) != 0) {
+    if (pisces_send_ctrl_cmd(pisces_id, PISCES_CMD_ADD_CPU, (void *)cpu_id) != 0) {
 	printf("Error: Could not add CPU %lu to enclave\n", cpu_id);
 	pet_online_cpu(cpu_id);
 	return -1;
@@ -206,7 +206,7 @@ int
 pisces_remove_cpu(int      pisces_id,
 		  uint64_t cpu_id)
 {
-    if (pisces_send_ctrl_cmd(pisces_id, ENCLAVE_CMD_REMOVE_CPU, (void *)cpu_id) != 0) {
+    if (pisces_send_ctrl_cmd(pisces_id, PISCES_CMD_REMOVE_CPU, (void *)cpu_id) != 0) {
 	printf("Error: Could not remove CPU %lu from enclave\n", cpu_id);
 	return -1;
     }
@@ -283,7 +283,7 @@ pisces_run_job(int         pisces_id,
     job_spec.stack_size      = stack_size;
 
 
-    return pisces_send_ctrl_cmd(pisces_id, ENCLAVE_CMD_LAUNCH_JOB, &job_spec);
+    return pisces_send_ctrl_cmd(pisces_id, PISCES_CMD_LAUNCH_JOB, &job_spec);
 }
 
 
@@ -307,5 +307,5 @@ pisces_load_file(int    pisces_id,
     strncpy(file_pair.lwk_file, remote_file, 127);
     
 
-    return pisces_send_ctrl_cmd(pisces_id, ENCLAVE_CMD_LOAD_FILE, &file_pair);
+    return pisces_send_ctrl_cmd(pisces_id, PISCES_CMD_LOAD_FILE, &file_pair);
 }
