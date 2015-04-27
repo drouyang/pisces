@@ -6,10 +6,11 @@ git clone http://essex.cs.pitt.edu/git/palacios.git
 -- Clone Pisces --
 git clone http://essex.cs.pitt.edu/git/pisces.git
 
--- Clone Pisces submodule
-cd pisces;
-git submodule init
-git submodule update
+-- Clone PetLib --
+git clone http://essex.cs.pitt.edu/git/petlib.git
+
+-- Clone XEMEM --
+git clone http://essex.cs.pitt.edu/git/xpmem.git
 
 -- Clone Kitten --
 git clone  https://software.sandia.gov/git/kitten
@@ -39,17 +40,19 @@ V3_CONFIG_KITTEN_KERN="/path/to/kitten"
 ******** Building *********
 
 -- Building Environment -
-(1) Build Kitten
-(2) Build Palacios
-(3) Build Kitten again to link Palacios lib
-(4) Build Pisces
+(1) Build PetLib
+(2) Build XEMEM
+(3) Build Kitten
+(4) Build Palacios
+(5) Build Kitten again to link Palacios lib
+(6) Build Pisces
 
 
 ******** Pisces Enclave Control *********
 
 -- Launching Pisces Enclave --
-(In pisces/)
-insmod pisces.ko
+From xpmem directory run 'insmod xpmem.ko'
+From pisces directory run 'insmod pisces.ko'
 
 (In pisces/linux_usr)
 ./pisces_load /path/to/vmlwk.bin /path/to/pisces_init_task 'console=pisces'
@@ -57,8 +60,8 @@ insmod pisces.ko
 
 
 -- Add memory/cpus to enclave --
-./pisces_ctrl [-n <numa_node>] -m <num memory blocks> /dev/pisces-enclave0
-./pisces_ctrl [-n <numa_node>] -c <num cpus> /dev/pisces-enclave0
+./pisces_add [-n <numa_node>] -m <num memory blocks> /dev/pisces-enclave0
+./pisces_add [-n <numa_node>] -c <num cpus> /dev/pisces-enclave0
 
 
 -- Add PCI devices to enclave --
