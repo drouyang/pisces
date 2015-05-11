@@ -23,7 +23,7 @@ void (*__cpu_maps_update_done)(void);
 
 
 int 
-init_cray_trampoline(void)
+init_trampoline(void)
 {
 
     unsigned long symbol_addr = 0;
@@ -64,7 +64,7 @@ init_cray_trampoline(void)
 }
 
 int 
-deinit_cray_trampoline(void)
+deinit_trampoline(void)
 {  
     /* Nothing to do for now */
 
@@ -73,7 +73,7 @@ deinit_cray_trampoline(void)
 
 
 int
-setup_cray_trampoline(struct pisces_enclave * enclave)
+setup_trampoline(struct pisces_enclave * enclave)
 {
     extern u8  trampoline_level4_pgt[];
     extern u64 secondary_startup_vector;
@@ -103,7 +103,7 @@ setup_cray_trampoline(struct pisces_enclave * enclave)
 
 
 int
-restore_cray_trampoline(struct pisces_enclave * enclave)
+restore_trampoline(struct pisces_enclave * enclave)
 {
     __cpu_maps_update_done();   /* Relase Linux Mutex for CPU operations */
 

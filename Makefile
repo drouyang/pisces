@@ -50,21 +50,29 @@ ifneq ($(wildcard $(VERSION_CMD)),)
 endif
 
 
-ifeq ($(OLD_VERSION),0)
-  pisces-objs  +=  src/linux_trampoline/trampoline.o \
-		   src/enclave_pci.o  
-  EXTRA_CFLAGS += -DPCI_ENABLED
-else
-  pisces-objs  += src/cray_trampoline/trampoline_64.o \
-		  src/cray_trampoline/trampoline.o
-  EXTRA_CFLAGS += -DCRAY_TRAMPOLINE 
+ifeq ($(OLD_VERSION),3)
+  pisces-objs    +=  src/trampoline_3/trampoline.o \
+		     src/enclave_pci.o  
+  EXTRA_CFLAGS   += -DPCI_ENABLED
+  TRAMPOLINE_TGT := trampoline_3
+else ifeq ($(OLD_VERSION), 2)
+  TRAMPOLINE_TGT := trampoline_2
+
+else ifeq ($(OLD_VERSION), 1)
+  TRAMPOLINE_TGT := trampoline_1
+
+else ifeq ($(OLD_VERSION), 0)
+  pisces-objs  += src/trampoline_0/trampoline_64.o \
+		  src/trampoline_0/trampoline.o
   USR_FLAGS    += STATIC=y
+  TRAMPOLINE_TGT := trampoline_0
 endif
 
 
 
 
 all: version_exec
+	ln -s $(TRAMPOLINE_TGT) src/trampoline
 	make -C $(KERN_PATH) M=$(PWD) modules
 	make -C linux_usr/ PETLIB_PATH=$(PETLIB_PATH) $(USR_FLAGS)
 
@@ -75,7 +83,7 @@ clean:
 	make -C $(KERN_PATH) M=$(PWD) clean
 	make -C linux_usr/ clean
 	rm -f $(shell find src/ -name "*.o")
-	rm -f  $(VERSION_CMD)
+	rm -f  $(VERSION_CMD) src/trampoline
 
 .PHONY: tags
 tags:

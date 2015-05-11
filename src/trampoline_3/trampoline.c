@@ -28,7 +28,7 @@ void (*__cpu_maps_update_done)(void);
 
 
 int 
-init_linux_trampoline(void)
+init_trampoline(void)
 {
 
     struct page              * pgd_cache_page    = NULL;
@@ -111,7 +111,7 @@ init_linux_trampoline(void)
 
 
 int 
-deinit_linux_trampoline(void) 
+deinit_trampoline(void) 
 {
     free_page((uintptr_t)cached_pgd_ptr);
 
@@ -122,7 +122,7 @@ deinit_linux_trampoline(void)
 
 
 int 
-setup_linux_trampoline(struct pisces_enclave * enclave)
+setup_trampoline(struct pisces_enclave * enclave)
 {
  
  
@@ -150,7 +150,7 @@ setup_linux_trampoline(struct pisces_enclave * enclave)
 
 
 int
-restore_linux_trampoline(struct pisces_enclave * enclave)
+restore_trampoline(struct pisces_enclave * enclave)
 {
 
     memcpy(trampoline_pgd_ptr, cached_pgd_ptr, PAGE_SIZE);

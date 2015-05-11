@@ -7,11 +7,7 @@
 #include "boot.h"
 
 
-#ifdef CRAY_TRAMPOLINE
-#include "cray_trampoline/trampoline.h"
-#else
-#include "linux_trampoline/trampoline.h"
-#endif
+#include "trampoline/trampoline.h"
 
 
 struct trampoline_data   trampoline_state;
@@ -96,23 +92,14 @@ pisces_init_trampoline(void)
     /* 
      * Call arch specific trampoline init
      */
-#ifdef CRAY_TRAMPOLINE
-    return init_cray_trampoline();
-#else
-    return init_linux_trampoline();
-#endif
+    return init_trampoline();
 }
 
 
 int 
 pisces_deinit_trampoline(void) 
 {
-
-#ifdef CRAY_TRAMPOLINE
-    deinit_cray_trampoline();
-#else
-    deinit_linux_trampoline();
-#endif
+    deinit_trampoline();
 
     __free_pages(pgt_pages, get_order(PAGE_SIZE * 7));
 
@@ -270,11 +257,7 @@ pisces_setup_trampoline(struct pisces_enclave * enclave)
 
     // walk_pgtables((uintptr_t)__va(trampoline_state.pml_pa));
 
-#ifdef CRAY_TRAMPOLINE
-    ret = setup_cray_trampoline(enclave);
-#else 
-    ret = setup_linux_trampoline(enclave);
-#endif
+    ret = setup_trampoline(enclave);
 
     if (ret == -1) {
 	mutex_unlock(&trampoline_lock);
@@ -289,11 +272,8 @@ pisces_restore_trampoline(struct pisces_enclave * enclave)
 {
     int ret = 0;
 
-#ifdef CRAY_TRAMPOLINE
-    ret = restore_cray_trampoline(enclave);    
-#else
-    ret = restore_linux_trampoline(enclave);
-#endif
+
+    ret = restore_trampoline(enclave);    
 
     mutex_unlock(&trampoline_lock);
     
