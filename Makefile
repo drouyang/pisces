@@ -51,17 +51,21 @@ endif
 
 
 ifeq ($(OLD_VERSION),3)
+# Known Latest Version
   pisces-objs    +=  src/trampoline_3/trampoline.o \
 		     src/enclave_pci.o  
   EXTRA_CFLAGS   += -DPCI_ENABLED
   TRAMPOLINE_TGT := trampoline_3
 else ifeq ($(OLD_VERSION), 2)
+# VERSION < 3.5.0
   TRAMPOLINE_TGT := trampoline_2
 
 else ifeq ($(OLD_VERSION), 1)
+# VERSION < 2.6.39
   TRAMPOLINE_TGT := trampoline_1
 
 else ifeq ($(OLD_VERSION), 0)
+# VERSION < 2.6.33
   pisces-objs  += src/trampoline_0/trampoline_64.o \
 		  src/trampoline_0/trampoline.o
   USR_FLAGS    += STATIC=y
