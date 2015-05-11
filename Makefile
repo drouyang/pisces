@@ -58,10 +58,16 @@ ifeq ($(OLD_VERSION),3)
   TRAMPOLINE_TGT := trampoline_3
 else ifeq ($(OLD_VERSION), 2)
 # VERSION < 3.5.0
+  pisces-objs  += src/trampoline_2/trampoline_64.o \
+		  src/trampoline_2/trampoline.o
+  USR_FLAGS    += STATIC=y
   TRAMPOLINE_TGT := trampoline_2
 
 else ifeq ($(OLD_VERSION), 1)
 # VERSION < 2.6.39
+  pisces-objs  += src/trampoline_1/trampoline_64.o \
+		  src/trampoline_1/trampoline.o
+  USR_FLAGS    += STATIC=y
   TRAMPOLINE_TGT := trampoline_1
 
 else ifeq ($(OLD_VERSION), 0)
