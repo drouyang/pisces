@@ -76,12 +76,15 @@ endif
 
 
 all: version_exec
-	ln -s $(TRAMPOLINE_TGT) src/trampoline
+	make build_setup
 	make -C $(KERN_PATH) M=$(PWD) modules
 	make -C linux_usr/ PETLIB_PATH=$(PETLIB_PATH) $(USR_FLAGS)
 
 version_exec: version.c $(VERSION_CMD)
 	gcc -I$(KERN_PATH)/include version.c -o $(VERSION_CMD)
+
+build_setup:
+	ln -s $(TRAMPOLINE_TGT) src/trampoline
 
 clean: 
 	make -C $(KERN_PATH) M=$(PWD) clean
