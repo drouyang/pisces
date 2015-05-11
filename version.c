@@ -4,7 +4,7 @@
 
 int main() {
     
-    if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,40)) {
+    if (LINUX_VERSION_CODE < KERNEL_VERSION(3,5,0)) {
 	printf("1\n");
     } else {
 	printf("0\n");
