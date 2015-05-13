@@ -81,6 +81,7 @@ endif
 
 
 
+# All default targets must be invoked via a call to make 
 all: version_exec
 	make build_setup
 	make -C $(KERN_PATH) M=$(PWD) modules
