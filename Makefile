@@ -91,7 +91,7 @@ version_exec: version.c $(VERSION_CMD)
 	gcc -I$(KERN_PATH)/include version.c -o $(VERSION_CMD)
 
 build_setup:
-	ln -s $(TRAMPOLINE_TGT) src/trampoline
+	ln -sf $(TRAMPOLINE_TGT) src/trampoline
 
 clean: 
 	make -C $(KERN_PATH) M=$(PWD) clean
