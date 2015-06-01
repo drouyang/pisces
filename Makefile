@@ -1,5 +1,5 @@
 #KERN_PATH=/usr/src/kernels/`uname -r`
-KERN_PATH=/lib/modules/`uname -r`/build/
+KERN_PATH?=/lib/modules/`uname -r`/build/
 #KERN_PATH=../linux/
 #KERN_PATH=/home/jarusl/linux-3.11.8-200.fc19.x86_64.debug
 
