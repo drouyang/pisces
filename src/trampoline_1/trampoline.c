@@ -12,7 +12,7 @@
 #include "../enclave.h"
 #include "../pgtables.h"
 #include "../boot.h"
-#include "trampoline.h"
+#include "../trampoline.h"
 
 
 
@@ -87,7 +87,7 @@ deinit_trampoline(void)
 
 
 int
-setup_trampoline(struct pisces_enclave * enclave)
+setup_enclave_trampoline(struct pisces_enclave * enclave)
 {
     extern u8  trampoline_level4_pgt[];
     extern u64 secondary_startup_vector;
@@ -117,7 +117,7 @@ setup_trampoline(struct pisces_enclave * enclave)
 
 
 int
-restore_trampoline(struct pisces_enclave * enclave)
+restore_enclave_trampoline(struct pisces_enclave * enclave)
 {
     __cpu_maps_update_done();   /* Relase Linux Mutex for CPU operations */
 

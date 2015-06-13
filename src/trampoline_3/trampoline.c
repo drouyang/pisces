@@ -11,7 +11,7 @@
 #include "../pisces_boot_params.h"
 #include "../boot.h"
 
-#include "trampoline.h"
+#include "../trampoline.h"
 
 
 #include <linux/kallsyms.h>
@@ -122,7 +122,7 @@ deinit_trampoline(void)
 
 
 int 
-setup_trampoline(struct pisces_enclave * enclave)
+setup_enclave_trampoline(struct pisces_enclave * enclave)
 {
  
  
@@ -150,7 +150,7 @@ setup_trampoline(struct pisces_enclave * enclave)
 
 
 int
-restore_trampoline(struct pisces_enclave * enclave)
+restore_enclave_trampoline(struct pisces_enclave * enclave)
 {
 
     memcpy(trampoline_pgd_ptr, cached_pgd_ptr, PAGE_SIZE);

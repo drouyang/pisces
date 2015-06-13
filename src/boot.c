@@ -7,7 +7,7 @@
 #include "boot.h"
 
 
-#include "trampoline/trampoline.h"
+#include "trampoline.h"
 
 
 struct trampoline_data   trampoline_state;
@@ -257,7 +257,7 @@ pisces_setup_trampoline(struct pisces_enclave * enclave)
 
     // walk_pgtables((uintptr_t)__va(trampoline_state.pml_pa));
 
-    ret = setup_trampoline(enclave);
+    ret = setup_enclave_trampoline(enclave);
 
     if (ret == -1) {
 	mutex_unlock(&trampoline_lock);
@@ -273,7 +273,7 @@ pisces_restore_trampoline(struct pisces_enclave * enclave)
     int ret = 0;
 
 
-    ret = restore_trampoline(enclave);    
+    ret = restore_enclave_trampoline(enclave);    
 
     mutex_unlock(&trampoline_lock);
     
