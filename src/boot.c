@@ -450,6 +450,7 @@ boot_enclave(struct pisces_enclave * enclave)
     struct pisces_boot_params * boot_params = (struct pisces_boot_params *)__va(enclave->bootmem_addr_pa);
 
     int apicid = apic->cpu_present_to_apicid(enclave->boot_cpu);
+    int cpuid  = 0;
     int ret    = 0;
 
     printk(KERN_DEBUG "Boot Enclave on CPU %d (APIC=%d)...\n", 
@@ -465,13 +466,17 @@ boot_enclave(struct pisces_enclave * enclave)
 	printk(KERN_ERR "Error: Could not setup trampoline for enclave\n");
 	return -1;
     }
-	
+
+    /* Preempt-safe method for getting cpuid */
+    cpuid = get_cpu();
+    put_cpu();
 	
     printk(KERN_INFO "Reset APIC %d from APIC %d (CPU=%d)\n", 
 	   apicid,
-	   apic->cpu_present_to_apicid(smp_processor_id()), smp_processor_id());
+	   apic->cpu_present_to_apicid(cpuid), cpuid);
 	
     __wakeup_secondary_cpu_via_init(apicid);
+
 	
     /* Wait for the target CPU to come up */
     {
